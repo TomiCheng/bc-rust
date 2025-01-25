@@ -25,15 +25,36 @@ macro_rules! create_static_big_integer {
         LazyLock::new(|| BigInteger::new($sign, Arc::new(vec![$value])))
     };
 }
+
+/// Represents the constant integer value 1 as a BigInteger instance.
+///
+/// This is a statically allocated constant using LazyLock for lazy initialization.
+/// The actual BigInteger object is only created upon first access.
+///
+/// # Examples
+/// ```
+/// use bc_rust::math::big_integer::ONE;
+/// 
+/// assert_eq!(&(*ONE).to_string(), "1");
+/// ```
 pub static ONE: LazyLock<BigInteger> = create_static_big_integer!(1);
+/// Represents the constant integer value 2 as a BigInteger instance.
 pub static TWO: LazyLock<BigInteger> = create_static_big_integer!(2);
+/// Represents the constant integer value 3 as a BigInteger instance.
 pub static THREE: LazyLock<BigInteger> = create_static_big_integer!(3);
+/// Represents the constant integer value 4 as a BigInteger instance.
 pub static FOUR: LazyLock<BigInteger> = create_static_big_integer!(4);
+/// Represents the constant integer value 5 as a BigInteger instance.
 pub static FIVE: LazyLock<BigInteger> = create_static_big_integer!(5);
+/// Represents the constant integer value 6 as a BigInteger instance.
 pub static SIX: LazyLock<BigInteger> = create_static_big_integer!(6);
+/// Represents the constant integer value 7 as a BigInteger instance.
 pub static SEVEN: LazyLock<BigInteger> = create_static_big_integer!(7);
+/// Represents the constant integer value 8 as a BigInteger instance.
 pub static EIGHT: LazyLock<BigInteger> = create_static_big_integer!(8);
+/// Represents the constant integer value 9 as a BigInteger instance.
 pub static NINE: LazyLock<BigInteger> = create_static_big_integer!(9);
+/// Represents the constant integer value 10 as a BigInteger instance.
 pub static TEN: LazyLock<BigInteger> = create_static_big_integer!(10);
 static SMALL_CONSTANTS: LazyLock<[BigInteger; 17]> = LazyLock::new(|| {
     let result: [BigInteger; 17] = [
@@ -73,6 +94,7 @@ static RADIX_10E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_10).pow(CHUNK_
 static RADIX_16: LazyLock<BigInteger> = LazyLock::new(|| (*SMALL_CONSTANTS)[16].clone());
 static RADIX_16E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_16).pow(CHUNK_16));
 
+/// `BigInteger` is a structure for representing large integers.
 #[derive(Clone)]
 pub struct BigInteger {
     sign: i32,
@@ -90,9 +112,46 @@ impl BigInteger {
             bit_length: OnceLock::new(),
         }
     }
+
+    /// Creates a `BigInteger` from a string.
+    ///
+    /// # Parameters
+    ///
+    /// * `str` - A string representing the integer.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Error` if the string is empty.
     pub fn with_string(str: &str) -> Result<Self, Error> {
         Self::with_string_radix(str, 10)
     }
+
+    /// Creates a `BigInteger` from a string with the specified radix.
+    ///
+    /// # Parameters
+    ///
+    /// * `str` - A string representing the integer.
+    /// * `radix` - The radix/base. Must be 2, 8, 10, or 16.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Error` if the string is empty.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// use std::io::Error;
+    /// 
+    /// let result_radix2 = BigInteger::with_string_radix("1010", 2).expect("Error");
+    /// let result_radix8 = BigInteger::with_string_radix("12", 8).expect("Error");
+    /// let result_radix10 = BigInteger::with_string_radix("10", 10).expect("Error");
+    /// let result_radix16 = BigInteger::with_string_radix("A", 16).expect("Error");
+    /// 
+    /// assert_eq!(result_radix2, result_radix8);
+    /// assert_eq!(result_radix8, result_radix10);
+    /// assert_eq!(result_radix10, result_radix16);
+    /// ```
     pub fn with_string_radix(str: &str, radix: u32) -> Result<Self, Error> {
         if str.is_empty() {
             return Err(Error::new(ErrorKind::InvalidInput, "string is empty"));
@@ -2964,31 +3023,7 @@ fn multiply(x: &mut [u32], y: &[u32], z: &[u32]) {
     }
 }
 
-/// The first few odd primes
-/// ```=
-///     3   5   7   11  13  17  19  23  29
-/// 31  37  41  43  47  53  59  61  67  71
-/// 73  79  83  89  97  101 103 107 109 113
-/// 127 131 137 139 149 151 157 163 167 173
-/// 179 181 191 193 197 199 211 223 227 229
-/// 233 239 241 251 257 263 269 271 277 281
-/// 283 293 307 311 313 317 331 337 347 349
-/// 353 359 367 373 379 383 389 397 401 409
-/// 419 421 431 433 439 443 449 457 461 463
-/// 467 479 487 491 499 503 509 521 523 541
-/// 547 557 563 569 571 577 587 593 599 601
-/// 607 613 617 619 631 641 643 647 653 659
-/// 661 673 677 683 691 701 709 719 727 733
-/// 739 743 751 757 761 769 773 787 797 809
-/// 811 821 823 827 829 839 853 857 859 863
-/// 877 881 883 887 907 911 919 929 937 941
-/// 947 953 967 971 977 983 991 997 1009
-/// 1013 1019 1021 1031 1033 1039 1049 1051
-/// 1061 1063 1069 1087 1091 1093 1097 1103
-/// 1109 1117 1123 1129 1151 1153 1163 1171
-/// 1181 1187 1193 1201 1213 1217 1223 1229
-/// 1231 1237 1249 1259 1277 1279 1283 1289
-/// ```
+/// The first few odd primes  
 /// Each list has a product < 2^31
 pub(crate) static PRIME_LISTS: LazyLock<Vec<Vec<u32>>> = LazyLock::new(|| {
     return vec![
