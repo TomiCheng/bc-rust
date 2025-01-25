@@ -1258,7 +1258,7 @@ impl BigInteger {
         let mut y_val: Vec<u32>;
         if mult == 1 {
             y_val = z_squared;
-            last_zeros -= 1;
+            last_zeros = last_zeros.wrapping_sub(1);
         } else {
             y_val = odd_powers[(mult >> 1) as usize].clone();
         }
@@ -1270,7 +1270,7 @@ impl BigInteger {
         } != u32::MAX
         {
             mult = window & 0xFF;
-            let bits = last_zeros + bit_len(mult); // todo!
+            let bits = last_zeros as i32 + bit_len(mult) as i32;
             for _ in 0..bits {
                 square_monty(
                     y_accm,

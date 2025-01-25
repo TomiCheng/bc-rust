@@ -802,6 +802,10 @@ fn test_mod_pow_02() {
 
         assert_eq!(res3, n3.mod_pow(&x.add(&y), &m));
 
+        let a = x.add(&(*ONE));
+        let b = y.add(&(*ONE));
+
+        assert_eq!(a.mod_pow(&b, &m).mod_inverse(&m), a.mod_pow(&b.negate(), &m));
     }
 
 
