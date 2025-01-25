@@ -869,19 +869,18 @@ fn test_negate() {
 
 #[test]
 fn test_next_probable_prime() {
-    // let mut random = DefaultRandomSource::default();
-    // let first_prime = BigInteger::with_probable_prime(32, &mut random);
-    // let next_prime = first_prime.next_probable_prime();
+    let mut random = DefaultRandomSource::default();
+    let first_prime = BigInteger::with_probable_prime(32, &mut random);
+    let next_prime = first_prime.next_probable_prime();
 
-    // assert!(first_prime.is_probable_prime(10));
-    // assert!(next_prime.is_probable_prime(10));
+    assert!(first_prime.is_probable_prime(10));
+    assert!(next_prime.is_probable_prime(10));
 
-    // let check = first_prime.add(&(*ONE));
-    // while check < next_prime {
-    //     assert!(!check.is_probable_prime(10));
-    //     check.add(&(*ONE));
-    // }
-    todo!();
+    let mut check = first_prime.add(&(*ONE));
+    while check < next_prime {
+        assert!(!check.is_probable_prime(10));
+        check = check.add(&(*ONE));
+    }
 }
 
 #[test]
