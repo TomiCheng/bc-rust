@@ -1118,14 +1118,14 @@ impl BigInteger {
         let r = n.shift_right(s as i32);
 
         // NOTE: Avoid conversion to/from Montgomery form and check for R/-R as result instead
-        
+
         let mont_radix = (*ONE)
             .shift_left((32 * n.magnitude.len()) as i32)
             .remainder(&n);
         let minus_mont_radix = n.subtract(&mont_radix);
-        
+
         let mut y_accum = vec![0u32; n.magnitude.len() + 1];
-        
+
         loop {
             let mut a: BigInteger;
             loop {
@@ -1143,7 +1143,7 @@ impl BigInteger {
             }
 
             let mut y = Self::mod_pow_monty(&mut y_accum, &a, &r, &n, false);
-            
+
             if y != mont_radix {
                 let mut j = 0;
                 while y != minus_mont_radix {
@@ -1207,14 +1207,14 @@ impl BigInteger {
         debug_assert!(z_val.len() <= n);
         if z_val.len() < n {
             let mut tmp = vec![0u32; n];
-            tmp[0..z_val.len()].copy_from_slice(&z_val);
+            tmp[(n - z_val.len())..].copy_from_slice(&z_val);
             z_val = tmp;
         }
 
         // Sliding window from MSW to LSW
-        
+
         let mut extra_bits = 0;
-        
+
         // Filter the common case of small RSA exponents with few bits set
         if e.magnitude.len() > 1 || *e.get_bit_count() > 2 {
             let exp_length = *e.get_bit_length();
@@ -1326,7 +1326,7 @@ impl BigInteger {
 
         let mut y_val = vec![0u32; n];
         y_val[n - z_val.len()..].copy_from_slice(&z_val);
-        
+
         square_monty(
             y_accum,
             &mut y_val,
@@ -1689,9 +1689,9 @@ impl BigInteger {
         }
 
         let mut result = self.r#mod(m);
-        if e != &(*ONE) {
+        if &e1 != &(*ONE) {
             if m.magnitude[m.magnitude.len() - 1] & 1 == 0 {
-                result = Self::mod_pow_barrett(&result, e, m);
+                result = Self::mod_pow_barrett(&result, &e1, m);
             } else {
                 let mut y_accum = vec![0u32; m.magnitude.len() + 1];
                 result = Self::mod_pow_monty(&mut y_accum, &result, &e1, m, true);
@@ -2479,7 +2479,7 @@ fn remainder(x: &mut [u32], y: &[u32]) {
         let y_bit_length = calc_bit_length(1, &y[y_start..]);
         let mut x_bit_length = calc_bit_length(1, &x[x_start..]);
         let mut shift = x_bit_length as isize - y_bit_length as isize;
-        
+
         let mut c: Vec<u32>;
         let mut c_start = 0;
         let mut c_bit_length = y_bit_length;
@@ -2748,7 +2748,9 @@ fn square_monty(a: &mut [u32], x: &mut [u32], m: &[u32], m_dash: u32, small_mont
     for i in (0..=n - 2).rev() {
         let a0 = a[n as usize];
         let t = a0.wrapping_mul(m_dash) as u64;
-        let mut carry = t.wrapping_mul(m[(n - 1) as usize] as u64).wrapping_add(a0 as u64);
+        let mut carry = t
+            .wrapping_mul(m[(n - 1) as usize] as u64)
+            .wrapping_add(a0 as u64);
         debug_assert!(carry as u32 == 0);
         carry >>= 32;
 
@@ -2904,19 +2906,21 @@ fn montgomery_reduce(x: &mut [u32], m: &[u32], m_dash: u32) {
     debug_assert!(x.len() == m.len());
 
     let n = m.len();
-    for _ in (0..(n - 1)).rev() {
+    for _ in (0..=(n - 1)).rev() {
         let x0 = x[n - 1];
-        let t = x0 as u64 * m_dash as u64;
+        let t = x0.wrapping_mul(m_dash) as u64;
 
-        let mut carry = t * m[n - 1] as u64 * x0 as u64;
+        let mut carry = t * m[n - 1] as u64 + x0 as u64;
         debug_assert!(carry as u32 == 0);
 
         carry >>= 32;
 
-        for j in (0..(n - 2)).rev() {
-            carry += t * m[j] as u64 + x[j] as u64;
-            x[j + 1] = carry as u32;
-            carry >>= 32;
+        if n as i32 - 2 >= 0 {
+            for j in (0..=(n - 2)).rev() {
+                carry += t * m[j] as u64 + x[j] as u64;
+                x[j + 1] = carry as u32;
+                carry >>= 32;
+            }
         }
 
         x[0] = carry as u32;

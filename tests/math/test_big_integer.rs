@@ -785,7 +785,26 @@ fn test_mod_pow_02() {
         let m = BigInteger::with_probable_prime(10 + i, &mut random);
         let x = BigInteger::with_random(*m.get_bit_length() - 1, &mut random);
         assert_eq!(x, x.mod_pow(&m, &m), "i = {}, x = {:?}, m = {:?}", i, x, m);
+
+        if x.get_sign_value() != 0 {
+            assert_eq!(*ZERO, (*ZERO).mod_pow(&x, &m));
+            assert_eq!(*ONE, x.mod_pow(&m.subtract(&(*ONE)), &m));
+        }
+
+        let y = BigInteger::with_random(m.get_bit_length() - 1, &mut random);
+        let n = BigInteger::with_random(m.get_bit_length() - 1, &mut random);
+        let n3 = n.mod_pow(&(*THREE), &m);
+
+        let res_x = n.mod_pow(&x, &m);
+        let res_y = n.mod_pow(&y, &m);
+        let res = res_x.multiply(&res_y).r#mod(&m);
+        let res3 = res.mod_pow(&(*THREE), &m);
+
+        assert_eq!(res3, n3.mod_pow(&x.add(&y), &m));
+
     }
+
+
 }
 
 #[test]
