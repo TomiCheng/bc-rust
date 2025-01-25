@@ -573,9 +573,9 @@ fn test_is_probable_prime() {
         assert!(!BigInteger::with_i32(-c).is_probable_prime(100));
     }
 
-    for e in MERSENNE_PRIME_EXPONENTS.iter().rev() {
-        assert!(&(*TWO).pow(*e as u32).subtract(&(*ONE)).is_probable_prime(100), "e = {}", e);
-        assert!(&(*TWO).pow(*e as u32).subtract(&(*ONE)).negate().is_probable_prime(100));
+    for e in MERSENNE_PRIME_EXPONENTS {
+        assert!(&(*TWO).pow(e as u32).subtract(&(*ONE)).is_probable_prime(100), "e = {}", e);
+        assert!(&(*TWO).pow(e as u32).subtract(&(*ONE)).negate().is_probable_prime(100));
     }
 
     for e in NON_PRIME_EXPONENTS {

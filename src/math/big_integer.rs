@@ -2870,7 +2870,7 @@ fn multiply_monty(
 
         for j in (0..=(n - 2)).rev() {
             prod1 = xi as u64 * y[j] as u64;
-            prod2 = t.wrapping_div(m[j] as u64);
+            prod2 = t.wrapping_mul(m[j] as u64);
 
             carry += (prod1 & UIMASK) + (prod2 as u32) as u64 + a[j + 1] as u64;
             a[j + 2] = carry as u32;
