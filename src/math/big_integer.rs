@@ -6,8 +6,6 @@ use std::io::{Error, ErrorKind};
 use std::random::{DefaultRandomSource, RandomSource};
 use std::sync::{Arc, LazyLock, OnceLock};
 
-//const C_ZERO_MAGNITUDE: [u32; 0] = [];
-
 const IMASK: i64 = 0xFFFFFFFF;
 const UIMASK: u64 = 0xFFFFFFFF;
 
@@ -1594,6 +1592,7 @@ impl BigInteger {
 
             let mut last_mag = self.magnitude[0];
             if carry {
+                // Never wraps because magnitude[0] != 0
                 last_mag -= 1;
             }
 
@@ -1601,7 +1600,7 @@ impl BigInteger {
                 bytes[{
                     bytes_index -= 1;
                     bytes_index
-                }] = (!last_mag & 0xFF) as u8;
+                }] = (!last_mag) as u8;
                 last_mag >>= 8;
             }
 
@@ -2069,13 +2068,8 @@ fn make_magnitude_be_negative(buffer: &[u8]) -> Vec<u32> {
         index += 1;
     }
     debug_assert!(index == sub_slice.len());
-    index -= 1;
-    while inverse[index] == u8::MAX {
+    while inverse[{ index -= 1; index}] == u8::MAX {
         inverse[index] = u8::MIN;
-        index -= 1;
-    }
-    for i in 0..sub_slice.len() {
-        inverse[i] = !sub_slice[i];
     }
     inverse[index] += 1;
     make_magnitude_be(&inverse)
