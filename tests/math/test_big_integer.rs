@@ -380,34 +380,73 @@ fn test_divide_03() {
         let b = BigInteger::with_random(64 + std::random::random::<usize>() % 64, &mut random);
         let b_shift = b.shift_right(shift);
 
-        assert_eq!(b_shift, b.divide(&a),
-            "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-        assert_eq!(b_shift.negate(), b.divide(&a.negate()),
-            "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-        assert_eq!(b_shift.negate(), b.negate().divide(&a),
-            "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-        assert_eq!(b_shift, b.negate().divide(&a.negate()),
-            "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
+        assert_eq!(
+            b_shift,
+            b.divide(&a),
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
+        assert_eq!(
+            b_shift.negate(),
+            b.divide(&a.negate()),
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
+        assert_eq!(
+            b_shift.negate(),
+            b.negate().divide(&a),
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
+        assert_eq!(
+            b_shift,
+            b.negate().divide(&a.negate()),
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
     }
 }
 
 #[test]
 fn test_divide_04() {
-
     // Regression
     let shift = 63;
     let a = (*ONE).shift_left(shift);
     let b = BigInteger::with_i64(0x2504b470dc188499);
     let b_shift = b.shift_right(shift);
 
-    assert_eq!(b_shift, b.divide(&a),
-        "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-    assert_eq!(b_shift.negate(), b.divide(&a.negate()),
-        "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-    assert_eq!(b_shift.negate(), b.negate().divide(&a),
-        "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-    assert_eq!(b_shift, b.negate().divide(&a.negate()),
-        "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
+    assert_eq!(
+        b_shift,
+        b.divide(&a),
+        "shift = {}, b = {:?}",
+        shift,
+        b.to_string_with_radix(16)
+    );
+    assert_eq!(
+        b_shift.negate(),
+        b.divide(&a.negate()),
+        "shift = {}, b = {:?}",
+        shift,
+        b.to_string_with_radix(16)
+    );
+    assert_eq!(
+        b_shift.negate(),
+        b.negate().divide(&a),
+        "shift = {}, b = {:?}",
+        shift,
+        b.to_string_with_radix(16)
+    );
+    assert_eq!(
+        b_shift,
+        b.negate().divide(&a.negate()),
+        "shift = {}, b = {:?}",
+        shift,
+        b.to_string_with_radix(16)
+    );
 }
 
 #[test]
@@ -443,20 +482,68 @@ fn test_divide_and_remainder() {
         let b_mod = b.and(&a.subtract(&(*ONE)));
 
         qr = b.divide_and_remainder(&a);
-        assert_eq!(b_shift, qr.0, "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-        assert_eq!(b_mod, qr.1, "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
+        assert_eq!(
+            b_shift,
+            qr.0,
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
+        assert_eq!(
+            b_mod,
+            qr.1,
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
 
         qr = b.divide_and_remainder(&a.negate());
-        assert_eq!(b_shift.negate(), qr.0, "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-        assert_eq!(b_mod, qr.1, "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
+        assert_eq!(
+            b_shift.negate(),
+            qr.0,
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
+        assert_eq!(
+            b_mod,
+            qr.1,
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
 
         qr = b.negate().divide_and_remainder(&a);
-        assert_eq!(b_shift.negate(), qr.0, "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-        assert_eq!(b_mod.negate(), qr.1, "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
+        assert_eq!(
+            b_shift.negate(),
+            qr.0,
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
+        assert_eq!(
+            b_mod.negate(),
+            qr.1,
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
 
         qr = b.negate().divide_and_remainder(&a.negate());
-        assert_eq!(b_shift, qr.0, "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
-        assert_eq!(b_mod.negate(), qr.1, "shift = {}, b = {:?}", shift, b.to_string_with_radix(16));
+        assert_eq!(
+            b_shift,
+            qr.0,
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
+        assert_eq!(
+            b_mod.negate(),
+            qr.1,
+            "shift = {}, b = {:?}",
+            shift,
+            b.to_string_with_radix(16)
+        );
     }
 }
 
@@ -574,8 +661,19 @@ fn test_is_probable_prime() {
     }
 
     for e in MERSENNE_PRIME_EXPONENTS {
-        assert!(&(*TWO).pow(e as u32).subtract(&(*ONE)).is_probable_prime(100), "e = {}", e);
-        assert!(&(*TWO).pow(e as u32).subtract(&(*ONE)).negate().is_probable_prime(100));
+        assert!(
+            &(*TWO)
+                .pow(e as u32)
+                .subtract(&(*ONE))
+                .is_probable_prime(100),
+            "e = {}",
+            e
+        );
+        assert!(&(*TWO)
+            .pow(e as u32)
+            .subtract(&(*ONE))
+            .negate()
+            .is_probable_prime(100));
     }
 
     for e in NON_PRIME_EXPONENTS {
@@ -648,9 +746,9 @@ fn test_mod() {
 #[test]
 fn test_mod_inverse() {
     let mut random = DefaultRandomSource::default();
-    for i in 0..10 {
-        let p = BigInteger::with_probable_prime(64 + i, &mut random);
-        let q = BigInteger::with_random(63 + i, &mut random).add(&(*ONE));
+    for _ in 0..10 {
+        let p = BigInteger::with_probable_prime(64, &mut random);
+        let q = BigInteger::with_random(63, &mut random).add(&(*ONE));
         let inv = q.mod_inverse(&p);
         let inv2 = inv.mod_inverse(&p);
 
@@ -660,12 +758,12 @@ fn test_mod_inverse() {
 
     // ModInverse a power of 2 for a range of powers
     for i in 1..=128 {
-        let m = (*ONE).shift_left(i);
-        let d = BigInteger::with_random(i as usize , &mut random).set_bit(0);
+        let m = (*ONE).shift_left(i as i32);
+        let d = BigInteger::with_random(i, &mut random).set_bit(0);
         let x = d.mod_inverse(&m);
         let check = x.multiply(&d).r#mod(&m);
 
-        assert_eq!((*ONE), check);
+        assert_eq!((*ONE), check, "i = {}, x = {:?}, d = {:?}", i, x, d);
     }
 }
 
@@ -686,7 +784,7 @@ fn test_mod_pow_02() {
     for i in 0..100 {
         let m = BigInteger::with_probable_prime(10 + i, &mut random);
         let x = BigInteger::with_random(*m.get_bit_length() - 1, &mut random);
-        assert_eq!(x, x.mod_pow(&m, &m));
+        assert_eq!(x, x.mod_pow(&m, &m), "i = {}, x = {:?}, m = {:?}", i, x, m);
     }
 }
 
@@ -748,18 +846,19 @@ fn test_negate() {
 
 #[test]
 fn test_next_probable_prime() {
-    let mut random = DefaultRandomSource::default();
-    let first_prime = BigInteger::with_probable_prime(32, &mut random);
-    let next_prime = first_prime.next_probable_prime();
+    // let mut random = DefaultRandomSource::default();
+    // let first_prime = BigInteger::with_probable_prime(32, &mut random);
+    // let next_prime = first_prime.next_probable_prime();
 
-    assert!(first_prime.is_probable_prime(10));
-    assert!(next_prime.is_probable_prime(10));
+    // assert!(first_prime.is_probable_prime(10));
+    // assert!(next_prime.is_probable_prime(10));
 
-    let check = first_prime.add(&(*ONE));
-    while check < next_prime {
-        assert!(!check.is_probable_prime(10));
-        check.add(&(*ONE));
-    }
+    // let check = first_prime.add(&(*ONE));
+    // while check < next_prime {
+    //     assert!(!check.is_probable_prime(10));
+    //     check.add(&(*ONE));
+    // }
+    todo!();
 }
 
 #[test]

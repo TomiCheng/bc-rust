@@ -23,6 +23,6 @@ pub(crate) fn inverse_u64(d: u64) -> u64 {
     x = x.wrapping_mul(2u64.wrapping_sub(d.wrapping_mul(x))); // d.x == 1 mod 2**48
     x = x.wrapping_mul(2u64.wrapping_sub(d.wrapping_mul(x))); // d.x == 1 mod 2**96
 
-    debug_assert!(d * x == 1); 
+    debug_assert!(d.wrapping_mul(x) == 1); 
     x
 }

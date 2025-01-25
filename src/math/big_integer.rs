@@ -269,10 +269,14 @@ impl BigInteger {
         Ok(Self::new(sign, Arc::new(magnitude)))
     }
 
+    /// # Panics
+    /// buffer is empty
     pub fn with_buffer(buffer: &[u8]) -> Result<Self, Error> {
         Self::with_buffer_big_endian(buffer, true)
     }
 
+    /// # Panics
+    /// buffer is empty
     pub fn with_buffer_big_endian(buffer: &[u8], big_endian: bool) -> Result<Self, Error> {
         if buffer.len() == 0 {
             return Err(Error::new(ErrorKind::InvalidInput, "buffer is empty"));
@@ -1197,14 +1201,13 @@ impl BigInteger {
         if convert {
             b1 = b1.shift_left(pow_r as i32).remainder(m);
         }
-
         debug_assert!(y_accm.len() == n + 1);
 
         let mut z_val = b1.magnitude.to_vec();
         debug_assert!(z_val.len() <= n);
         if z_val.len() < n {
             let mut tmp = vec![0u32; n];
-            tmp.copy_from_slice(&z_val);
+            tmp[0..z_val.len()].copy_from_slice(&z_val);
             z_val = tmp;
         }
 
@@ -1690,7 +1693,7 @@ impl BigInteger {
             if m.magnitude[m.magnitude.len() - 1] & 1 == 0 {
                 result = Self::mod_pow_barrett(&result, e, m);
             } else {
-                let mut y_accum = vec![0u32; m.magnitude.len() - 1];
+                let mut y_accum = vec![0u32; m.magnitude.len() + 1];
                 result = Self::mod_pow_monty(&mut y_accum, &result, &e1, m, true);
             }
         }
@@ -1824,24 +1827,26 @@ impl BigInteger {
         BigInteger::with_check_mag(self.sign, Arc::new(mag), false)
     }
 
-    pub fn mod_inverse(&self, m: &BigInteger) -> BigInteger {
-        if m.sign < 1 {
-            panic!("Modulus must be positive");
+    /// # Panics
+    /// modulus must be positive
+    pub fn mod_inverse(&self, modulus: &BigInteger) -> BigInteger {
+        if modulus.sign < 1 {
+            panic!("modulus must be positive");
         }
 
-        if m.quick_pow2_check() {
-            return self.mod_inverse_pow2(m);
+        if modulus.quick_pow2_check() {
+            return self.mod_inverse_pow2(modulus);
         }
 
-        let d = self.remainder(m);
-        let (gcd, mut x) = ext_euclid(&d, m);
+        let d = self.remainder(modulus);
+        let (gcd, mut x) = ext_euclid(&d, modulus);
 
         if gcd != (*ONE) {
             panic!("Numbers not relatively prime.");
         }
 
         if x.sign < 0 {
-            x = x.add(m);
+            x = x.add(modulus);
         }
         x
     }
@@ -1854,7 +1859,7 @@ impl BigInteger {
             panic!("Numbers not relatively prime.");
         }
 
-        let pow = m.magnitude.len() << 1;
+        let pow = *m.get_bit_length() << 1;
         let mut inv64 = inverse_u64(self.get_i64_value() as u64) as i64;
         if pow < 64 {
             inv64 &= (1 << pow) - 1;
@@ -2659,7 +2664,7 @@ fn get_window_list(mag: &[u32], extra_bits: usize) -> Vec<u32> {
     let mut result = vec![0u32; result_size];
     let mut result_pos = 0;
     let mut bit_pos = 33 - leading_bits;
-    v <<= bit_pos;
+    v = v.wrapping_shl(bit_pos);
 
     let mut mult = 1;
     let mult_limit = 1 << extra_bits;
