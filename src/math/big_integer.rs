@@ -377,6 +377,8 @@ impl BigInteger {
             }
 
             let result = BigInteger::new(1, Arc::new(magnitude.clone()));
+            println!("result: {}", result.to_string());
+            //let result = BigInteger::with_i32(773);
             if result.check_probable_prime(certainty, random, true) {
                 return result;
             }
@@ -1123,6 +1125,7 @@ impl BigInteger {
             let mut a: BigInteger;
             loop {
                 a = BigInteger::with_random(*n.get_bit_length(), random);
+                //a = BigInteger::with_string("4571627816229255254").expect("msg");
                 if a.sign == 0
                     || a >= n
                     || is_equal_magnitude(&a.magnitude, &mont_radix.magnitude)
@@ -2716,7 +2719,7 @@ fn square_monty(a: &mut [u32], x: &mut [u32], m: &[u32], m_dash: u32, small_mont
     let mut a_max: u32;
     {
         let mut carry = x0 * x0;
-        let t = (carry as u32) as u64 * m_dash as u64;
+        let t = (carry as u32).wrapping_mul(m_dash) as u64;
 
         let mut prod2 = t.wrapping_mul(m[(n - 1) as usize] as u64);
         carry += (prod2 as u32) as u64;
@@ -2738,8 +2741,8 @@ fn square_monty(a: &mut [u32], x: &mut [u32], m: &[u32], m_dash: u32, small_mont
 
     for i in (0..=n - 2).rev() {
         let a0 = a[n as usize];
-        let t = a0 as u64 * m_dash as u64;
-        let mut carry = t.wrapping_mul(m[(n - 1) as usize] as u64) + a0 as u64;
+        let t = a0.wrapping_mul(m_dash) as u64;
+        let mut carry = t.wrapping_mul(m[(n - 1) as usize] as u64).wrapping_add(a0 as u64);
         debug_assert!(carry as u32 == 0);
         carry >>= 32;
 
@@ -2836,7 +2839,7 @@ fn multiply_monty(
         let xi = x[n - 1] as u64;
 
         let mut carry = xi * y0 as u64;
-        let t = (carry as u32) as u64 * m_dash as u64;
+        let t = (carry as u32).wrapping_mul(m_dash) as u64;
 
         let mut prod2 = t.wrapping_mul(m[n - 1] as u64);
         carry += (prod2 as u32) as u64;
@@ -2861,7 +2864,7 @@ fn multiply_monty(
         let xi = x[i] as u64;
         let mut prod1 = xi * y0 as u64;
         let mut carry = (prod1 & UIMASK) + a0 as u64;
-        let t = (carry as u32) as u64 * m_dash as u64;
+        let t = (carry as u32).wrapping_mul(m_dash) as u64;
 
         let mut prod2 = t.wrapping_mul(m[n - 1] as u64);
         carry += (prod2 as u32) as u64;
