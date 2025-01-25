@@ -14,6 +14,7 @@ const C_BYTES_PRE_INT: usize = size_of::<u32>();
 const BITS_PER_INT: usize = C_BYTES_PRE_INT * 8;
 const BITS_PER_BYTE: usize = size_of::<u8>() * 8;
 
+/// Represents the constant integer value 0 as a BigInteger instance.
 pub static ZERO: LazyLock<BigInteger> =
     LazyLock::new(|| BigInteger::new(0, Arc::new(C_ZERO_MAGNITUDE)));
 
@@ -303,10 +304,14 @@ impl BigInteger {
         Ok(b)
     }
 
+    /// # Panics
+    /// invalid sign value
     pub fn with_sign_buffer(sign: i32, buffer: &[u8]) -> Result<Self, Error> {
         Self::with_sign_buffer_big_endian(sign, buffer, true)
     }
 
+    /// # Panics
+    /// invalid sign value
     pub fn with_sign_buffer_big_endian(
         sign: i32,
         buffer: &[u8],

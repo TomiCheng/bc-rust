@@ -1,6 +1,5 @@
 pub mod big_integer;
+pub mod primes;
 pub mod raw;
 
-
-#[derive(Copy, Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Error;
+pub use big_integer::BigInteger;
