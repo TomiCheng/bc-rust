@@ -377,8 +377,6 @@ impl BigInteger {
             }
 
             let result = BigInteger::new(1, Arc::new(magnitude.clone()));
-            println!("result: {}", result.to_string());
-            //let result = BigInteger::with_i32(773);
             if result.check_probable_prime(certainty, random, true) {
                 return result;
             }
@@ -749,22 +747,25 @@ impl BigInteger {
         let mut u = self.clone();
         let mut v = other.clone();
 
-        while other.sign != 0 {
+        while v.sign != 0 {
             r = u.r#mod(&v);
             u = v;
             v = r;
         }
         return u;
     }
-    pub fn r#mod(&self, other: &BigInteger) -> BigInteger {
-        if other.sign < 1 {
+
+    /// # Panics
+    /// modulus must be positive
+    pub fn r#mod(&self, modulus: &BigInteger) -> BigInteger {
+        if modulus.sign < 1 {
             panic!("modulus must be positive");
         }
-        let biggie = self.remainder(other);
+        let biggie = self.remainder(modulus);
         if biggie.sign >= 0 {
             biggie
         } else {
-            biggie.add(other)
+            biggie.add(modulus)
         }
     }
 

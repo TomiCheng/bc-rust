@@ -523,9 +523,9 @@ fn test_gcd() {
         let fac = BigInteger::with_random(32, &mut random).add(&(*TWO));
         let p1 = BigInteger::with_probable_prime(63, &mut random);
         let p2 = BigInteger::with_probable_prime(64, &mut random);
-        //let gcd = fac.multiply(&p1).gcd(&fac.multiply(&p2));
+        let gcd = fac.multiply(&p1).gcd(&fac.multiply(&p2));
 
-        //assert_eq!(fac, gcd);
+        assert_eq!(fac, gcd);
     }
 }
 
