@@ -7,21 +7,23 @@ use super::big_integer::BigInteger;
 use crate::{
     crypto::Digest,
     math::big_integer::{ONE, THREE, TWO},
-    util::pack::be_to_u32,
+    util::{big_integers::create_random_in_range, pack::be_to_u32},
 };
+
+pub const SMALL_FACTOR_LIMIT: i32 = 211;
 
 /// FIPS 186-4 C.6 Shawe-Taylor Random_Prime Routine.  
 /// Construct a provable prime number using a hash function.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// * `hash` - The `Digest` instance to use (as "Hash()").
 /// * `length` - The length (in bits) of the prime to be generated. Must be at least 2.
 /// * `input_seed` - The seed to be used for the generation of the requested prime. Cannot be null or empty.
-/// 
+///
 /// # Returns
 /// an `StOutput` instance containing the requested prime.
-/// 
+///
 /// # Panics
 /// - `length` must be at least 2
 /// - `input_seed` cannot be empty
@@ -36,7 +38,29 @@ pub fn generate_st_random_prime(hash: &mut dyn Digest, length: u32, input_seed: 
     impl_st_random_prime(hash, length, input_seed.to_vec())
 }
 
-pub fn enhanced_mr_probable_prime_test(candidate: &BigInteger, random: &mut dyn RandomSource, iterations: u32) -> MrOutput {
+/// FIPS 186-4 C.3.2 Enhanced Miller-Rabin Probabilistic Primality Test.  
+///
+/// Run several iterations of the Miller-Rabin algorithm with randomly-chosen bases. This is an alternative to
+/// that provides more information about a `is_mr_probable_prime`
+/// composite candidate, which may be useful when generating or validating RSA moduli.
+///
+/// # Parameters
+///
+/// * `candidate` - The `BigInteger` instance to test for primality.
+/// * `random` - The source of randomness to use to choose bases.
+/// * `iterations` - The number of randomly-chosen bases to perform the test for.
+///
+/// # Returns
+/// An `MrOutput` instance that can be further queried for details.
+///
+/// # Panics
+/// - `iterations` must be at least 1
+/// - `candidate` must be non-null and >= 2
+pub fn enhanced_mr_probable_prime_test(
+    candidate: &BigInteger,
+    random: &mut dyn RandomSource,
+    iterations: u32,
+) -> MrOutput {
     check_candidate(candidate, "candidate");
     if iterations < 1 {
         panic!("iterations must be at least 1");
@@ -50,20 +74,169 @@ pub fn enhanced_mr_probable_prime_test(candidate: &BigInteger, random: &mut dyn 
         return MrOutput::with_provably_composite_with_factor((*TWO).clone());
     }
 
-    let mut w = candidate;
+    let w = candidate;
     let w_sub_one = candidate.subtract(&(*ONE));
     let w_sub_two = candidate.subtract(&(*TWO));
 
     let a = w_sub_one.get_lowest_set_bit();
     let m = w_sub_one.shift_right(a);
 
-    for i in 0..iterations {
-        //let b = B
+    for _ in 0..iterations {
+        debug_assert!(&(*TWO) <= &w_sub_two);
+        let b = create_random_in_range(&(*TWO), &w_sub_two, random);
+        let mut g = b.gcd(w);
+
+        if g > *ONE {
+            return MrOutput::with_provably_composite_with_factor(g);
+        }
+
+        let mut z = b.mod_pow(&m, w);
+        if z == *ONE || z == w_sub_one {
+            continue;
+        }
+
+        let mut prime_to_base = false;
+
+        let mut x = z.clone();
+        for _ in 1..a {
+            z = z.square().r#mod(w);
+
+            if z == w_sub_one {
+                prime_to_base = true;
+                break;
+            }
+
+            if z == *ONE {
+                break;
+            }
+
+            x = z.clone();
+        }
+
+        if !prime_to_base {
+            if z != *ONE {
+                x = z.clone();
+                z = z.square().r#mod(w);
+
+                if z != *ONE {
+                    x = z.clone();
+                }
+            }
+            g = x.subtract(&(*ONE)).gcd(&w);
+
+            if g > *ONE {
+                return MrOutput::with_provably_composite_with_factor(g);
+            }
+            return MrOutput::with_provably_composite_not_prime_power();
+        }
     }
-    todo!();
-
-
+    MrOutput::with_probaly_prime()
 }
+
+/// A fast check for small divisors, up to some implementation-specific limit.
+/// 
+/// # Parameters
+/// 
+/// * `candidate` - The `BigInteger` instance to test for division by small factors.
+/// 
+/// # Returns
+/// 
+/// `true` if the candidate is found to have any small factors, `false` otherwise.
+/// 
+/// # Panics
+/// * `candidate` must be non-null and >= 2
+pub fn has_any_small_factors(candidate: &BigInteger) -> bool {
+    check_candidate(candidate, "candidate");
+    impl_has_any_small_factors(candidate)
+}
+
+
+
+/// FIPS 186-4 C.3.1 Miller-Rabin Probabilistic Primality Test.  
+/// Run several iterations of the Miller-Rabin algorithm with randomly-chosen bases.
+/// 
+/// # Parameters
+/// 
+/// * `candidate` - The `BigInteger` instance to test for primality.
+/// * `random` - The source of randomness to use to choose bases.
+/// * `iterations` - The number of randomly-chosen bases to perform the test for.
+/// 
+/// # Returns
+/// 
+/// `false` if any witness to compositeness is found amongst the chosen bases (so `candidate` s definitely NOT prime), 
+/// or else `true` (indicating primality with some probability dependent on the number of iterations that were performed).
+/// 
+/// # Panics
+/// * `iterations` must be at least 1
+/// * `candidate` must be non-null and >= 2
+pub fn is_mr_probable_prime(candidate: &BigInteger, random: &mut dyn RandomSource, iterations: u32) -> bool {
+    check_candidate(candidate, "candidate");
+
+    if iterations < 1 {
+        panic!("iterations must be at least 1");
+    }
+
+    if *candidate.get_bit_length() == 2 {
+        return true;
+    }
+        
+    if !candidate.test_bit(0) {
+        return false;
+    }
+
+
+    let w = candidate;
+    let w_sub_one = candidate.subtract(&(*ONE));
+    let w_sub_two = candidate.subtract(&(*TWO));
+
+    let a = w_sub_one.get_lowest_set_bit();
+    let m = w_sub_one.shift_right(a);
+
+    for _ in 0..iterations {
+        let b = create_random_in_range(&(*&TWO), &w_sub_two, random);
+        if !impl_mr_probable_prime_to_base(w, &w_sub_one, &m, a, &b) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// FIPS 186-4 C.3.1 Miller-Rabin Probabilistic Primality Test (to a fixed base).  
+/// Run a single iteration of the Miller-Rabin algorithm against the specified base.
+/// 
+/// # Parameters
+/// 
+/// * `candidate` - The `BigInteger` instance to test for primality.
+/// * `base_value` - The base value to use for this iteration.
+/// 
+/// # Returns
+/// 
+/// `false` if the base is a witness to compositeness (so `candidate` is definitely NOT prime), , or else `true`.
+/// 
+/// # Panics
+/// * `candidate` must be non-null and >= 2
+/// * `base_value` must be < `candidate`-1
+pub fn is_mr_probable_prime_to_base(candidate: &BigInteger, base_value: &BigInteger) -> bool {
+    check_candidate(candidate, "candidate");
+    check_candidate(base_value, "base_value");
+
+    if base_value >= &candidate.subtract(&(*ONE)) {
+        panic!("baseValue must be < candidate-1");
+    }
+
+    if candidate == &(*TWO) {
+        return true;
+    }
+
+    let w = candidate;
+    let w_sub_one = candidate.subtract(&(*ONE));
+
+    let a = w_sub_one.get_lowest_set_bit();
+    let m = w_sub_one.shift_right(a);
+
+    impl_mr_probable_prime_to_base(w, &w_sub_one, &m, a, base_value)
+}
+
 
 /// Used to return the output from the `EnhancedMRProbablePrimeTest` Enhanced Miller-Rabin Probabilistic Primality Test
 pub struct MrOutput {
@@ -99,7 +272,7 @@ impl MrOutput {
         self.provably_composite
     }
 
-    pub fn is_prime_power(&self) -> bool {
+    pub fn is_not_prime_power(&self) -> bool {
         self.provably_composite && self.factor.is_none()
     }
 }
@@ -117,6 +290,18 @@ impl StOutput {
             prime_seed,
             prime,
         }
+    }
+
+    pub fn get_prime(&self) -> &BigInteger {
+        &self.prime
+    }
+
+    pub fn get_prime_seed(&self) -> &[u8] {
+        &self.prime_seed
+    }
+
+    pub fn get_prime_gen_counter(&self) -> u32 {
+        self.prime_gen_couter
     }
 }
 
@@ -292,23 +477,13 @@ fn impl_has_any_small_factors(x: &BigInteger) -> bool {
 
     m = 29 * 31 * 37 * 41 * 43;
     r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
-    if (r % 29) == 0
-        || (r % 31) == 0
-        || (r % 37) == 0
-        || (r % 41) == 0
-        || (r % 43) == 0
-    {
+    if (r % 29) == 0 || (r % 31) == 0 || (r % 37) == 0 || (r % 41) == 0 || (r % 43) == 0 {
         return true;
     }
 
     m = 47 * 53 * 59 * 61 * 67;
     r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
-    if (r % 47) == 0
-        || (r % 53) == 0
-        || (r % 59) == 0
-        || (r % 61) == 0
-        || (r % 67) == 0
-    {
+    if (r % 47) == 0 || (r % 53) == 0 || (r % 59) == 0 || (r % 61) == 0 || (r % 67) == 0 {
         return true;
     }
 
@@ -361,4 +536,31 @@ fn check_candidate(n: &BigInteger, name: &str) {
     if n.get_sign_value() < 1 || *n.get_bit_length() < 2 {
         panic!("{} must be non-null and >= 2", name);
     }
+}
+
+fn impl_mr_probable_prime_to_base(
+    w: &BigInteger,
+    w_sub_one: &BigInteger,
+    m: &BigInteger,
+    a: i32,
+    b: &BigInteger,
+) -> bool {
+    let mut z = b.mod_pow(m, w);
+    if z == *ONE || z == *w_sub_one {
+        return true;
+    }
+
+    for _ in 1..a {
+        z = z.square().r#mod(w);
+
+        if &z == w_sub_one {
+            return true;
+        }
+
+        if z == *ONE {
+            return false;
+        }
+    }
+
+    false
 }
