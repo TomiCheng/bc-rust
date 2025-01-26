@@ -9,6 +9,7 @@ use crate::{
     math::big_integer::{ONE, THREE, TWO},
     util::{big_integers::create_random_in_range, pack::be_to_u32},
 };
+use crate::{Result,BcError};
 
 pub const SMALL_FACTOR_LIMIT: i32 = 211;
 
@@ -24,15 +25,12 @@ pub const SMALL_FACTOR_LIMIT: i32 = 211;
 /// # Returns
 /// an `StOutput` instance containing the requested prime.
 ///
-/// # Panics
-/// - `length` must be at least 2
-/// - `input_seed` cannot be empty
-pub fn generate_st_random_prime(hash: &mut dyn Digest, length: u32, input_seed: &[u8]) -> StOutput {
+pub fn generate_st_random_prime(hash: &mut dyn Digest, length: u32, input_seed: &[u8]) -> Result<StOutput> {
     if length < 2 {
-        panic!("length must be at least 2");
+        return Err(BcError::InvalidInput("length must be at least 2".to_string()));
     }
     if input_seed.len() == 0 {
-        panic!("cannot by empty input_seed");
+        return Err(BcError::InvalidInput("input_seed cannot be empty".to_string()));
     }
 
     impl_st_random_prime(hash, length, input_seed.to_vec())
@@ -53,25 +51,22 @@ pub fn generate_st_random_prime(hash: &mut dyn Digest, length: u32, input_seed: 
 /// # Returns
 /// An `MrOutput` instance that can be further queried for details.
 ///
-/// # Panics
-/// - `iterations` must be at least 1
-/// - `candidate` must be non-null and >= 2
 pub fn enhanced_mr_probable_prime_test(
     candidate: &BigInteger,
     random: &mut dyn RandomSource,
     iterations: u32,
-) -> MrOutput {
-    check_candidate(candidate, "candidate");
+) -> Result<MrOutput> {
+    check_candidate(candidate, "candidate")?;
     if iterations < 1 {
-        panic!("iterations must be at least 1");
+        return Err(BcError::InvalidInput("iterations must be at least 1".to_string()));
     }
 
     if *candidate.get_bit_length() == 2 {
-        return MrOutput::with_probaly_prime();
+        return Ok(MrOutput::with_probaly_prime());
     }
 
     if !candidate.test_bit(0) {
-        return MrOutput::with_provably_composite_with_factor((*TWO).clone());
+        return Ok(MrOutput::with_provably_composite_with_factor((*TWO).clone()));
     }
 
     let w = candidate;
@@ -84,13 +79,13 @@ pub fn enhanced_mr_probable_prime_test(
     for _ in 0..iterations {
         debug_assert!(&(*TWO) <= &w_sub_two);
         let b = create_random_in_range(&(*TWO), &w_sub_two, random);
-        let mut g = b.gcd(w);
+        let mut g = b.gcd(w)?;
 
         if g > *ONE {
-            return MrOutput::with_provably_composite_with_factor(g);
+            return Ok(MrOutput::with_provably_composite_with_factor(g));
         }
 
-        let mut z = b.mod_pow(&m, w);
+        let mut z = b.mod_pow(&m, w)?;
         if z == *ONE || z == w_sub_one {
             continue;
         }
@@ -99,7 +94,7 @@ pub fn enhanced_mr_probable_prime_test(
 
         let mut x = z.clone();
         for _ in 1..a {
-            z = z.square().r#mod(w);
+            z = z.square().r#mod(w)?;
 
             if z == w_sub_one {
                 prime_to_base = true;
@@ -116,21 +111,21 @@ pub fn enhanced_mr_probable_prime_test(
         if !prime_to_base {
             if z != *ONE {
                 x = z.clone();
-                z = z.square().r#mod(w);
+                z = z.square().r#mod(w)?;
 
                 if z != *ONE {
                     x = z.clone();
                 }
             }
-            g = x.subtract(&(*ONE)).gcd(&w);
+            g = x.subtract(&(*ONE)).gcd(&w)?;
 
             if g > *ONE {
-                return MrOutput::with_provably_composite_with_factor(g);
+                return Ok(MrOutput::with_provably_composite_with_factor(g));
             }
-            return MrOutput::with_provably_composite_not_prime_power();
+            return Ok(MrOutput::with_provably_composite_not_prime_power());
         }
     }
-    MrOutput::with_probaly_prime()
+    Ok(MrOutput::with_probaly_prime())
 }
 
 /// A fast check for small divisors, up to some implementation-specific limit.
@@ -143,10 +138,8 @@ pub fn enhanced_mr_probable_prime_test(
 /// 
 /// `true` if the candidate is found to have any small factors, `false` otherwise.
 /// 
-/// # Panics
-/// * `candidate` must be non-null and >= 2
-pub fn has_any_small_factors(candidate: &BigInteger) -> bool {
-    check_candidate(candidate, "candidate");
+pub fn has_any_small_factors(candidate: &BigInteger) -> Result<bool> {
+    check_candidate(candidate, "candidate")?;
     impl_has_any_small_factors(candidate)
 }
 
@@ -166,22 +159,19 @@ pub fn has_any_small_factors(candidate: &BigInteger) -> bool {
 /// `false` if any witness to compositeness is found amongst the chosen bases (so `candidate` s definitely NOT prime), 
 /// or else `true` (indicating primality with some probability dependent on the number of iterations that were performed).
 /// 
-/// # Panics
-/// * `iterations` must be at least 1
-/// * `candidate` must be non-null and >= 2
-pub fn is_mr_probable_prime(candidate: &BigInteger, random: &mut dyn RandomSource, iterations: u32) -> bool {
-    check_candidate(candidate, "candidate");
+pub fn is_mr_probable_prime(candidate: &BigInteger, random: &mut dyn RandomSource, iterations: u32) -> Result<bool> {
+    check_candidate(candidate, "candidate")?;
 
     if iterations < 1 {
         panic!("iterations must be at least 1");
     }
 
     if *candidate.get_bit_length() == 2 {
-        return true;
+        return Ok(true);
     }
         
     if !candidate.test_bit(0) {
-        return false;
+        return Ok(false);
     }
 
 
@@ -194,11 +184,11 @@ pub fn is_mr_probable_prime(candidate: &BigInteger, random: &mut dyn RandomSourc
 
     for _ in 0..iterations {
         let b = create_random_in_range(&(*&TWO), &w_sub_two, random);
-        if !impl_mr_probable_prime_to_base(w, &w_sub_one, &m, a, &b) {
-            return false;
+        if !impl_mr_probable_prime_to_base(w, &w_sub_one, &m, a, &b)? {
+            return Ok(false);
         }
     }
-    return true;
+    return Ok(true);
 }
 
 /// FIPS 186-4 C.3.1 Miller-Rabin Probabilistic Primality Test (to a fixed base).  
@@ -213,19 +203,16 @@ pub fn is_mr_probable_prime(candidate: &BigInteger, random: &mut dyn RandomSourc
 /// 
 /// `false` if the base is a witness to compositeness (so `candidate` is definitely NOT prime), , or else `true`.
 /// 
-/// # Panics
-/// * `candidate` must be non-null and >= 2
-/// * `base_value` must be < `candidate`-1
-pub fn is_mr_probable_prime_to_base(candidate: &BigInteger, base_value: &BigInteger) -> bool {
-    check_candidate(candidate, "candidate");
-    check_candidate(base_value, "base_value");
+pub fn is_mr_probable_prime_to_base(candidate: &BigInteger, base_value: &BigInteger) -> Result<bool> {
+    check_candidate(candidate, "candidate")?;
+    check_candidate(base_value, "base_value")?;
 
     if base_value >= &candidate.subtract(&(*ONE)) {
-        panic!("baseValue must be < candidate-1");
+        return Err(BcError::InvalidInput("baseValue must be < candidate-1".to_string()));
     }
 
     if candidate == &(*TWO) {
-        return true;
+        return Ok(true);
     }
 
     let w = candidate;
@@ -305,7 +292,7 @@ impl StOutput {
     }
 }
 
-fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>) -> StOutput {
+fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>) -> Result<StOutput> {
     let d_len = d.get_digest_size();
     let c_len = d_len.max(4);
 
@@ -328,11 +315,11 @@ fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>
             prime_gen_counter += 1;
 
             if is_prime32(c) {
-                return StOutput::new(
+                return Ok(StOutput::new(
                     BigInteger::with_u32(c),
                     prime_seed,
                     prime_gen_counter as u32,
-                );
+                ));
             }
 
             if prime_gen_counter > (4 * length) {
@@ -341,7 +328,7 @@ fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>
         }
     }
 
-    let rec = impl_st_random_prime(d, (length + 3) / 2, prime_seed);
+    let rec = impl_st_random_prime(d, (length + 3) / 2, prime_seed)?;
     {
         let c0 = rec.prime;
         prime_seed = rec.prime_seed;
@@ -357,10 +344,10 @@ fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>
             &(*ONE)
                 .shift_left((length - 1) as i32)
                 .set_bit((length - 1) as usize),
-        );
+        )?;
 
         let c0x2 = c0.shift_left(1);
-        let mut tx2 = x.subtract(&(*ONE)).divide(&c0x2).add(&(*ONE)).shift_left(1);
+        let mut tx2 = x.subtract(&(*ONE)).divide(&c0x2)?.add(&(*ONE)).shift_left(1);
         let mut dt = 0;
 
         let mut c = tx2.multiply(&c0).add(&(*ONE));
@@ -369,19 +356,19 @@ fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>
         // sieving could be used here in place of the 'HasAnySmallFactors' approach.
 
         loop {
-            if impl_has_any_small_factors(&c) {
+            if impl_has_any_small_factors(&c)? {
                 inc(&mut prime_seed, (iterations + 1) as i32);
             } else {
                 let mut a = hash_gen(d, &mut prime_seed, iterations + 1);
-                a = a.r#mod(&c.subtract(&(*THREE))).add(&(*TWO));
+                a = a.r#mod(&c.subtract(&(*THREE)))?.add(&(*TWO));
 
                 tx2 = tx2.add(&BigInteger::with_i32(dt));
                 dt = 0;
 
-                let z: BigInteger = a.mod_pow(&tx2, &c);
+                let z: BigInteger = a.mod_pow(&tx2, &c)?;
 
-                if (&c.gcd(&z.subtract(&(*ONE))) == &(*ONE)) && (&z.mod_pow(&c0, &c) == &(*ONE)) {
-                    return StOutput::new(c, prime_seed, prime_gen_counter);
+                if (&c.gcd(&z.subtract(&(*ONE)))? == &(*ONE)) && (&z.mod_pow(&c0, &c)? == &(*ONE)) {
+                    return Ok(StOutput::new(c, prime_seed, prime_gen_counter));
                 }
 
                 if prime_gen_counter >= ((4 * length) + old_counter) {
@@ -457,11 +444,11 @@ fn hash_gen(d: &mut dyn Digest, seed: &mut [u8], count: u32) -> BigInteger {
     BigInteger::with_sign_buffer(1, &buf).expect("invalid sing")
 }
 
-fn impl_has_any_small_factors(x: &BigInteger) -> bool {
+fn impl_has_any_small_factors(x: &BigInteger) -> Result<bool> {
     // Bundle trial divisors into ~32-bit moduli then use fast tests on the ~32-bit remainders.
 
     let mut m = 2 * 3 * 5 * 7 * 11 * 13 * 17 * 19 * 23;
-    let mut r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    let mut r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 2) == 0
         || (r % 3) == 0
         || (r % 5) == 0
@@ -472,70 +459,71 @@ fn impl_has_any_small_factors(x: &BigInteger) -> bool {
         || (r % 19) == 0
         || (r % 23) == 0
     {
-        return true;
+        return Ok(true);
     }
 
     m = 29 * 31 * 37 * 41 * 43;
-    r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 29) == 0 || (r % 31) == 0 || (r % 37) == 0 || (r % 41) == 0 || (r % 43) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 47 * 53 * 59 * 61 * 67;
-    r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 47) == 0 || (r % 53) == 0 || (r % 59) == 0 || (r % 61) == 0 || (r % 67) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 71 * 73 * 79 * 83;
-    r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 71) == 0 || (r % 73) == 0 || (r % 79) == 0 || (r % 83) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 89 * 97 * 101 * 103;
-    r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 89) == 0 || (r % 97) == 0 || (r % 101) == 0 || (r % 103) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 107 * 109 * 113 * 127;
-    r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 107) == 0 || (r % 109) == 0 || (r % 113) == 0 || (r % 127) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 131 * 137 * 139 * 149;
-    r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 131) == 0 || (r % 137) == 0 || (r % 139) == 0 || (r % 149) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 151 * 157 * 163 * 167;
-    r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 151) == 0 || (r % 157) == 0 || (r % 163) == 0 || (r % 167) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 173 * 179 * 181 * 191;
-    r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 173) == 0 || (r % 179) == 0 || (r % 181) == 0 || (r % 191) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 193 * 197 * 199 * 211;
-    r = x.r#mod(&BigInteger::with_u32(m)).get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
     if (r % 193) == 0 || (r % 197) == 0 || (r % 199) == 0 || (r % 211) == 0 {
-        return true;
+        return Ok(true);
     }
     // NOTE: Unit tests depend on SMALL_FACTOR_LIMIT matching the highest small factor tested here.
-    return false;
+    return Ok(false);
 }
 
-fn check_candidate(n: &BigInteger, name: &str) {
+fn check_candidate(n: &BigInteger, name: &str) -> Result<()> {
     if n.get_sign_value() < 1 || *n.get_bit_length() < 2 {
-        panic!("{} must be non-null and >= 2", name);
+        return Err(BcError::InvalidInput(format!("{} must be non-null and >= 2", name)));
     }
+    return Ok(());
 }
 
 fn impl_mr_probable_prime_to_base(
@@ -544,23 +532,23 @@ fn impl_mr_probable_prime_to_base(
     m: &BigInteger,
     a: i32,
     b: &BigInteger,
-) -> bool {
-    let mut z = b.mod_pow(m, w);
+) -> Result<bool> {
+    let mut z = b.mod_pow(m, w)?;
     if z == *ONE || z == *w_sub_one {
-        return true;
+        return Ok(true);
     }
 
     for _ in 1..a {
-        z = z.square().r#mod(w);
+        z = z.square().r#mod(w)?;
 
         if &z == w_sub_one {
-            return true;
+            return Ok(true);
         }
 
         if z == *ONE {
-            return false;
+            return Ok(false);
         }
     }
 
-    false
+    Ok(false)
 }

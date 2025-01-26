@@ -1,8 +1,8 @@
 use crate::math::raw::internal_mod::{inverse_u32, inverse_u64};
 use crate::util::pack::{be_to_u32_buffer, be_to_u32_low, le_to_u32_low, u32_to_be_bytes};
+use crate::{BcError, Result};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
-use std::io::{Error, ErrorKind};
 use std::random::{DefaultRandomSource, RandomSource};
 use std::sync::{Arc, LazyLock, OnceLock};
 
@@ -35,7 +35,7 @@ macro_rules! create_static_big_integer {
 /// # Examples
 /// ```
 /// use bc_rust::math::big_integer::ONE;
-/// 
+///
 /// assert_eq!(&(*ONE).to_string(), "1");
 /// ```
 pub static ONE: LazyLock<BigInteger> = create_static_big_integer!(1);
@@ -87,13 +87,13 @@ const CHUNK_10: u32 = 19;
 const CHUNK_16: u32 = 16;
 
 static RADIX_2: LazyLock<BigInteger> = LazyLock::new(|| (*SMALL_CONSTANTS)[2].clone());
-static RADIX_2E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_2).pow(CHUNK_2));
+static RADIX_2E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_2).pow(CHUNK_2).unwrap());
 static RADIX_8: LazyLock<BigInteger> = LazyLock::new(|| (*SMALL_CONSTANTS)[8].clone());
-static RADIX_8E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_8).pow(CHUNK_8));
+static RADIX_8E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_8).pow(CHUNK_8).unwrap());
 static RADIX_10: LazyLock<BigInteger> = LazyLock::new(|| (*SMALL_CONSTANTS)[10].clone());
-static RADIX_10E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_10).pow(CHUNK_10));
+static RADIX_10E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_10).pow(CHUNK_10).unwrap());
 static RADIX_16: LazyLock<BigInteger> = LazyLock::new(|| (*SMALL_CONSTANTS)[16].clone());
-static RADIX_16E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_16).pow(CHUNK_16));
+static RADIX_16E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_16).pow(CHUNK_16).unwrap());
 
 /// `BigInteger` is a structure for representing large integers.
 #[derive(Clone)]
@@ -123,7 +123,7 @@ impl BigInteger {
     /// # Errors
     ///
     /// Returns `Error` if the string is empty.
-    pub fn with_string(str: &str) -> Result<Self, Error> {
+    pub fn with_string(str: &str) -> Result<Self> {
         Self::with_string_radix(str, 10)
     }
 
@@ -137,25 +137,26 @@ impl BigInteger {
     /// # Errors
     ///
     /// Returns `Error` if the string is empty.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use bc_rust::math::BigInteger;
     /// use std::io::Error;
-    /// 
+    ///
     /// let result_radix2 = BigInteger::with_string_radix("1010", 2).expect("Error");
     /// let result_radix8 = BigInteger::with_string_radix("12", 8).expect("Error");
     /// let result_radix10 = BigInteger::with_string_radix("10", 10).expect("Error");
     /// let result_radix16 = BigInteger::with_string_radix("A", 16).expect("Error");
-    /// 
+    ///
     /// assert_eq!(result_radix2, result_radix8);
     /// assert_eq!(result_radix8, result_radix10);
     /// assert_eq!(result_radix10, result_radix16);
     /// ```
-    pub fn with_string_radix(str: &str, radix: u32) -> Result<Self, Error> {
+    pub fn with_string_radix(str: &str, radix: u32) -> Result<Self> {
         if str.is_empty() {
-            return Err(Error::new(ErrorKind::InvalidInput, "string is empty"));
+            //return Err(Error::new(ErrorKind::InvalidInput, "string is empty"));
+            return Err(BcError::InvalidFormat("Zero length BigInteger".to_string()));
         }
         let chunk: u32;
         let r: &BigInteger;
@@ -182,9 +183,8 @@ impl BigInteger {
                 re = &(*RADIX_16E);
             }
             _ => {
-                return Err(Error::new(
-                    ErrorKind::InvalidInput,
-                    "Only bases 2, 8, 10, or 16 allowed",
+                return Err(BcError::InvalidFormat(
+                    "Only bases 2, 8, 10, or 16 allowed".to_string(),
                 ))
             }
         };
@@ -221,28 +221,27 @@ impl BigInteger {
         if next <= str.chars().count() {
             loop {
                 let s = str.get(index..next).unwrap();
-                let is = u64::from_str_radix(&s, radix);
-                if is.is_err() {
-                    return Err(Error::new(ErrorKind::InvalidInput, "invalid input"));
-                }
-                let i = is.unwrap();
+                let i = u64::from_str_radix(&s, radix).map_err(|e| BcError::ParseIntError {
+                    source: e,
+                    msg: format!("invalid input: {}", s),
+                })?;
                 let bi = BigInteger::with_u64(i);
                 match radix {
                     2 => {
                         if i >= 2 {
-                            return Err(Error::new(
-                                ErrorKind::InvalidInput,
-                                format!("Bad character in radix 2 string: {}", s),
-                            ));
+                            return Err(BcError::InvalidInput(format!(
+                                "Bad character in radix 2 string: {}",
+                                s
+                            )));
                         }
                         b = b.shift_left(1);
                     }
                     8 => {
                         if i >= 8 {
-                            return Err(Error::new(
-                                ErrorKind::InvalidInput,
-                                format!("Bad character in radix 8 string: {}", s),
-                            ));
+                            return Err(BcError::InvalidInput(format!(
+                                "Bad character in radix 8 string: {}",
+                                s
+                            )));
                         }
                         b = b.shift_left(3);
                     }
@@ -267,14 +266,10 @@ impl BigInteger {
 
         if index < str.chars().count() {
             let s = str.get(index..).unwrap();
-            let is = u64::from_str_radix(&s, radix);
-            if is.is_err() {
-                return Err(Error::new(
-                    ErrorKind::InvalidInput,
-                    format!("invalid input: {}", s),
-                ));
-            }
-            let i = is.unwrap();
+            let i = u64::from_str_radix(&s, radix).map_err(|e| BcError::ParseIntError {
+                source: e,
+                msg: format!("invalid input: {}", s),
+            })?;
             let bi = BigInteger::with_u64(i);
             if b.sign > 0 {
                 if radix == 2 {
@@ -290,7 +285,7 @@ impl BigInteger {
                 } else if radix == 16 {
                     b = b.shift_left((s.chars().count() as i32) << 2);
                 } else {
-                    b = b.multiply(&r.pow(s.chars().count() as u32));
+                    b = b.multiply(&r.pow(s.chars().count() as u32)?);
                 }
 
                 b = b.add(&bi);
@@ -304,21 +299,17 @@ impl BigInteger {
         Ok(b)
     }
 
-    /// # Panics
-    /// invalid sign value
-    pub fn with_sign_buffer(sign: i32, buffer: &[u8]) -> Result<Self, Error> {
+    pub fn with_sign_buffer(sign: i32, buffer: &[u8]) -> Result<Self> {
         Self::with_sign_buffer_big_endian(sign, buffer, true)
     }
 
-    /// # Panics
-    /// invalid sign value
     pub fn with_sign_buffer_big_endian(
         sign: i32,
         buffer: &[u8],
         big_endian: bool,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
         if sign < -1 || sign > 1 {
-            return Err(Error::new(ErrorKind::InvalidInput, "invalid sign value"));
+            return Err(BcError::InvalidFormat("invalid sign value".to_string()));
         }
         if sign == 0 {
             return Ok((*ZERO).clone());
@@ -331,24 +322,17 @@ impl BigInteger {
         Ok(Self::new(sign, Arc::new(magnitude)))
     }
 
-    /// # Panics
-    /// buffer is empty
-    pub fn with_buffer(buffer: &[u8]) -> Result<Self, Error> {
+    pub fn with_buffer(buffer: &[u8]) -> Self {
         Self::with_buffer_big_endian(buffer, true)
     }
 
-    /// # Panics
-    /// buffer is empty
-    pub fn with_buffer_big_endian(buffer: &[u8], big_endian: bool) -> Result<Self, Error> {
-        if buffer.len() == 0 {
-            return Err(Error::new(ErrorKind::InvalidInput, "buffer is empty"));
-        }
+    pub fn with_buffer_big_endian(buffer: &[u8], big_endian: bool) -> Self {
         let result = if big_endian {
             init_be(buffer)
         } else {
             init_le(buffer)
         };
-        Ok(Self::new(result.1, Arc::new(result.0)))
+        Self::new(result.1, Arc::new(result.0))
     }
 
     pub fn with_i32(value: i32) -> BigInteger {
@@ -402,23 +386,20 @@ impl BigInteger {
         BigInteger::new(sign, Arc::new(magnitude))
     }
 
-    ///
-    /// # Panics
-    /// size_in_bits < 2
     pub fn with_random_certainty(
         size_in_bits: usize,
         certainty: i32,
         random: &mut dyn RandomSource,
-    ) -> BigInteger {
+    ) -> Result<Self> {
         if size_in_bits < 2 {
-            panic!("size_in_bits < 2");
+            return Err(BcError::ArithmeticError("size_in_bits < 2".to_string()));
         }
 
         if size_in_bits == 2 {
             return if std::random::random::<u32>() % 2 == 0 {
-                (*TWO).clone()
+                Ok((*TWO).clone())
             } else {
-                (*THREE).clone()
+                Ok((*THREE).clone())
             };
         }
         let n_bytes = get_bytes_length(size_in_bits);
@@ -439,25 +420,25 @@ impl BigInteger {
             b[n_bytes - 1] |= 1;
             let mut magnitude = make_magnitude_be(&mut b);
             if certainty < 1 {
-                return BigInteger::new(1, Arc::new(magnitude));
+                return Ok(BigInteger::new(1, Arc::new(magnitude)));
             }
 
             let result = BigInteger::new(1, Arc::new(magnitude.clone()));
-            if result.check_probable_prime(certainty, random, true) {
-                return result;
+            if result.check_probable_prime(certainty, random, true)? {
+                return Ok(result);
             }
             for j in 1..(magnitude.len() - 1) {
                 magnitude[j] ^= std::random::random::<u32>();
 
                 let result = BigInteger::new(1, Arc::new(magnitude.clone()));
-                if result.check_probable_prime(certainty, random, true) {
-                    return result;
+                if result.check_probable_prime(certainty, random, true)? {
+                    return Ok(result);
                 }
             }
         }
     }
 
-    pub fn with_probable_prime(bit_length: usize, random: &mut dyn RandomSource) -> BigInteger {
+    pub fn with_probable_prime(bit_length: usize, random: &mut dyn RandomSource) -> Result<BigInteger> {
         Self::with_random_certainty(bit_length, 100, random)
     }
 
@@ -700,29 +681,29 @@ impl BigInteger {
             }
         })
     }
-    pub fn divide(&self, other: &BigInteger) -> BigInteger {
+    pub fn divide(&self, other: &BigInteger) -> Result<BigInteger> {
         if other.sign == 0 {
-            panic!("divide by zero");
+            return Err(BcError::ArithmeticError("divide by zero".to_string()));
         }
         if self.sign == 0 {
-            return (*ZERO).clone();
+            return Ok((*ZERO).clone());
         }
         if other.quick_pow2_check() {
             let result = self
                 .abs()
                 .shift_right((other.abs().get_bit_length() - 1) as i32);
             return if other.sign == self.sign {
-                result
+                Ok(result)
             } else {
-                result.negate()
+                Ok(result.negate())
             };
         }
         let mut mag = self.magnitude.to_vec();
-        BigInteger::with_check_mag(
+        Ok(BigInteger::with_check_mag(
             self.sign * other.sign,
             Arc::new(divide(&mut mag, &other.magnitude)),
             true,
-        )
+        ))
     }
     fn quick_pow2_check(&self) -> bool {
         self.sign > 0 && *self.get_bit_count() == 1usize
@@ -801,12 +782,13 @@ impl BigInteger {
         }
         result
     }
-    pub fn gcd(&self, other: &BigInteger) -> BigInteger {
+
+    pub fn gcd(&self, other: &BigInteger) -> Result<BigInteger> {
         if other.sign == 0 {
-            return self.abs();
+            return Ok(self.abs());
         }
         if self.sign == 0 {
-            return other.abs();
+            return Ok(other.abs());
         }
 
         let mut r: BigInteger;
@@ -814,53 +796,49 @@ impl BigInteger {
         let mut v = other.clone();
 
         while v.sign != 0 {
-            r = u.r#mod(&v);
+            r = u.r#mod(&v)?;
             u = v;
             v = r;
         }
-        return u;
+        return Ok(u);
     }
 
-    /// # Panics
-    /// modulus must be positive
-    pub fn r#mod(&self, modulus: &BigInteger) -> BigInteger {
+    pub fn r#mod(&self, modulus: &BigInteger) -> Result<BigInteger> {
         if modulus.sign < 1 {
-            panic!("modulus must be positive");
+            return Err(BcError::ArithmeticError("modulus must be positive".to_string()));
         }
-        let biggie = self.remainder(modulus);
+        let biggie = self.remainder(modulus)?;
         if biggie.sign >= 0 {
-            biggie
+            Ok(biggie)
         } else {
-            biggie.add(modulus)
+            Ok(biggie.add(modulus))
         }
     }
 
-    /// # Panics
-    /// division by zero error
-    pub fn remainder(&self, division: &BigInteger) -> BigInteger {
+    pub fn remainder(&self, division: &BigInteger) -> Result<BigInteger> {
         if division.sign == 0 {
-            panic!("division by zero error");
+            return Err(BcError::ArithmeticError("division by zero error".to_string()));
         }
         if self.sign == 0 {
-            return (*ZERO).clone();
+            return Ok((*ZERO).clone());
         }
         // For small values, use fast remainder method
         if division.magnitude.len() == 1 {
             let val = division.magnitude[0];
             if val > 0 {
                 if val == 1 {
-                    return (*ZERO).clone();
+                    return Ok((*ZERO).clone());
                 }
                 let rem = self.remainder_with_u32(val);
                 return if rem == 0 {
-                    (*ZERO).clone()
+                    Ok((*ZERO).clone())
                 } else {
-                    BigInteger::with_check_mag(self.sign, Arc::new(vec![rem]), false)
+                    Ok(BigInteger::with_check_mag(self.sign, Arc::new(vec![rem]), false))
                 };
             }
         }
         if compare_no_leading_zeros(&self.magnitude, &division.magnitude) < 0 {
-            return self.clone();
+            return Ok(self.clone());
         }
 
         let mut result: Vec<u32>;
@@ -870,7 +848,7 @@ impl BigInteger {
             result = self.magnitude.as_ref().clone();
             remainder(&mut result, division.magnitude.as_ref());
         }
-        BigInteger::with_check_mag(self.sign, Arc::new(result), true)
+        Ok(BigInteger::with_check_mag(self.sign, Arc::new(result), true))
     }
     fn remainder_with_u32(&self, m: u32) -> u32 {
         debug_assert!(m > 0);
@@ -925,20 +903,20 @@ impl BigInteger {
     }
 
     pub fn to_string(&self) -> String {
-        self.to_string_with_radix(10)
+        self.to_string_with_radix(10).unwrap()
     }
 
-    pub fn to_string_with_radix(&self, radix: u32) -> String {
+    pub fn to_string_with_radix(&self, radix: u32) -> Result<String> {
         match radix {
             2 => {}
             8 => {}
             10 => {}
             16 => {}
-            _ => panic!("Only bases 2, 8, 10, or 16 allowed"),
+            _ => return Err(BcError::InvalidInput("Only bases 2, 8, 10, or 16 allowed".to_string()))
         }
 
         if self.sign == 0 {
-            return "0".to_string();
+            return Ok("0".to_string());
         }
 
         let mut first_non_zero = 0;
@@ -950,7 +928,7 @@ impl BigInteger {
         }
 
         if first_non_zero == self.magnitude.len() {
-            return "0".to_string();
+            return Ok("0".to_string());
         }
 
         let mut sb = String::new();
@@ -1018,7 +996,7 @@ impl BigInteger {
             }
             _ => {}
         }
-        sb
+        Ok(sb)
     }
 
     pub fn to_long_value(&self) -> i64 {
@@ -1103,7 +1081,7 @@ impl BigInteger {
         certainty: i32,
         random: &mut dyn RandomSource,
         randomly_selected: bool,
-    ) -> bool {
+    ) -> Result<bool> {
         debug_assert!(certainty > 0);
         debug_assert!(self > &(*TWO));
         debug_assert!(self.test_bit(0));
@@ -1117,7 +1095,7 @@ impl BigInteger {
                 let prime = prime_list[j];
                 let q_rem = test % prime;
                 if q_rem == 0 {
-                    return *self.get_bit_length() < 16 && self.get_i32_value() as u32 == prime;
+                    return Ok(*self.get_bit_length() < 16 && self.get_i32_value() as u32 == prime);
                 }
             }
         }
@@ -1138,7 +1116,7 @@ impl BigInteger {
         // return rb_test;
     }
 
-    pub fn rabin_miller_test(&self, certainty: i32, random: &mut dyn RandomSource) -> bool {
+    pub fn rabin_miller_test(&self, certainty: i32, random: &mut dyn RandomSource) -> Result<bool> {
         return self.rabin_miller_test_with_randomly_selected(certainty, random, false);
     }
 
@@ -1147,7 +1125,7 @@ impl BigInteger {
         certainty: i32,
         random: &mut dyn RandomSource,
         randomly_selected: bool,
-    ) -> bool {
+    ) -> Result<bool> {
         let bits = *self.get_bit_length();
 
         debug_assert!(certainty > 0);
@@ -1183,7 +1161,7 @@ impl BigInteger {
 
         let mont_radix = (*ONE)
             .shift_left((32 * n.magnitude.len()) as i32)
-            .remainder(&n);
+            .remainder(&n)?;
         let minus_mont_radix = n.subtract(&mont_radix);
 
         let mut y_accum = vec![0u32; n.magnitude.len() + 1];
@@ -1204,19 +1182,19 @@ impl BigInteger {
                 }
             }
 
-            let mut y = Self::mod_pow_monty(&mut y_accum, &a, &r, &n, false);
+            let mut y = Self::mod_pow_monty(&mut y_accum, &a, &r, &n, false)?;
 
             if y != mont_radix {
                 let mut j = 0;
                 while y != minus_mont_radix {
                     j += 1;
                     if j == s {
-                        return false;
+                        return Ok(false);
                     }
                     y = Self::mod_square_monty(&mut y_accum, &y, &n);
 
                     if y == mont_radix {
-                        return false;
+                        return Ok(false);
                     }
                 }
             }
@@ -1227,7 +1205,7 @@ impl BigInteger {
                 break;
             }
         }
-        return true;
+        return Ok(true);
     }
 
     fn get_lowest_set_bit_mask_first(&self, first_word_mask_x: u32) -> i32 {
@@ -1252,7 +1230,7 @@ impl BigInteger {
         e: &BigInteger,
         m: &BigInteger,
         convert: bool,
-    ) -> BigInteger {
+    ) -> Result<BigInteger> {
         let n = m.magnitude.len();
         let pow_r = 32 * n;
         let small_monty_modulus = m.get_bit_length() + 2 <= pow_r;
@@ -1261,7 +1239,7 @@ impl BigInteger {
         // tmp = this * R mod m
         let mut b1 = b.clone();
         if convert {
-            b1 = b1.shift_left(pow_r as i32).remainder(m);
+            b1 = b1.shift_left(pow_r as i32).remainder(m)?;
         }
         debug_assert!(y_accm.len() == n + 1);
 
@@ -1372,7 +1350,7 @@ impl BigInteger {
             subtract(&mut y_val, &m.magnitude);
         }
 
-        BigInteger::with_check_mag(1, Arc::new(y_val), true)
+        Ok(BigInteger::with_check_mag(1, Arc::new(y_val), true))
     }
 
     fn mod_square_monty(y_accum: &mut [u32], b: &BigInteger, m: &BigInteger) -> BigInteger {
@@ -1557,19 +1535,19 @@ impl BigInteger {
         result
     }
 
-    pub fn pow(&self, mut exp: u32) -> BigInteger {
+    pub fn pow(&self, mut exp: u32) -> Result<BigInteger> {
         if exp == 0 {
-            return (*ONE).clone();
+            return Ok((*ONE).clone());
         }
         if self.sign == 0 {
-            return self.clone();
+            return Ok(self.clone());
         }
         if self.quick_pow2_check() {
             let pow_of_2 = exp as u64 * (self.get_bit_length() - 1) as u64;
             if pow_of_2 > i32::MAX as u64 {
-                panic!("Result too large");
+                return Err(BcError::ArithmeticError("Result too large".to_string()));
             }
-            return (*ONE).shift_left(pow_of_2 as i32);
+            return Ok((*ONE).shift_left(pow_of_2 as i32));
         }
         let mut y = (*ONE).clone();
         let mut z = self.clone();
@@ -1583,7 +1561,7 @@ impl BigInteger {
             }
             z = z.multiply(&z);
         }
-        y
+        Ok(y)
     }
 
     pub fn get_sign_value(&self) -> i32 {
@@ -1683,22 +1661,22 @@ impl BigInteger {
         bytes
     }
 
-    pub fn next_probable_prime(&self) -> BigInteger {
+    pub fn next_probable_prime(&self) -> Result<BigInteger> {
         if self.sign < 0 {
-            panic!("Negative numbers cannot be prime");
+            return Err(BcError::ArithmeticError("Negative numbers cannot be prime".to_string()));
         }
         if self < &(*TWO) {
-            return (*TWO).clone();
+            return Ok((*TWO).clone());
         }
 
         let mut n = self.inc().set_bit(0);
-        while !n.check_probable_prime(100, &mut DefaultRandomSource::default(), false) {
+        while !n.check_probable_prime(100, &mut DefaultRandomSource::default(), false)? {
             n = n.add(&(*TWO));
         }
-        n
+        Ok(n)
     }
 
-    pub fn is_probable_prime(&self, certainty: i32) -> bool {
+    pub fn is_probable_prime(&self, certainty: i32) -> Result<bool> {
         self.is_probable_prime_with_randomly_selected(certainty, false)
     }
 
@@ -1706,43 +1684,41 @@ impl BigInteger {
         &self,
         certainty: i32,
         randomly_selected: bool,
-    ) -> bool {
+    ) -> Result<bool> {
         if certainty <= 0 {
-            return true;
+            return Ok(true);
         }
         let n = self.abs();
 
         if !n.test_bit(0) {
-            return n == (*TWO);
+            return Ok(n == (*TWO));
         }
 
         if n == (*ONE) {
-            return false;
+            return Ok(false);
         }
 
-        return n.check_probable_prime(
+        Ok(n.check_probable_prime(
             certainty,
             &mut DefaultRandomSource::default(),
             randomly_selected,
-        );
+        )?)
     }
 
-    /// # Panics
-    /// modulus must be positive
-    pub fn mod_pow(&self, e: &BigInteger, m: &BigInteger) -> BigInteger {
+    pub fn mod_pow(&self, e: &BigInteger, m: &BigInteger) -> Result<BigInteger> {
         if m.sign < 1 {
-            panic!("modulus must be positive");
+            return Err(BcError::ArithmeticError("modulus must be positive".to_string()));
         }
         if m == &(*ONE) {
-            return (*ZERO).clone();
+            return Ok((*ZERO).clone());
         }
 
         if e.sign == 0 {
-            return (*ONE).clone();
+            return Ok((*ONE).clone());
         }
 
         if self.sign == 0 {
-            return (*ZERO).clone();
+            return Ok((*ZERO).clone());
         }
 
         let neg_exp = e.sign < 0;
@@ -1751,26 +1727,26 @@ impl BigInteger {
             e1 = e.negate();
         }
 
-        let mut result = self.r#mod(m);
+        let mut result = self.r#mod(m)?;
         if &e1 != &(*ONE) {
             if m.magnitude[m.magnitude.len() - 1] & 1 == 0 {
-                result = Self::mod_pow_barrett(&result, &e1, m);
+                result = Self::mod_pow_barrett(&result, &e1, m)?;
             } else {
                 let mut y_accum = vec![0u32; m.magnitude.len() + 1];
-                result = Self::mod_pow_monty(&mut y_accum, &result, &e1, m, true);
+                result = Self::mod_pow_monty(&mut y_accum, &result, &e1, m, true)?;
             }
         }
 
         if neg_exp {
-            result = result.mod_inverse(m);
+            result = result.mod_inverse(m)?;
         }
-        result
+        Ok(result)
     }
 
-    fn mod_pow_barrett(b: &BigInteger, e: &BigInteger, m: &BigInteger) -> BigInteger {
+    fn mod_pow_barrett(b: &BigInteger, e: &BigInteger, m: &BigInteger) -> Result<BigInteger> {
         let k = m.magnitude.len();
         let mr = (*ONE).shift_left(((k + 1) << 5) as i32);
-        let yu = (*ONE).shift_left((k << 6) as i32).divide(m);
+        let yu = (*ONE).shift_left((k << 6) as i32).divide(m)?;
 
         // Sliding window from MSW to LSW
         let mut extra_bits = 0;
@@ -1829,7 +1805,7 @@ impl BigInteger {
             y = Self::reduce_barrett(&(y.square()), m, &mr, &yu);
         }
 
-        y
+        Ok(y)
     }
 
     fn reduce_barrett(
@@ -1890,36 +1866,34 @@ impl BigInteger {
         BigInteger::with_check_mag(self.sign, Arc::new(mag), false)
     }
 
-    /// # Panics
-    /// modulus must be positive
-    pub fn mod_inverse(&self, modulus: &BigInteger) -> BigInteger {
+    pub fn mod_inverse(&self, modulus: &BigInteger) -> Result<BigInteger> {
         if modulus.sign < 1 {
-            panic!("modulus must be positive");
+            return Err(BcError::ArithmeticError("modulus must be positive".to_string()));
         }
 
         if modulus.quick_pow2_check() {
-            return self.mod_inverse_pow2(modulus);
+            return Ok(self.mod_inverse_pow2(modulus)?);
         }
 
-        let d = self.remainder(modulus);
+        let d = self.remainder(modulus)?;
         let (gcd, mut x) = ext_euclid(&d, modulus);
 
         if gcd != (*ONE) {
-            panic!("Numbers not relatively prime.");
+            return Err(BcError::ArithmeticError("Numbers not relatively prime".to_string()));
         }
 
         if x.sign < 0 {
             x = x.add(modulus);
         }
-        x
+        Ok(x)
     }
 
-    fn mod_inverse_pow2(&self, m: &BigInteger) -> BigInteger {
+    fn mod_inverse_pow2(&self, m: &BigInteger) -> Result<BigInteger> {
         debug_assert!(m.sign > 0);
         debug_assert!(*m.get_bit_count() == 1);
 
         if !self.test_bit(0) {
-            panic!("Numbers not relatively prime.");
+            return Err(BcError::ArithmeticError("Numbers not relatively prime".to_string()));
         }
 
         let pow = *m.get_bit_length() << 1;
@@ -1931,12 +1905,12 @@ impl BigInteger {
         let mut x = BigInteger::with_i64(inv64 as i64);
 
         if pow > 64 {
-            let d = self.remainder(m);
+            let d = self.remainder(m)?;
             let mut bits_correct = 64;
 
             loop {
-                let t = x.multiply(&d).remainder(m);
-                x = x.multiply(&(*TWO).subtract(&t)).remainder(m);
+                let t = x.multiply(&d).remainder(m)?;
+                x = x.multiply(&(*TWO).subtract(&t)).remainder(m)?;
                 bits_correct <<= 1;
 
                 if bits_correct < pow {
@@ -1950,7 +1924,7 @@ impl BigInteger {
         if x.sign < 0 {
             x = x.add(m);
         }
-        x
+        Ok(x)
     }
 
     pub fn get_lowest_set_bit(&self) -> i32 {
@@ -2132,7 +2106,11 @@ fn make_magnitude_be_negative(buffer: &[u8]) -> Vec<u32> {
         index += 1;
     }
     debug_assert!(index == sub_slice.len());
-    while inverse[{ index -= 1; index}] == u8::MAX {
+    while inverse[{
+        index -= 1;
+        index
+    }] == u8::MAX
+    {
         inverse[index] = u8::MIN;
     }
     inverse[index] += 1;
