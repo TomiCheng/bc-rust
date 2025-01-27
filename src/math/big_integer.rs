@@ -303,11 +303,7 @@ impl BigInteger {
         Self::with_sign_buffer_big_endian(sign, buffer, true)
     }
 
-    pub fn with_sign_buffer_big_endian(
-        sign: i32,
-        buffer: &[u8],
-        big_endian: bool,
-    ) -> Result<Self> {
+    pub fn with_sign_buffer_big_endian(sign: i32, buffer: &[u8], big_endian: bool) -> Result<Self> {
         if sign < -1 || sign > 1 {
             return Err(BcError::InvalidFormat("invalid sign value".to_string()));
         }
@@ -438,7 +434,10 @@ impl BigInteger {
         }
     }
 
-    pub fn with_probable_prime(bit_length: usize, random: &mut dyn RandomSource) -> Result<BigInteger> {
+    pub fn with_probable_prime(
+        bit_length: usize,
+        random: &mut dyn RandomSource,
+    ) -> Result<BigInteger> {
         Self::with_random_certainty(bit_length, 100, random)
     }
 
@@ -805,7 +804,9 @@ impl BigInteger {
 
     pub fn r#mod(&self, modulus: &BigInteger) -> Result<BigInteger> {
         if modulus.sign < 1 {
-            return Err(BcError::ArithmeticError("modulus must be positive".to_string()));
+            return Err(BcError::ArithmeticError(
+                "modulus must be positive".to_string(),
+            ));
         }
         let biggie = self.remainder(modulus)?;
         if biggie.sign >= 0 {
@@ -817,7 +818,9 @@ impl BigInteger {
 
     pub fn remainder(&self, division: &BigInteger) -> Result<BigInteger> {
         if division.sign == 0 {
-            return Err(BcError::ArithmeticError("division by zero error".to_string()));
+            return Err(BcError::ArithmeticError(
+                "division by zero error".to_string(),
+            ));
         }
         if self.sign == 0 {
             return Ok((*ZERO).clone());
@@ -833,7 +836,11 @@ impl BigInteger {
                 return if rem == 0 {
                     Ok((*ZERO).clone())
                 } else {
-                    Ok(BigInteger::with_check_mag(self.sign, Arc::new(vec![rem]), false))
+                    Ok(BigInteger::with_check_mag(
+                        self.sign,
+                        Arc::new(vec![rem]),
+                        false,
+                    ))
                 };
             }
         }
@@ -848,7 +855,11 @@ impl BigInteger {
             result = self.magnitude.as_ref().clone();
             remainder(&mut result, division.magnitude.as_ref());
         }
-        Ok(BigInteger::with_check_mag(self.sign, Arc::new(result), true))
+        Ok(BigInteger::with_check_mag(
+            self.sign,
+            Arc::new(result),
+            true,
+        ))
     }
     fn remainder_with_u32(&self, m: u32) -> u32 {
         debug_assert!(m > 0);
@@ -912,7 +923,11 @@ impl BigInteger {
             8 => {}
             10 => {}
             16 => {}
-            _ => return Err(BcError::InvalidInput("Only bases 2, 8, 10, or 16 allowed".to_string()))
+            _ => {
+                return Err(BcError::InvalidInput(
+                    "Only bases 2, 8, 10, or 16 allowed".to_string(),
+                ))
+            }
         }
 
         if self.sign == 0 {
@@ -1663,7 +1678,9 @@ impl BigInteger {
 
     pub fn next_probable_prime(&self) -> Result<BigInteger> {
         if self.sign < 0 {
-            return Err(BcError::ArithmeticError("Negative numbers cannot be prime".to_string()));
+            return Err(BcError::ArithmeticError(
+                "Negative numbers cannot be prime".to_string(),
+            ));
         }
         if self < &(*TWO) {
             return Ok((*TWO).clone());
@@ -1707,7 +1724,9 @@ impl BigInteger {
 
     pub fn mod_pow(&self, e: &BigInteger, m: &BigInteger) -> Result<BigInteger> {
         if m.sign < 1 {
-            return Err(BcError::ArithmeticError("modulus must be positive".to_string()));
+            return Err(BcError::ArithmeticError(
+                "modulus must be positive".to_string(),
+            ));
         }
         if m == &(*ONE) {
             return Ok((*ZERO).clone());
@@ -1868,7 +1887,9 @@ impl BigInteger {
 
     pub fn mod_inverse(&self, modulus: &BigInteger) -> Result<BigInteger> {
         if modulus.sign < 1 {
-            return Err(BcError::ArithmeticError("modulus must be positive".to_string()));
+            return Err(BcError::ArithmeticError(
+                "modulus must be positive".to_string(),
+            ));
         }
 
         if modulus.quick_pow2_check() {
@@ -1879,7 +1900,9 @@ impl BigInteger {
         let (gcd, mut x) = ext_euclid(&d, modulus);
 
         if gcd != (*ONE) {
-            return Err(BcError::ArithmeticError("Numbers not relatively prime".to_string()));
+            return Err(BcError::ArithmeticError(
+                "Numbers not relatively prime".to_string(),
+            ));
         }
 
         if x.sign < 0 {
@@ -1893,7 +1916,9 @@ impl BigInteger {
         debug_assert!(*m.get_bit_count() == 1);
 
         if !self.test_bit(0) {
-            return Err(BcError::ArithmeticError("Numbers not relatively prime".to_string()));
+            return Err(BcError::ArithmeticError(
+                "Numbers not relatively prime".to_string(),
+            ));
         }
 
         let pow = *m.get_bit_length() << 1;
@@ -2037,21 +2062,6 @@ fn strip_prefix_value<T: PartialEq>(buffer: &[T], v: T) -> &[T] {
         &buffer[pos..0]
     }
 }
-#[test]
-fn test_01_strip_prefix_value() {
-    let bs = [0x00, 0x00, 0x00, 0x00];
-    assert_eq!(strip_prefix_value(&bs, 0x0).len(), 0);
-}
-#[test]
-fn test_02_strip_prefix_value() {
-    let bs = [0x00, 0x00, 0x01, 0x00];
-    assert_eq!(strip_prefix_value(&bs, 0x0), [0x01, 0x00]);
-}
-#[test]
-fn test_03_strip_prefix_value() {
-    let bs = [0x01, 0x00, 0x01, 0x04];
-    assert_eq!(strip_prefix_value(&bs, 0x0), &bs);
-}
 
 fn strip_suffix_value(buffer: &[u8], v: u8) -> &[u8] {
     let mut find = false;
@@ -2136,16 +2146,6 @@ fn make_magnitude_le(buffer: &[u8]) -> Vec<u32> {
             u32::from_le_bytes(sub_slice[pos..(pos + C_BYTES_PRE_INT)].try_into().unwrap());
     }
     return magnitude;
-}
-#[test]
-fn test_01_make_magnitude_le() {
-    let bs = [0x00, 0x00, 0x00, 0x00];
-    assert_eq!(make_magnitude_le(&bs), C_ZERO_MAGNITUDE);
-}
-#[test]
-fn test_02_make_magnitude_le() {
-    let bs = [0x01, 0x02, 0x03, 0x04, 0x05, 0x6, 0x7, 0x8, 0x9, 0x00];
-    assert_eq!(make_magnitude_le(&bs), vec![0x09, 0x08070605, 0x04030201]);
 }
 
 fn make_magnitude_le_negative(buffer: &[u8]) -> Vec<u32> {
@@ -3124,4 +3124,38 @@ fn ext_euclid(a: &BigInteger, b: &BigInteger) -> (BigInteger, BigInteger) {
         }
     }
     (u3, u1)
+}
+
+#[cfg(test)]
+mod test {
+    use super::strip_prefix_value;
+    use super::make_magnitude_le;
+    use super::C_ZERO_MAGNITUDE;
+
+    #[test]
+    fn test_01_strip_prefix_value() {
+        let bs = [0x00, 0x00, 0x00, 0x00];
+        assert_eq!(strip_prefix_value(&bs, 0x0).len(), 0);
+    }
+    #[test]
+    fn test_02_strip_prefix_value() {
+        let bs = [0x00, 0x00, 0x01, 0x00];
+        assert_eq!(strip_prefix_value(&bs, 0x0), [0x01, 0x00]);
+    }
+    #[test]
+    fn test_03_strip_prefix_value() {
+        let bs = [0x01, 0x00, 0x01, 0x04];
+        assert_eq!(strip_prefix_value(&bs, 0x0), &bs);
+    }
+
+    #[test]
+    fn test_01_make_magnitude_le() {
+        let bs = [0x00, 0x00, 0x00, 0x00];
+        assert_eq!(make_magnitude_le(&bs), C_ZERO_MAGNITUDE);
+    }
+    #[test]
+    fn test_02_make_magnitude_le() {
+        let bs = [0x01, 0x02, 0x03, 0x04, 0x05, 0x6, 0x7, 0x8, 0x9, 0x00];
+        assert_eq!(make_magnitude_le(&bs), vec![0x09, 0x08070605, 0x04030201]);
+    }
 }

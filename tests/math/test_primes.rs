@@ -24,7 +24,7 @@ fn reference_is_mr_probable_prime(x: &BigInteger, num_bases: u32) -> bool {
     let mut random = DefaultRandomSource::default();
     for _ in 0..num_bases {
         let b = create_random_in_range(&(*TWO), &x_sub_two, &mut random);
-        if is_mr_probable_prime_to_base(&x, &b).unwrap() {
+        if !is_mr_probable_prime_to_base(&x, &b).unwrap() {
             return false;
         }
     }
@@ -60,7 +60,7 @@ fn test_enhanced_mr_probable_prime() {
         assert_eq!(mr.get_factor(), None);
 
         let mut prime_power = prime.clone();
-        for _ in 0..(iterations % 8) {
+        for _ in 0..=(iterations % 8) {
             prime_power = prime_power.multiply(&prime);
         }
 
