@@ -15,4 +15,6 @@ pub enum BcError {
     },
     #[error("arithmetic error: {0}")]
     ArithmeticError(String),
+    #[error("invalid operation: {0}")]
+    InvalidOperation(String),
 }

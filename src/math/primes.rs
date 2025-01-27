@@ -9,7 +9,7 @@ use crate::{
     math::big_integer::{ONE, THREE, TWO},
     util::{big_integers::create_random_in_range, pack::be_to_u32},
 };
-use crate::{Result,BcError};
+use crate::{BcError, Result};
 
 pub const SMALL_FACTOR_LIMIT: i32 = 211;
 
@@ -25,12 +25,20 @@ pub const SMALL_FACTOR_LIMIT: i32 = 211;
 /// # Returns
 /// an `StOutput` instance containing the requested prime.
 ///
-pub fn generate_st_random_prime(hash: &mut dyn Digest, length: u32, input_seed: &[u8]) -> Result<StOutput> {
+pub fn generate_st_random_prime(
+    hash: &mut dyn Digest,
+    length: u32,
+    input_seed: &[u8],
+) -> Result<StOutput> {
     if length < 2 {
-        return Err(BcError::InvalidInput("length must be at least 2".to_string()));
+        return Err(BcError::InvalidInput(
+            "length must be at least 2".to_string(),
+        ));
     }
     if input_seed.len() == 0 {
-        return Err(BcError::InvalidInput("input_seed cannot be empty".to_string()));
+        return Err(BcError::InvalidInput(
+            "input_seed cannot be empty".to_string(),
+        ));
     }
 
     impl_st_random_prime(hash, length, input_seed.to_vec())
@@ -58,7 +66,9 @@ pub fn enhanced_mr_probable_prime_test(
 ) -> Result<MrOutput> {
     check_candidate(candidate, "candidate")?;
     if iterations < 1 {
-        return Err(BcError::InvalidInput("iterations must be at least 1".to_string()));
+        return Err(BcError::InvalidInput(
+            "iterations must be at least 1".to_string(),
+        ));
     }
 
     if *candidate.get_bit_length() == 2 {
@@ -66,7 +76,9 @@ pub fn enhanced_mr_probable_prime_test(
     }
 
     if !candidate.test_bit(0) {
-        return Ok(MrOutput::with_provably_composite_with_factor((*TWO).clone()));
+        return Ok(MrOutput::with_provably_composite_with_factor(
+            (*TWO).clone(),
+        ));
     }
 
     let w = candidate;
@@ -129,51 +141,54 @@ pub fn enhanced_mr_probable_prime_test(
 }
 
 /// A fast check for small divisors, up to some implementation-specific limit.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// * `candidate` - The `BigInteger` instance to test for division by small factors.
-/// 
+///
 /// # Returns
-/// 
+///
 /// `true` if the candidate is found to have any small factors, `false` otherwise.
-/// 
+///
 pub fn has_any_small_factors(candidate: &BigInteger) -> Result<bool> {
     check_candidate(candidate, "candidate")?;
     impl_has_any_small_factors(candidate)
 }
 
-
-
 /// FIPS 186-4 C.3.1 Miller-Rabin Probabilistic Primality Test.  
 /// Run several iterations of the Miller-Rabin algorithm with randomly-chosen bases.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// * `candidate` - The `BigInteger` instance to test for primality.
 /// * `random` - The source of randomness to use to choose bases.
 /// * `iterations` - The number of randomly-chosen bases to perform the test for.
-/// 
+///
 /// # Returns
-/// 
-/// `false` if any witness to compositeness is found amongst the chosen bases (so `candidate` s definitely NOT prime), 
+///
+/// `false` if any witness to compositeness is found amongst the chosen bases (so `candidate` s definitely NOT prime),
 /// or else `true` (indicating primality with some probability dependent on the number of iterations that were performed).
-/// 
-pub fn is_mr_probable_prime(candidate: &BigInteger, random: &mut dyn RandomSource, iterations: u32) -> Result<bool> {
+///
+pub fn is_mr_probable_prime(
+    candidate: &BigInteger,
+    random: &mut dyn RandomSource,
+    iterations: u32,
+) -> Result<bool> {
     check_candidate(candidate, "candidate")?;
 
     if iterations < 1 {
-        panic!("iterations must be at least 1");
+        return Err(BcError::InvalidInput(
+            "iterations must be at least 1".to_string(),
+        ));
     }
 
     if *candidate.get_bit_length() == 2 {
         return Ok(true);
     }
-        
+
     if !candidate.test_bit(0) {
         return Ok(false);
     }
-
 
     let w = candidate;
     let w_sub_one = candidate.subtract(&(*ONE));
@@ -193,22 +208,27 @@ pub fn is_mr_probable_prime(candidate: &BigInteger, random: &mut dyn RandomSourc
 
 /// FIPS 186-4 C.3.1 Miller-Rabin Probabilistic Primality Test (to a fixed base).  
 /// Run a single iteration of the Miller-Rabin algorithm against the specified base.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// * `candidate` - The `BigInteger` instance to test for primality.
 /// * `base_value` - The base value to use for this iteration.
-/// 
+///
 /// # Returns
-/// 
+///
 /// `false` if the base is a witness to compositeness (so `candidate` is definitely NOT prime), , or else `true`.
-/// 
-pub fn is_mr_probable_prime_to_base(candidate: &BigInteger, base_value: &BigInteger) -> Result<bool> {
+///
+pub fn is_mr_probable_prime_to_base(
+    candidate: &BigInteger,
+    base_value: &BigInteger,
+) -> Result<bool> {
     check_candidate(candidate, "candidate")?;
     check_candidate(base_value, "base_value")?;
 
     if base_value >= &candidate.subtract(&(*ONE)) {
-        return Err(BcError::InvalidInput("baseValue must be < candidate-1".to_string()));
+        return Err(BcError::InvalidInput(
+            "baseValue must be < candidate-1".to_string(),
+        ));
     }
 
     if candidate == &(*TWO) {
@@ -223,7 +243,6 @@ pub fn is_mr_probable_prime_to_base(candidate: &BigInteger, base_value: &BigInte
 
     impl_mr_probable_prime_to_base(w, &w_sub_one, &m, a, base_value)
 }
-
 
 /// Used to return the output from the `EnhancedMRProbablePrimeTest` Enhanced Miller-Rabin Probabilistic Primality Test
 pub struct MrOutput {
@@ -292,7 +311,11 @@ impl StOutput {
     }
 }
 
-fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>) -> Result<StOutput> {
+fn impl_st_random_prime(
+    d: &mut dyn Digest,
+    length: u32,
+    mut prime_seed: Vec<u8>,
+) -> Result<StOutput> {
     let d_len = d.get_digest_size();
     let c_len = d_len.max(4);
 
@@ -323,7 +346,9 @@ fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>
             }
 
             if prime_gen_counter > (4 * length) {
-                panic!("Too many iterations in generation of prime number");
+                return Err(BcError::InvalidOperation(
+                    "Too many iterations in generation of prime number".to_string(),
+                ));
             }
         }
     }
@@ -347,7 +372,11 @@ fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>
         )?;
 
         let c0x2 = c0.shift_left(1);
-        let mut tx2 = x.subtract(&(*ONE)).divide(&c0x2)?.add(&(*ONE)).shift_left(1);
+        let mut tx2 = x
+            .subtract(&(*ONE))
+            .divide(&c0x2)?
+            .add(&(*ONE))
+            .shift_left(1);
         let mut dt = 0;
 
         let mut c = tx2.multiply(&c0).add(&(*ONE));
@@ -372,7 +401,9 @@ fn impl_st_random_prime(d: &mut dyn Digest, length: u32, mut prime_seed: Vec<u8>
                 }
 
                 if prime_gen_counter >= ((4 * length) + old_counter) {
-                    panic!("Too many iterations in generation of prime number");
+                    return Err(BcError::InvalidOperation(
+                        "Too many iterations in generation of prime number".to_string(),
+                    ));
                 }
 
                 dt += 2;
@@ -521,7 +552,10 @@ fn impl_has_any_small_factors(x: &BigInteger) -> Result<bool> {
 
 fn check_candidate(n: &BigInteger, name: &str) -> Result<()> {
     if n.get_sign_value() < 1 || *n.get_bit_length() < 2 {
-        return Err(BcError::InvalidInput(format!("{} must be non-null and >= 2", name)));
+        return Err(BcError::InvalidInput(format!(
+            "{} must be non-null and >= 2",
+            name
+        )));
     }
     return Ok(());
 }
