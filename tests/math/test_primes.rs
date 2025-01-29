@@ -1,5 +1,7 @@
 use std::random::{DefaultRandomSource, RandomSource};
 
+use bc_rust::crypto::digests::Sha1Digest;
+use bc_rust::crypto::digests::Sha256Digest;
 use bc_rust::crypto::Digest;
 use bc_rust::math::big_integer::TWO;
 use bc_rust::math::primes::{
@@ -107,7 +109,8 @@ fn test_mr_probable_prime_to_base() {
 #[test]
 fn test_st_random_prime() {
     let mut random = DefaultRandomSource::default();
-    let mut digests: [Box<dyn Digest>; 0] = []; // todo!();
+    let mut digests: [Box<dyn Digest>; 2] =
+        [Box::new(Sha1Digest::new()), Box::new(Sha256Digest::new())];
     for digest in digests.iter_mut() {
         let mut coincidence_count = 0;
         let mut iterations = 0;

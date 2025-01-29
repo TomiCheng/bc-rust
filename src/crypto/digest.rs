@@ -2,7 +2,7 @@
 /// Base interface for a message digest.
 pub trait Digest {
     /// The algorithm name.
-    fn get_algorythm_name(&self) -> &'static str;
+    fn get_algorithm_name(&self) -> &'static str;
 
     /// Return the size, in bytes, of the digest produced by this message digest.
     fn get_digest_size(&self) -> usize;
