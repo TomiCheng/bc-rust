@@ -121,7 +121,7 @@ fn test_st_random_prime() {
 
             let st = match generate_st_random_prime(digest.as_mut(), PRIME_BITS as u32, &input_seed)
             {
-                Ok(st3) => st3,
+                Ok(v) => v,
                 Err(e) => match e {
                     BcError::InvalidOperation(msg) => {
                         if msg.starts_with("Too many iterations") {
@@ -137,7 +137,7 @@ fn test_st_random_prime() {
 
             let st2 =
                 match generate_st_random_prime(digest.as_mut(), PRIME_BITS as u32, &input_seed) {
-                    Ok(st3) => st3,
+                    Ok(v) => v,
                     Err(e) => match e {
                         BcError::InvalidOperation(msg) => {
                             if msg.starts_with("Too many iterations") {
@@ -154,12 +154,12 @@ fn test_st_random_prime() {
             assert_eq!(st.get_prime_seed(), st2.get_prime_seed());
 
             for i in 0..input_seed.len() {
-                input_seed[i] = input_seed[i] ^ 0xFF;
+                input_seed[i] ^= 0xFF;
             }
 
             let st3 =
                 match generate_st_random_prime(digest.as_mut(), PRIME_BITS as u32, &input_seed) {
-                    Ok(st3) => st3,
+                    Ok(v) => v,
                     Err(e) => match e {
                         BcError::InvalidOperation(msg) => {
                             if msg.starts_with("Too many iterations") {
@@ -172,7 +172,7 @@ fn test_st_random_prime() {
                     },
                 };
 
-            assert_eq!(st.get_prime(), st3.get_prime());
+            assert_ne!(st.get_prime(), st3.get_prime());
             assert_ne!(st.get_prime_seed(), st3.get_prime_seed());
 
             if st.get_prime_gen_counter() == st3.get_prime_gen_counter() {

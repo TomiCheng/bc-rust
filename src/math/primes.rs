@@ -399,16 +399,15 @@ fn impl_st_random_prime(
                 if (&c.gcd(&z.subtract(&(*ONE)))? == &(*ONE)) && (&z.mod_pow(&c0, &c)? == &(*ONE)) {
                     return Ok(StOutput::new(c, prime_seed, prime_gen_counter));
                 }
-
-                if prime_gen_counter >= ((4 * length) + old_counter) {
-                    return Err(BcError::InvalidOperation(
-                        "Too many iterations in generation of prime number".to_string(),
-                    ));
-                }
-
-                dt += 2;
-                c = c.add(&c0x2);
             }
+            if prime_gen_counter >= ((4 * length) + old_counter) {
+                return Err(BcError::InvalidOperation(
+                    "Too many iterations in generation of prime number".to_string(),
+                ));
+            }
+
+            dt += 2;
+            c = c.add(&c0x2);
         }
     }
 }
