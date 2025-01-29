@@ -1,6 +1,8 @@
 use bc_rust::crypto::Digest;
+use bc_rust::security::digest_utilities::do_final;
 use bc_rust::util::encoders::hex::to_decode_with_str;
 use bc_rust::util::Memoable;
+use std::random::RandomSource;
 
 pub struct TestDigest<'a, T: Digest + Memoable + Clone> {
     digest: T,
@@ -61,7 +63,7 @@ impl <'a, T: Digest + Memoable + Clone> TestDigest<'a, T> {
 
         assert_eq!(res_buf, last_digest, "{}: failing memo vector test", self.get_algorithm_name());
 
-        self.digest.reset(&copy1);
+        Memoable::reset(&mut self.digest, &copy1);
 
         self.digest.block_update(&last_v[(last_v.len() / 2)..]);
         self.digest.do_final(&mut res_buf);
@@ -73,6 +75,8 @@ impl <'a, T: Digest + Memoable + Clone> TestDigest<'a, T> {
         copy2.do_final(&mut res_buf);
 
         assert_eq!(res_buf, last_digest, "{}: failing memo copy vector test", self.get_algorithm_name());
+
+        self.span_consistency_tests();
     }
 
     fn test_vector(&mut self, count: usize, res_buf: &mut [u8], input: &[u8], expected: &[u8]) {
@@ -80,6 +84,33 @@ impl <'a, T: Digest + Memoable + Clone> TestDigest<'a, T> {
         self.digest.do_final(res_buf);
     
         assert_eq!(res_buf, expected, "{}: vector {} failed got", self.get_algorithm_name(), count);
+    }
+
+    fn span_consistency_tests(&mut self) {
+        let mut data = vec![0u8; 16 + 256];
+        let mut random = std::random::DefaultRandomSource::default();
+        random.fill_bytes(&mut data);
+        for len in 0..=256 {
+            let off: usize = std::random::random::<usize>() % 16;
+            self.span_consistency_test(&data[off..(off + len)]);
+        }
+    }
+    
+    fn span_consistency_test(&mut self, data: &[u8]) {
+        Digest::reset(&mut self.digest);
+        let span_result1 = do_final(&mut self.digest, data);
+
+        let mut pos = 0;
+        while pos < data.len() {
+            let next = 1 + std::random::random::<usize>() % (data.len() - pos);
+            self.digest.block_update(&data[pos..(pos + next)]);
+            pos += next;
+        }
+
+        let mut span_result2 = vec![0u8; self.digest.get_digest_size()];
+        self.digest.do_final(&mut span_result2);
+        assert_eq!(span_result1, span_result2, "{}: span consistency test failed", self.get_algorithm_name());
+
     }
 }
 

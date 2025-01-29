@@ -24,11 +24,6 @@ impl Sha1Digest {
             digest_impl: GeneralDigest::new(Sha1DigestImpl::new()),
         }
     }
-
-    pub fn reset(&mut self) {
-        self.digest_impl.reset();
-        self.digest_impl.as_impl_mut().reset();
-    }
 }
 
 impl Digest for Sha1Digest {
@@ -55,8 +50,13 @@ impl Digest for Sha1Digest {
     fn do_final(&mut self, output: &mut [u8]) -> usize {
         self.digest_impl.finish();
         let size = self.digest_impl.as_impl_mut().do_final(output);
-        self.reset();
+        Digest::reset(self);
         size
+    }
+
+    fn reset(&mut self) {
+        self.digest_impl.reset();
+        self.digest_impl.as_impl_mut().reset();
     }
 }
 

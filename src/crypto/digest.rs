@@ -18,4 +18,7 @@ pub trait Digest {
 
     /// Close the digest, producing the final digest value.
     fn do_final(&mut self, output: &mut[u8]) -> usize;
+
+    /// Reset the digest back to its initial state.<
+    fn reset(&mut self);
 }
