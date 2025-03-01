@@ -1,5 +1,7 @@
 use thiserror::Error;
 use std::num::ParseIntError;
+use std::io::Error as IoError;
+use chrono::ParseError;
 
 #[derive(Error, Debug)]
 pub enum BcError {
@@ -13,8 +15,22 @@ pub enum BcError {
         #[source]
         source: ParseIntError,
     },
+    #[error("io error: {source}")]
+    IoError {
+        msg: String,
+        #[source]
+        source: IoError,
+    },
     #[error("arithmetic error: {0}")]
     ArithmeticError(String),
     #[error("invalid operation: {0}")]
     InvalidOperation(String),
+    #[error("invalid case: {0}")]
+    InvalidCase(String),
+    #[error("io error: {source}")]
+    ParseError {
+        msg: String,
+        #[source]
+        source: ParseError,
+    },
 }

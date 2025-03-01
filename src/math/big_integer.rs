@@ -303,6 +303,14 @@ impl BigInteger {
         Self::with_sign_buffer_big_endian(sign, buffer, true)
     }
 
+    /// # Arguments
+    /// * `sign` - The sign of the integer.
+    /// * `buffer` - The buffer containing the integer.
+    /// * `big_endian` - The endianness of the buffer.
+    /// # Returns
+    /// A `BigInteger` instance.
+    /// # Errors
+    /// Returns `Error` if the sign is invalid.
     pub fn with_sign_buffer_big_endian(sign: i32, buffer: &[u8], big_endian: bool) -> Result<Self> {
         if sign < -1 || sign > 1 {
             return Err(BcError::InvalidFormat("invalid sign value".to_string()));
