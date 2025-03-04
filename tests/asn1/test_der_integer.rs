@@ -1,5 +1,5 @@
 use bc_rust::asn1::asn1_encodable::DER;
-use bc_rust::asn1::{Asn1Convertiable, DerInteger};
+use bc_rust::asn1::{parse_asn1_object, Asn1Convertiable, DerInteger};
 use bc_rust::math::BigInteger;
 use bc_rust::util::encoders::hex::to_decode_with_str;
 use std::rc::Rc;
@@ -135,4 +135,13 @@ fn test_encode() {
         assert_eq!(result_length, length);
         assert_eq!(result_buffer, buffer);
     }
+}
+
+#[test]
+fn test_parse_asn1_object() {
+    let buffer = vec![0x02u8, 0x04, 0x07, 0x5B, 0xCD, 0x15];
+    let asn1_object = parse_asn1_object(&mut buffer.as_slice()).expect("fail");
+    assert!(asn1_object.is::<DerInteger>());
+    let der_integer = asn1_object.downcast_ref::<DerInteger>().unwrap();
+    check_i64_value(&der_integer, 123456789);
 }

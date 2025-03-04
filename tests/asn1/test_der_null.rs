@@ -1,5 +1,5 @@
 use bc_rust::asn1::asn1_encodable::DER;
-use bc_rust::asn1::{Asn1Convertiable, DerNull};
+use bc_rust::asn1::{parse_asn1_object, Asn1Convertiable, DerNull};
 use std::rc::Rc;
 
 #[test]
@@ -36,4 +36,11 @@ fn test_encodable() {
         assert_eq!(2, length);
         assert_eq!(null_buffer, buffer);
     }
+}
+
+#[test]
+fn test_parse_asn1_object() {
+    let buffer = vec![0x05u8, 0x00];
+    let asn1_object = parse_asn1_object(&mut buffer.as_slice()).expect("fail");
+    assert!(asn1_object.is::<DerNull>());
 }

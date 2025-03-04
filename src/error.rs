@@ -33,4 +33,13 @@ pub enum BcError {
         #[source]
         source: ParseError,
     },
+    #[error("asn1 error: {msg}")]
+    Asn1Error {
+        msg: String,
+        source: Option<Box<BcError>>,
+    }, 
+    #[error("eod of read error: {msg}")]
+    EndOfReadError {
+        msg: String,
+    },
 }

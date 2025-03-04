@@ -46,7 +46,6 @@ impl DerInteger {
             buffer: Rc::new(buffer.to_vec()),
         })
     }
-
     pub fn with_buffer_allow_unsafe(buffer: &[u8]) -> Result<DerInteger> {
         if buffer.len() == 0 {
             return Err(BcError::InvalidInput("buffer len is zero".to_string()));
@@ -55,6 +54,9 @@ impl DerInteger {
             start: sign_bytes_to_skip(buffer),
             buffer: Rc::new(buffer.to_vec()),
         })
+    }
+    pub(crate) fn with_primitive(contents: &[u8]) -> Result<Self> {
+        Self::with_buffer(contents)
     }
 
     pub fn get_value(&self) -> BigInteger {
