@@ -8,7 +8,7 @@ use crate::{BcError, Result};
 // //use std::any::Any;
 use std::io::Write;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum EncodingType {
     Ber,
     Der,
@@ -40,8 +40,8 @@ impl<'a> Asn1Write<'a> {
         }
     }
 
-    pub(crate) fn get_encoding(&self) -> &EncodingType {
-        &self.encoding_type
+    pub(crate) fn get_encoding(&self) -> EncodingType {
+        self.encoding_type
     }
     pub(crate) fn write_identifier(&mut self, flags: u32, mut tag_no: u32) -> Result<usize> {
         if tag_no < 31 {

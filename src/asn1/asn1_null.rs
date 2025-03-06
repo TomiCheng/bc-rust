@@ -56,3 +56,7 @@
 //         write!(f, "NULL")
 //     }
 // }
+
+use super::Asn1Object;
+
+pub trait Asn1Null: Asn1Object {}

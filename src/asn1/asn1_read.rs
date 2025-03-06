@@ -1,13 +1,11 @@
-use std::any::Any;
 use std::io::Read;
 
-use super::asn1_tags::{INTEGER, FLAGS, NULL};
-use super::DerInteger;
-use super::{asn1_tags::CONSTRUCTED, DerNull};
+use super::asn1_tags::{BOOLEAN, FLAGS, INTEGER, NULL};
+use super::{Asn1Object, DerBooleanImpl, DerNullImpl};
+use super::DerIntegerImpl;
+//use super::{asn1_tags::CONSTRUCTED, DerNull};
 use super::definite_length_read::DefiniteLengthRead;
-use crate::{
-    BcError, Result,
-};
+use crate::{BcError, Result};
 
 pub struct Asn1Read<'a> {
     reader: &'a mut dyn Read,
@@ -27,7 +25,7 @@ impl<'a> Asn1Read<'a> {
         })?;
         Ok(buf[0])
     }
-    pub fn read_object(&mut self) -> Result<Box<dyn Any>> {
+    pub fn read_object(&mut self) -> Result<Asn1Object> {
         let tag_header = self.read_u8()?;
         let tag_no = read_tag_number(self.reader, tag_header)?;
         let length = read_length(self.reader, self.limit, true)?;
@@ -37,20 +35,20 @@ impl<'a> Asn1Read<'a> {
             return self.build_object(tag_header, tag_no, length);
             // todo exception mapping
         }
-        if (tag_header as u32 & CONSTRUCTED) == 0 {
-            return Err(BcError::IoError {
-                msg: "indefinite-length primitive encoding encountered".to_string(),
-                source: std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "constructed flag not set",
-                ),
-            });
-        }
+        // if (tag_header as u32 & CONSTRUCTED) == 0 {
+        //     return Err(BcError::IoError {
+        //         msg: "indefinite-length primitive encoding encountered".to_string(),
+        //         source: std::io::Error::new(
+        //             std::io::ErrorKind::InvalidData,
+        //             "constructed flag not set",
+        //         ),
+        //     });
+        // }
 
         todo!();
     }
 
-    fn build_object(&mut self, tag_header: u8, tag_no: u32, length: u32) -> Result<Box<dyn Any>> {
+    fn build_object(&mut self, tag_header: u8, tag_no: u32, length: u32) -> Result<Asn1Object> {
         let mut def_reader = DefiniteLengthRead::new(self.reader, length as usize, self.limit);
         if (tag_header as u32 & FLAGS) == 0 {
             return create_primitive_der_object(tag_no, &mut def_reader);
@@ -155,16 +153,16 @@ pub(crate) fn read_length(
 pub(crate) fn create_primitive_der_object(
     tag_no: u32,
     reader: &mut DefiniteLengthRead,
-) -> Result<Box<dyn Any>> {
-
-    match tag_no {
-        _ => {} // Nothing
-    }
+) -> Result<Asn1Object> {
+    //     match tag_no {
+    //         _ => {} // Nothing
+    //     }
 
     let bytes = reader.to_vec()?;
     return match tag_no {
-        NULL => Ok(Box::new(DerNull::with_primitive(&bytes)?)),
-        INTEGER => Ok(Box::new(DerInteger::with_primitive(&bytes)?)),
+        BOOLEAN => Ok(DerBooleanImpl::with_primitive(&bytes)?.into()),
+        INTEGER => Ok(DerIntegerImpl::with_primitive(&bytes)?.into()),
+        NULL => Ok(DerNullImpl::with_primitive(&bytes)?.into()),
         _ => Err(BcError::IoError {
             msg: format!("unknown tag {tag_no} encountered"),
             source: std::io::Error::new(std::io::ErrorKind::InvalidData, ""),
@@ -172,7 +170,7 @@ pub(crate) fn create_primitive_der_object(
     };
 }
 
-fn get_buffer(def_reader: &mut DefiniteLengthRead) {
-    let len = def_reader.get_remaining();
+// fn get_buffer(def_reader: &mut DefiniteLengthRead) {
+//     let len = def_reader.get_remaining();
 
-}
+// }

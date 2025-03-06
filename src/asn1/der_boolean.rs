@@ -1,32 +1,33 @@
+use std::fmt::{Display, Formatter};
+use std::io::Write;
+use std::rc::Rc;
+
 use super::asn1_encoding::Asn1Encoding;
-use super::asn1_object::Asn1ObjectInternal;
+use super::asn1_object::{encode_to_with_encoding, get_encoded_with_encoding, Asn1ObjectImpl};
 use super::asn1_tags::{BOOLEAN, UNIVERSAL};
 use super::asn1_write::EncodingType;
 use super::primitive_encoding::PrimitiveEncoding;
-use super::{Asn1Convertiable, Asn1Encodable, Asn1ObjectImpl};
-use std::fmt::{Display, Formatter};
-use std::rc::Rc;
+use super::Asn1Encodable;
+use crate::asn1::asn1_write::get_encoding_type;
+use crate::{Result, BcError};
 
-pub struct DerBoolean {
+pub struct DerBooleanImpl {
     value: u8,
 }
 
-impl DerBoolean {
+impl DerBooleanImpl {
     pub fn new(value: bool) -> Self {
-        DerBoolean {
+        DerBooleanImpl {
             value: if value { 0xFF } else { 0x00 },
         }
     }
-
     pub fn with_i32(value: i32) -> Self {
-        DerBoolean::new(value != 0)
+        DerBooleanImpl::new(value != 0)
     }
-
     pub fn is_true(&self) -> bool {
         self.value != 0x00
     }
-
-    fn get_contents(&self, encoding: &EncodingType) -> Vec<u8> {
+    fn get_contents(&self, encoding: EncodingType) -> Vec<u8> {
         let mut contents = self.value;
         match encoding {
             EncodingType::Der if self.is_true() => {
@@ -36,25 +37,37 @@ impl DerBoolean {
         }
         vec![contents]
     }
+    fn get_encoding_with_type(&self, encode_type: EncodingType) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(
+            UNIVERSAL,
+            BOOLEAN,
+            Rc::new(self.get_contents(encode_type)),
+        ))
+    }
+    pub(crate) fn with_primitive(contents: &[u8]) -> Result<Self> {
+        if contents.len() != 1 {
+            return Err(BcError::InvalidInput("BOOLEAN value should have 1 byte in it".to_owned()));
+        }
+        Ok(DerBooleanImpl::new(contents[0] != 0))
+    }
 }
-impl Display for DerBoolean {
+
+impl Asn1ObjectImpl for DerBooleanImpl {}
+
+impl Display for DerBooleanImpl {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "{}", if self.is_true() { "TRUE" } else { "FALSE" })
     }
 }
 
-impl Asn1ObjectInternal for DerBoolean {
-    fn get_encoding_with_type(&self, encoding: &EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(
-            UNIVERSAL,
-            BOOLEAN,
-            Rc::new(self.get_contents(encoding)),
-        ))
+impl Asn1Encodable for DerBooleanImpl {
+    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
+        let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
+        get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
-}
 
-impl Asn1Convertiable for DerBoolean {
-    fn to_asn1_encodable(self: &Rc<Self>) -> Box<dyn Asn1Encodable> {
-        Box::new(Asn1ObjectImpl::new(self.clone()))
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
+        let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
+        encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }
 }

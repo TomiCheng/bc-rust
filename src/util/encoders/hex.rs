@@ -93,3 +93,12 @@ pub fn decode_with_str(data: &str, result: &mut dyn Write) -> Result<usize> {
 fn ignore(c: char) -> bool {
     c == ' ' || c == '\r' || c == '\n' || c == '\t'
 }
+
+pub fn to_hex_string(data: &[u8]) -> String {
+    let mut result = String::with_capacity(data.len() * 2);
+    for b in data {
+        result.push(ENCODING_TABLE[(b >> 4) as usize] as char);
+        result.push(ENCODING_TABLE[(b & 0x0F) as usize] as char);
+    }
+    result
+}

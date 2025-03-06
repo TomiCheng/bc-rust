@@ -7,9 +7,13 @@ pub const DER: &str = "DER";
 pub const DL: &str = "DL";
 
 pub trait Asn1Encodable {
-    fn encode_to(&self, writer: &mut dyn Write) -> Result<usize>;
+    fn encode_to(&self, writer: &mut dyn Write) -> Result<usize> {
+        self.encode_to_with_encoding(writer, BER)
+    }
     fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding: &str) -> Result<usize>;
-    fn get_encoded(&self) -> Result<Vec<u8>>;
+    fn get_encoded(&self) -> Result<Vec<u8>> {
+        self.get_encoded_with_encoding(BER)
+    }
     fn get_encoded_with_encoding(&self, encoding: &str) -> Result<Vec<u8>>;
     fn get_der_encoded(&self) -> Option<Vec<u8>> {
         self.get_encoded_with_encoding(DER).ok()
@@ -17,9 +21,9 @@ pub trait Asn1Encodable {
 }
 
 //pub(crate) trait Asn1EncodableInternal: Asn1ConvertiableInternal {
-    //fn as_asn1_convertiable_internal(&self) -> &dyn Asn1ConvertiableInternal;
-    //fn get_encoded_alloc(&self, encoding: &str, pre_alloc: usize, post_alloc: usize) -> Result<Vec<u8>>
-    //fn get_encoded(&self) -> Result<Vec<u8>>;
+//fn as_asn1_convertiable_internal(&self) -> &dyn Asn1ConvertiableInternal;
+//fn get_encoded_alloc(&self, encoding: &str, pre_alloc: usize, post_alloc: usize) -> Result<Vec<u8>>
+//fn get_encoded(&self) -> Result<Vec<u8>>;
 //}
 
 // pub struct Asn1EncodableImpl<'a> {

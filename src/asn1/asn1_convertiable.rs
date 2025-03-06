@@ -1,6 +1,8 @@
-use super::Asn1Encodable;
-use std::rc::Rc;
+use std::any::Any;
 
-pub trait Asn1Convertiable {
-    fn to_asn1_encodable(self: &Rc<Self>) -> Box<dyn Asn1Encodable>;
+use super::Asn1Object;
+
+pub trait Asn1Convertiable: Any {
+    fn to_asn1_object(&self) -> Box<dyn Asn1Object>;
 }
+

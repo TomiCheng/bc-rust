@@ -2,6 +2,7 @@ use crate::math::raw::internal_mod::{inverse_u32, inverse_u64};
 use crate::util::pack::{be_to_u32_buffer, be_to_u32_low, le_to_u32_low, u32_to_be_bytes};
 use crate::{BcError, Result};
 use std::fmt::Debug;
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::random::{DefaultRandomSource, RandomSource};
 use std::sync::{Arc, LazyLock, OnceLock};
@@ -2023,6 +2024,12 @@ impl Hash for BigInteger {
     }
 }
 
+impl Display for BigInteger {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
 impl Debug for BigInteger {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_string())
@@ -3136,8 +3143,8 @@ fn ext_euclid(a: &BigInteger, b: &BigInteger) -> (BigInteger, BigInteger) {
 
 #[cfg(test)]
 mod test {
-    use super::strip_prefix_value;
     use super::make_magnitude_le;
+    use super::strip_prefix_value;
     use super::C_ZERO_MAGNITUDE;
 
     #[test]

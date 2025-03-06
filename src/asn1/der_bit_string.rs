@@ -1,23 +1,29 @@
+use std::fmt::{Display, Formatter};
+use std::io::Write;
 use std::rc::Rc;
 
 use super::asn1_encoding::Asn1Encoding;
-use super::asn1_object::Asn1ObjectInternal;
+use super::asn1_object::{encode_to_with_encoding, get_encoded_with_encoding, Asn1ObjectImpl};
 use super::asn1_tags::{BIT_STRING, UNIVERSAL};
-use super::asn1_write::EncodingType;
+use super::asn1_write::{get_encoding_type, EncodingType};
 use super::primitive_encoding::PrimitiveEncoding;
 use super::primitive_encoding_suffixed::PrimitiveEncodingSuffixed;
-use super::{Asn1Convertiable, Asn1Encodable, Asn1ObjectImpl};
+use super::{Asn1Encodable, Asn1Object};
 use crate::{BcError, Result};
 
-pub struct DerBitString {
+// use super::asn1_encoding::Asn1Encoding;
+// use super::asn1_object::Asn1ObjectInternal;
+// use super::asn1_write::EncodingType;
+// use super::primitive_encoding::PrimitiveEncoding;
+// use super::{Asn1Convertiable, Asn1Encodable, Asn1ObjectImpl};
+
+pub struct DerBitStringImpl {
     contents: Rc<Vec<u8>>,
 }
 
-impl DerBitString {
+impl DerBitStringImpl {
     pub fn new(contents: Rc<Vec<u8>>) -> Self {
-        DerBitString {
-            contents: Rc::new(contents.to_vec()),
-        }
+        DerBitStringImpl { contents }
     }
 
     /// # Errors
@@ -39,13 +45,13 @@ impl DerBitString {
         inner_contents[0] = pad_bits;
         inner_contents[1..].copy_from_slice(contents);
 
-        Ok(DerBitString::new(Rc::new(inner_contents)))
+        Ok(DerBitStringImpl::new(Rc::new(inner_contents)))
     }
 
     pub fn with_named_bits(named_bits: u32) -> Self {
         let mut named_bits = named_bits;
         if named_bits == 0 {
-            return DerBitString::new(Rc::new(vec![0u8]));
+            return DerBitStringImpl::new(Rc::new(vec![0u8]));
         }
         let bits = 32 - named_bits.leading_zeros();
         let bytes = (bits + 7) / 8;
@@ -66,7 +72,7 @@ impl DerBitString {
 
         debug_assert!(pad_bits < 8);
         data[0] = pad_bits;
-        DerBitString::new(Rc::new(data))
+        DerBitStringImpl::new(Rc::new(data))
     }
 
     pub fn get_bytes(&self) -> Vec<u8> {
@@ -80,16 +86,7 @@ impl DerBitString {
         result[last_index] &= 0xFF << pad_bits;
         result
     }
-}
-
-impl Asn1Convertiable for DerBitString {
-    fn to_asn1_encodable(self: &Rc<Self>) -> Box<dyn Asn1Encodable> {
-        Box::new(Asn1ObjectImpl::new(self.clone()))
-    }
-}
-
-impl Asn1ObjectInternal for DerBitString {
-    fn get_encoding_with_type(&self, _encoding: &EncodingType) -> Box<dyn Asn1Encoding> {
+    fn get_encoding_with_type(&self, _encode_type: EncodingType) -> Box<dyn Asn1Encoding> {
         let pad_bits = self.contents[0];
         if pad_bits != 0 {
             let last = self.contents.len() - 1;
@@ -105,10 +102,41 @@ impl Asn1ObjectInternal for DerBitString {
             }
         }
 
-        Box::new(PrimitiveEncoding::new(
+        return Box::new(PrimitiveEncoding::new(
             UNIVERSAL,
             BIT_STRING,
             self.contents.clone(),
-        ))
+        ));
+    }
+}
+
+impl Asn1ObjectImpl for DerBitStringImpl {}
+impl Display for DerBitStringImpl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let buffer = self
+            .get_der_encoded()
+            .expect("DerBitStringImpl::get_der_encoded failed");
+        write!(f, "#")?;
+        for byte in buffer {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
+    }
+}
+impl Asn1Encodable for DerBitStringImpl {
+    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
+        let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
+        get_encoded_with_encoding(encoding_str, encoding.as_ref())
+    }
+
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
+        let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
+        encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
+    }
+}
+
+impl Into<Asn1Object> for DerBitStringImpl {
+    fn into(self) -> Asn1Object {
+        Asn1Object::DerBitString(self)
     }
 }
