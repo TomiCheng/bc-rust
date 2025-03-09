@@ -1,6 +1,11 @@
+use anyhow::{bail, ensure};
+
+use crate::error::ArithmeticError;
+use crate::error::InvalidFormatError;
+use crate::error::InvalidInputError;
 use crate::math::raw::internal_mod::{inverse_u32, inverse_u64};
 use crate::util::pack::{be_to_u32_buffer, be_to_u32_low, le_to_u32_low, u32_to_be_bytes};
-use crate::{BcError, Result};
+use crate::Result;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
@@ -155,10 +160,7 @@ impl BigInteger {
     /// assert_eq!(result_radix10, result_radix16);
     /// ```
     pub fn with_string_radix(str: &str, radix: u32) -> Result<Self> {
-        if str.is_empty() {
-            //return Err(Error::new(ErrorKind::InvalidInput, "string is empty"));
-            return Err(BcError::InvalidFormat("Zero length BigInteger".to_string()));
-        }
+        ensure!(!str.is_empty(), InvalidInputError::with_parameter_and_message("str".to_owned(), "Zero length BigInteger".to_owned()));
         let chunk: u32;
         let r: &BigInteger;
         let re: &BigInteger;
@@ -184,9 +186,7 @@ impl BigInteger {
                 re = &(*RADIX_16E);
             }
             _ => {
-                return Err(BcError::InvalidFormat(
-                    "Only bases 2, 8, 10, or 16 allowed".to_string(),
-                ))
+                bail!(InvalidFormatError::with_message("Only bases 2, 8, 10, or 16 allowed".to_owned()));
             }
         };
 
@@ -222,28 +222,15 @@ impl BigInteger {
         if next <= str.chars().count() {
             loop {
                 let s = str.get(index..next).unwrap();
-                let i = u64::from_str_radix(&s, radix).map_err(|e| BcError::ParseIntError {
-                    source: e,
-                    msg: format!("invalid input: {}", s),
-                })?;
+                let i = u64::from_str_radix(&s, radix)?;
                 let bi = BigInteger::with_u64(i);
                 match radix {
                     2 => {
-                        if i >= 2 {
-                            return Err(BcError::InvalidInput(format!(
-                                "Bad character in radix 2 string: {}",
-                                s
-                            )));
-                        }
+                        ensure!(i < 2, InvalidInputError::with_message(format!("Bad character in radix 2 string: {}", s)));
                         b = b.shift_left(1);
                     }
                     8 => {
-                        if i >= 8 {
-                            return Err(BcError::InvalidInput(format!(
-                                "Bad character in radix 8 string: {}",
-                                s
-                            )));
-                        }
+                        ensure!(i < 8, InvalidInputError::with_message(format!("Bad character in radix 8 string: {}", s)));
                         b = b.shift_left(3);
                     }
                     16 => {
@@ -267,10 +254,7 @@ impl BigInteger {
 
         if index < str.chars().count() {
             let s = str.get(index..).unwrap();
-            let i = u64::from_str_radix(&s, radix).map_err(|e| BcError::ParseIntError {
-                source: e,
-                msg: format!("invalid input: {}", s),
-            })?;
+            let i = u64::from_str_radix(&s, radix)?;
             let bi = BigInteger::with_u64(i);
             if b.sign > 0 {
                 if radix == 2 {
@@ -313,9 +297,7 @@ impl BigInteger {
     /// # Errors
     /// Returns `Error` if the sign is invalid.
     pub fn with_sign_buffer_big_endian(sign: i32, buffer: &[u8], big_endian: bool) -> Result<Self> {
-        if sign < -1 || sign > 1 {
-            return Err(BcError::InvalidFormat("invalid sign value".to_string()));
-        }
+        ensure!(sign == 0 || sign == 1 || sign == -1, InvalidFormatError::with_message("Invalid sign value".to_owned()));
         if sign == 0 {
             return Ok((*ZERO).clone());
         }
@@ -396,10 +378,7 @@ impl BigInteger {
         certainty: i32,
         random: &mut dyn RandomSource,
     ) -> Result<Self> {
-        if size_in_bits < 2 {
-            return Err(BcError::ArithmeticError("size_in_bits < 2".to_string()));
-        }
-
+        ensure!(size_in_bits >= 2, InvalidInputError::with_message("size_in_bits < 2".to_owned()));
         if size_in_bits == 2 {
             return if std::random::random::<u32>() % 2 == 0 {
                 Ok((*TWO).clone())
@@ -690,9 +669,7 @@ impl BigInteger {
         })
     }
     pub fn divide(&self, other: &BigInteger) -> Result<BigInteger> {
-        if other.sign == 0 {
-            return Err(BcError::ArithmeticError("divide by zero".to_string()));
-        }
+        ensure!(other.sign != 0, InvalidInputError::with_message("divide by zero".to_owned()));
         if self.sign == 0 {
             return Ok((*ZERO).clone());
         }
@@ -812,11 +789,7 @@ impl BigInteger {
     }
 
     pub fn r#mod(&self, modulus: &BigInteger) -> Result<BigInteger> {
-        if modulus.sign < 1 {
-            return Err(BcError::ArithmeticError(
-                "modulus must be positive".to_string(),
-            ));
-        }
+        ensure!(modulus.sign >= 1, ArithmeticError::with_message("modulus must be positive".to_owned()));
         let biggie = self.remainder(modulus)?;
         if biggie.sign >= 0 {
             Ok(biggie)
@@ -826,11 +799,7 @@ impl BigInteger {
     }
 
     pub fn remainder(&self, division: &BigInteger) -> Result<BigInteger> {
-        if division.sign == 0 {
-            return Err(BcError::ArithmeticError(
-                "division by zero error".to_string(),
-            ));
-        }
+        ensure!(division.sign != 0, ArithmeticError::with_message("division by zero".to_owned()));
         if self.sign == 0 {
             return Ok((*ZERO).clone());
         }
@@ -933,9 +902,7 @@ impl BigInteger {
             10 => {}
             16 => {}
             _ => {
-                return Err(BcError::InvalidInput(
-                    "Only bases 2, 8, 10, or 16 allowed".to_string(),
-                ))
+                bail!(InvalidInputError::with_message("Only bases 2, 8, 10, or 16 allowed".to_owned()));
             }
         }
 
@@ -1568,9 +1535,7 @@ impl BigInteger {
         }
         if self.quick_pow2_check() {
             let pow_of_2 = exp as u64 * (self.get_bit_length() - 1) as u64;
-            if pow_of_2 > i32::MAX as u64 {
-                return Err(BcError::ArithmeticError("Result too large".to_string()));
-            }
+            ensure!(pow_of_2 <= i32::MAX as u64, ArithmeticError::with_message("Result too large".to_owned()));
             return Ok((*ONE).shift_left(pow_of_2 as i32));
         }
         let mut y = (*ONE).clone();
@@ -1686,11 +1651,7 @@ impl BigInteger {
     }
 
     pub fn next_probable_prime(&self) -> Result<BigInteger> {
-        if self.sign < 0 {
-            return Err(BcError::ArithmeticError(
-                "Negative numbers cannot be prime".to_string(),
-            ));
-        }
+        ensure!(self.sign >= 0, ArithmeticError::with_message("Negative numbers cannot be prime".to_owned()));
         if self < &(*TWO) {
             return Ok((*TWO).clone());
         }
@@ -1732,11 +1693,7 @@ impl BigInteger {
     }
 
     pub fn mod_pow(&self, e: &BigInteger, m: &BigInteger) -> Result<BigInteger> {
-        if m.sign < 1 {
-            return Err(BcError::ArithmeticError(
-                "modulus must be positive".to_string(),
-            ));
-        }
+        ensure!(m.sign > 0, ArithmeticError::with_message("Modulus must be positive".to_owned()));
         if m == &(*ONE) {
             return Ok((*ZERO).clone());
         }
@@ -1895,25 +1852,14 @@ impl BigInteger {
     }
 
     pub fn mod_inverse(&self, modulus: &BigInteger) -> Result<BigInteger> {
-        if modulus.sign < 1 {
-            return Err(BcError::ArithmeticError(
-                "modulus must be positive".to_string(),
-            ));
-        }
-
+        ensure!(modulus.sign > 0, ArithmeticError::with_message("Modulus must be positive".to_owned()));
         if modulus.quick_pow2_check() {
             return Ok(self.mod_inverse_pow2(modulus)?);
         }
 
         let d = self.remainder(modulus)?;
         let (gcd, mut x) = ext_euclid(&d, modulus);
-
-        if gcd != (*ONE) {
-            return Err(BcError::ArithmeticError(
-                "Numbers not relatively prime".to_string(),
-            ));
-        }
-
+        ensure!(gcd == (*ONE), ArithmeticError::with_message("Numbers not relatively prime".to_owned()));
         if x.sign < 0 {
             x = x.add(modulus);
         }
@@ -1924,12 +1870,7 @@ impl BigInteger {
         debug_assert!(m.sign > 0);
         debug_assert!(*m.get_bit_count() == 1);
 
-        if !self.test_bit(0) {
-            return Err(BcError::ArithmeticError(
-                "Numbers not relatively prime".to_string(),
-            ));
-        }
-
+        ensure!(self.test_bit(0), ArithmeticError::with_message("Numbers not relatively prime".to_owned()));
         let pow = *m.get_bit_length() << 1;
         let mut inv64 = inverse_u64(self.get_i64_value() as u64) as i64;
         if pow < 64 {

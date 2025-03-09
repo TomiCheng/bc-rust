@@ -3,13 +3,14 @@
 
 use std::random::RandomSource;
 
+use anyhow::ensure;
+
 use super::big_integer::BigInteger;
-use crate::{
-    crypto::Digest,
-    math::big_integer::{ONE, THREE, TWO},
-    util::{big_integers::create_random_in_range, pack::be_to_u32},
-};
-use crate::{BcError, Result};
+use crate::crypto::Digest;
+use crate::error::{InvalidInputError, InvalidOperationError};
+use crate::math::big_integer::{ONE, THREE, TWO};
+use crate::util::{big_integers::create_random_in_range, pack::be_to_u32};
+use crate::Result;
 
 pub const SMALL_FACTOR_LIMIT: i32 = 211;
 
@@ -30,17 +31,14 @@ pub fn generate_st_random_prime(
     length: u32,
     input_seed: &[u8],
 ) -> Result<StOutput> {
-    if length < 2 {
-        return Err(BcError::InvalidInput(
-            "length must be at least 2".to_string(),
-        ));
-    }
-    if input_seed.len() == 0 {
-        return Err(BcError::InvalidInput(
-            "input_seed cannot be empty".to_string(),
-        ));
-    }
-
+    ensure!(
+        length >= 2,
+        InvalidInputError::with_message("length must be at least 2".to_owned())
+    );
+    ensure!(
+        !input_seed.is_empty(),
+        InvalidInputError::with_message("input_seed cannot be empty".to_owned())
+    );
     impl_st_random_prime(hash, length, input_seed.to_vec())
 }
 
@@ -65,12 +63,10 @@ pub fn enhanced_mr_probable_prime_test(
     iterations: u32,
 ) -> Result<MrOutput> {
     check_candidate(candidate, "candidate")?;
-    if iterations < 1 {
-        return Err(BcError::InvalidInput(
-            "iterations must be at least 1".to_string(),
-        ));
-    }
-
+    ensure!(
+        iterations >= 1,
+        InvalidInputError::with_message("iterations must be at least 1".to_owned())
+    );
     if *candidate.get_bit_length() == 2 {
         return Ok(MrOutput::with_probaly_prime());
     }
@@ -176,11 +172,10 @@ pub fn is_mr_probable_prime(
 ) -> Result<bool> {
     check_candidate(candidate, "candidate")?;
 
-    if iterations < 1 {
-        return Err(BcError::InvalidInput(
-            "iterations must be at least 1".to_string(),
-        ));
-    }
+    ensure!(
+        iterations >= 1,
+        InvalidInputError::with_message("iterations must be at least 1".to_owned())
+    );
 
     if *candidate.get_bit_length() == 2 {
         return Ok(true);
@@ -225,11 +220,10 @@ pub fn is_mr_probable_prime_to_base(
     check_candidate(candidate, "candidate")?;
     check_candidate(base_value, "base_value")?;
 
-    if base_value >= &candidate.subtract(&(*ONE)) {
-        return Err(BcError::InvalidInput(
-            "baseValue must be < candidate-1".to_string(),
-        ));
-    }
+    ensure!(
+        base_value < &candidate.subtract(&(*ONE)),
+        InvalidInputError::with_message("baseValue must be < candidate-1".to_owned())
+    );
 
     if candidate == &(*TWO) {
         return Ok(true);
@@ -345,11 +339,12 @@ fn impl_st_random_prime(
                 ));
             }
 
-            if prime_gen_counter > (4 * length) {
-                return Err(BcError::InvalidOperation(
-                    "Too many iterations in generation of prime number".to_string(),
-                ));
-            }
+            ensure!(
+                prime_gen_counter <= (4 * length),
+                InvalidOperationError::with_message(
+                    "Too many iterations in generation of prime number".to_owned()
+                )
+            );
         }
     }
 
@@ -400,11 +395,13 @@ fn impl_st_random_prime(
                     return Ok(StOutput::new(c, prime_seed, prime_gen_counter));
                 }
             }
-            if prime_gen_counter >= ((4 * length) + old_counter) {
-                return Err(BcError::InvalidOperation(
-                    "Too many iterations in generation of prime number".to_string(),
-                ));
-            }
+
+            ensure!(
+                prime_gen_counter < ((4 * length) + old_counter),
+                InvalidOperationError::with_message(
+                    "Too many iterations in generation of prime number".to_owned()
+                )
+            );
 
             dt += 2;
             c = c.add(&c0x2);
@@ -550,12 +547,10 @@ fn impl_has_any_small_factors(x: &BigInteger) -> Result<bool> {
 }
 
 fn check_candidate(n: &BigInteger, name: &str) -> Result<()> {
-    if n.get_sign_value() < 1 || *n.get_bit_length() < 2 {
-        return Err(BcError::InvalidInput(format!(
-            "{} must be non-null and >= 2",
-            name
-        )));
-    }
+    ensure!(
+        !(n.get_sign_value() < 1 || *n.get_bit_length() < 2),
+        InvalidInputError::with_message(format!("{} must be positive", name))
+    );
     return Ok(());
 }
 

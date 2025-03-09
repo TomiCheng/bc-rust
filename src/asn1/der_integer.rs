@@ -146,6 +146,7 @@ use super::{Asn1Encodable, Asn1Object};
 use crate::math::BigInteger;
 use crate::{BcError, Result};
 
+#[derive(Clone)]
 pub struct DerIntegerImpl {
     buffer: Rc<Vec<u8>>,
     start: usize,
@@ -296,12 +297,12 @@ impl Into<Asn1Object> for DerIntegerImpl {
 
 impl Asn1ObjectImpl for DerIntegerImpl {}
 impl Asn1Encodable for DerIntegerImpl {
-    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
+    fn get_encoded_with_encoding(&self, encoding_str: &str) -> anyhow::Result<Vec<u8>> {
         let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> anyhow::Result<usize> {
         let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }

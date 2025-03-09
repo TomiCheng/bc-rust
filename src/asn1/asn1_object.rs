@@ -9,17 +9,22 @@ use super::DerBitStringImpl;
 use super::DerBooleanImpl;
 use super::DerIntegerImpl;
 use super::DerNullImpl;
+use super::DerObjectIdentifierImpl;
 use super::DerOctetStringImpl;
+use super::DerSequenceImpl;
 use crate::Result;
 
 pub(crate) trait Asn1ObjectImpl: Asn1Encodable + Display {}
 
+#[derive(Clone)]
 pub enum Asn1Object {
     DerBoolean(DerBooleanImpl),
     DerInteger(DerIntegerImpl),
     DerBitString(DerBitStringImpl),
     DerOctetString(DerOctetStringImpl),
     DerNull(DerNullImpl),
+    DerObjectIdentifier(DerObjectIdentifierImpl),
+    DerSequence(DerSequenceImpl),
 }
 
 macro_rules! is_variant {
@@ -75,7 +80,8 @@ impl Asn1Object {
             Asn1Object::DerBitString(der_bit_string) => der_bit_string,
             Asn1Object::DerOctetString(der_octet_string) => der_octet_string,
             Asn1Object::DerNull(der_null) => der_null,
-            //_ => panic!("Not a match"),
+            Asn1Object::DerObjectIdentifier(der_object_identifier) => der_object_identifier,
+            Asn1Object::DerSequence(der_sequence) => der_sequence,
         }
     }
 
@@ -84,6 +90,7 @@ impl Asn1Object {
     is_variant!(is_der_bit_string, Asn1Object::DerBitString(_));
     is_variant!(is_der_octet_string, Asn1Object::DerOctetString(_));
     is_variant!(is_der_null, Asn1Object::DerNull(_));
+    is_variant!(is_der_sequence, Asn1Object::DerSequence(_));
 
     as_variant!(as_der_boolean, Asn1Object::DerBoolean, DerBooleanImpl);
     as_variant!(as_der_integer, Asn1Object::DerInteger, DerIntegerImpl);
@@ -119,11 +126,11 @@ impl Display for Asn1Object {
 }
 
 impl Asn1Encodable for Asn1Object {
-    fn get_encoded_with_encoding(&self, encoding: &str) -> Result<Vec<u8>> {
+    fn get_encoded_with_encoding(&self, encoding: &str) -> anyhow::Result<Vec<u8>> {
         self.get_impl().get_encoded_with_encoding(encoding)
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding: &str) -> Result<usize> {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding: &str) -> anyhow::Result<usize> {
         self.get_impl().encode_to_with_encoding(writer, encoding)
     }
 }
@@ -137,7 +144,7 @@ impl From<DerBooleanImpl> for Asn1Object {
 pub(crate) fn get_encoded_with_encoding(
     encoding_str: &str,
     encoding: &dyn Asn1Encoding,
-) -> Result<Vec<u8>> {
+) -> anyhow::Result<Vec<u8>> {
     let length = encoding.get_length();
     let mut result = Vec::with_capacity(length);
     let mut asn1_writer = Asn1Write::create_with_encoding(&mut result, encoding_str);
@@ -149,7 +156,7 @@ pub(crate) fn encode_to_with_encoding(
     writer: &mut dyn Write,
     encoding_str: &str,
     asn1_encoding: &dyn Asn1Encoding,
-) -> Result<usize> {
+) -> anyhow::Result<usize> {
     let mut asn1_writer = Asn1Write::create_with_encoding(writer, encoding_str);
     let mut result = 0;
     result += asn1_encoding.encode(&mut asn1_writer)?;

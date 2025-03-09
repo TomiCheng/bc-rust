@@ -1,4 +1,4 @@
-use crate::asn1::{Asn1Sequence, DerBitString};
+use crate::asn1::DerBitStringImpl;
 
 use super::{AlgorithmIdentifier, TbsCertificateStructure};
 
@@ -13,14 +13,14 @@ use super::{AlgorithmIdentifier, TbsCertificateStructure};
 pub struct X509CertificateStructure {
     tbs_certificate: TbsCertificateStructure,
     sign_alg_id: AlgorithmIdentifier,
-    sign: DerBitString,
+    sign: DerBitStringImpl,
 }
 
 impl X509CertificateStructure {
     pub fn new(
         tbs_certificate: TbsCertificateStructure,
         sign_alg_id: AlgorithmIdentifier,
-        sign: DerBitString,
+        sign: DerBitStringImpl,
     ) -> Self {
         X509CertificateStructure {
             tbs_certificate,
@@ -33,20 +33,8 @@ impl X509CertificateStructure {
         &self.sign_alg_id
     }
 
-    pub fn get_signature(&self) -> &DerBitString {
+    pub fn get_signature(&self) -> &DerBitStringImpl {
         &self.sign
-    }
-}
-
-impl TryFrom<&Asn1Sequence> for X509CertificateStructure {
-    type Error = crate::BcError;
-
-    fn try_from(seq: &Asn1Sequence) -> Result<Self, Self::Error> {
-        let count = seq.len();
-        if count != 3 {
-
-        }
-        todo!()
     }
 }
 

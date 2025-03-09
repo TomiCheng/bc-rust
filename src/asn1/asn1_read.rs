@@ -1,8 +1,11 @@
 use std::io::Read;
 
-use super::asn1_tags::{BOOLEAN, FLAGS, INTEGER, NULL};
-use super::{Asn1Object, DerBooleanImpl, DerNullImpl};
+use anyhow::bail;
+
+use super::asn1_tags::{BOOLEAN, FLAGS, INTEGER, NULL, OBJECT_IDENTIFIER};
+use super::der_object_identifier::check_contents_length;
 use super::DerIntegerImpl;
+use super::{Asn1Object, DerBooleanImpl, DerNullImpl, DerObjectIdentifierImpl};
 //use super::{asn1_tags::CONSTRUCTED, DerNull};
 use super::definite_length_read::DefiniteLengthRead;
 use crate::{BcError, Result};
@@ -25,7 +28,7 @@ impl<'a> Asn1Read<'a> {
         })?;
         Ok(buf[0])
     }
-    pub fn read_object(&mut self) -> Result<Asn1Object> {
+    pub fn read_object(&mut self) -> anyhow::Result<Asn1Object> {
         let tag_header = self.read_u8()?;
         let tag_no = read_tag_number(self.reader, tag_header)?;
         let length = read_length(self.reader, self.limit, true)?;
@@ -48,7 +51,7 @@ impl<'a> Asn1Read<'a> {
         todo!();
     }
 
-    fn build_object(&mut self, tag_header: u8, tag_no: u32, length: u32) -> Result<Asn1Object> {
+    fn build_object(&mut self, tag_header: u8, tag_no: u32, length: u32) -> anyhow::Result<Asn1Object> {
         let mut def_reader = DefiniteLengthRead::new(self.reader, length as usize, self.limit);
         if (tag_header as u32 & FLAGS) == 0 {
             return create_primitive_der_object(tag_no, &mut def_reader);
@@ -153,24 +156,25 @@ pub(crate) fn read_length(
 pub(crate) fn create_primitive_der_object(
     tag_no: u32,
     reader: &mut DefiniteLengthRead,
-) -> Result<Asn1Object> {
-    //     match tag_no {
-    //         _ => {} // Nothing
-    //     }
+) -> anyhow::Result<Asn1Object> {
+    match tag_no {
+        OBJECT_IDENTIFIER => {
+            check_contents_length(reader.get_remaining())?;
+            let contents = get_buffer(reader)?;
+            return Ok(DerObjectIdentifierImpl::with_primitive(contents)?.into());
+        }
+        _ => {} // Nothing
+    }
 
     let bytes = reader.to_vec()?;
     return match tag_no {
         BOOLEAN => Ok(DerBooleanImpl::with_primitive(&bytes)?.into()),
         INTEGER => Ok(DerIntegerImpl::with_primitive(&bytes)?.into()),
         NULL => Ok(DerNullImpl::with_primitive(&bytes)?.into()),
-        _ => Err(BcError::IoError {
-            msg: format!("unknown tag {tag_no} encountered"),
-            source: std::io::Error::new(std::io::ErrorKind::InvalidData, ""),
-        }),
+        _ => bail!("unknown tag {tag_no} encountered"),
     };
 }
 
-// fn get_buffer(def_reader: &mut DefiniteLengthRead) {
-//     let len = def_reader.get_remaining();
-
-// }
+fn get_buffer(def_reader: &mut DefiniteLengthRead) -> Result<Vec<u8>> {
+    return def_reader.to_vec();
+}

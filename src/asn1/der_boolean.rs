@@ -11,6 +11,7 @@ use super::Asn1Encodable;
 use crate::asn1::asn1_write::get_encoding_type;
 use crate::{Result, BcError};
 
+#[derive(Clone)]
 pub struct DerBooleanImpl {
     value: u8,
 }
@@ -61,12 +62,12 @@ impl Display for DerBooleanImpl {
 }
 
 impl Asn1Encodable for DerBooleanImpl {
-    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
+    fn get_encoded_with_encoding(&self, encoding_str: &str) -> anyhow::Result<Vec<u8>> {
         let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> anyhow::Result<usize> {
         let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }

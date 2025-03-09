@@ -4,8 +4,8 @@ pub mod crypto;
 pub mod util;
 pub mod math;
 pub mod security;
+//pub mod error1;
+pub mod error;
 
-mod error;
-
-pub use error::BcError;
-pub type Result<T> = std::result::Result<T, BcError>;
+//pub use error1::BcError;
+pub type Result<T> = anyhow::Result<T>;
