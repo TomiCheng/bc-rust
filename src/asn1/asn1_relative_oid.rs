@@ -1,11 +1,11 @@
 use std::io::Write;
-use anyhow::Result;
 
 use crate::math::BigInteger;
+use crate::Result;
 
 pub(crate) fn is_valid_identifier(s: &str) -> bool {
     let mut digit_count = 0;
-    
+
     let mut ch_next: Option<char> = None;
     for ch in s.chars().rev() {
         if ch == '.' {
@@ -32,13 +32,19 @@ pub(crate) fn write_field_with_i64(writer: &mut dyn Write, mut value: i64) -> Re
     result[pos] = (value & 0x7F) as u8;
     while value >= (1 << 7) {
         value >>= 7;
-        result[{ pos -= 1; pos }] = (value & 0x80) as u8;
+        result[{
+            pos -= 1;
+            pos
+        }] = (value & 0x80) as u8;
     }
     writer.write(&result[pos..])?;
     Ok(())
 }
 
-pub(crate) fn write_field_with_big_integer(writer: &mut dyn Write, value: &BigInteger) -> Result<()> {
+pub(crate) fn write_field_with_big_integer(
+    writer: &mut dyn Write,
+    value: &BigInteger,
+) -> Result<()> {
     let byte_count = (value.get_bit_length() + 6) / 7;
     if byte_count == 0 {
         writer.write(&[0])?;

@@ -1,6 +1,11 @@
-use std::{any::Any, cell::{Cell, RefCell}, io::Read, ops::{Sub, SubAssign}};
+use std::{
+    any::Any,
+    cell::{Cell, RefCell},
+    io::Read,
+    ops::{Sub, SubAssign},
+};
 
-use crate::{util::io::streams::read_fully, BcError, Result};
+use crate::{util::io::streams::read_fully, Error, ErrorKind, Result};
 
 pub(crate) struct DefiniteLengthRead<'a> {
     reader: &'a mut dyn Read,
@@ -31,32 +36,31 @@ impl DefiniteLengthRead<'_> {
         }
 
         if self.remaining.get() >= self.limit {
-            return Err(BcError::IoError {
-                msg: format!(
+            return Err(Error::with_message(
+                ErrorKind::IoError,
+                format!(
                     "corrupted stream - out of bounds length found: {0} >= {1}",
-                    self.remaining.get(), self.limit
+                    self.remaining.get(),
+                    self.limit
                 ),
-                source: std::io::Error::new(std::io::ErrorKind::InvalidData, "read exceed limit"),
-            });
+            ));
         }
 
-        let mut bytes = vec![0u8;self.remaining.get()];
-        let readed_length = read_fully(self.reader, &mut bytes).
-            map_err(|e| BcError::IoError {
-                msg: "error reading bytes".to_string(),
-                source: e,
-            })?;
-        
+        let mut bytes = vec![0u8; self.remaining.get()];
+        let readed_length = read_fully(self.reader, &mut bytes)
+            .map_err(|e| Error::with_io_error("error reading bytes".to_owned(), e))?;
+
         self.remaining.get_mut().sub_assign(readed_length);
 
         if self.remaining.get() != 0 {
-            return Err(BcError::EndOfReadError {
-                msg: format!(
+            return Err(Error::with_message(
+                ErrorKind::EndOfReadError,
+                format!(
                     "DEF length {0} object truncated by {1}",
                     self.original_length,
                     self.remaining.get()
                 ),
-            });
+            ));
         }
 
         // todo set_parent_eof_detect();

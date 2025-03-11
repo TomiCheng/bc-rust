@@ -144,7 +144,7 @@ use super::asn1_write::{get_encoding_type, EncodingType};
 use super::primitive_encoding::PrimitiveEncoding;
 use super::{Asn1Encodable, Asn1Object};
 use crate::math::BigInteger;
-use crate::{BcError, Result};
+use crate::{Error, ErrorKind, Result};
 
 #[derive(Clone)]
 pub struct DerIntegerImpl {
@@ -175,7 +175,7 @@ impl DerIntegerImpl {
     }
     pub fn with_buffer(buffer: &[u8]) -> Result<DerIntegerImpl> {
         if is_malformed(buffer) {
-            return Err(BcError::InvalidInput("malformed integer".to_string()));
+            return Err(Error::with_message(ErrorKind::InvalidInput,"malformed integer".to_string()));
         }
         Ok(DerIntegerImpl {
             start: sign_bytes_to_skip(buffer),
@@ -184,7 +184,7 @@ impl DerIntegerImpl {
     }
     pub fn with_buffer_allow_unsafe(buffer: &[u8]) -> Result<DerIntegerImpl> {
         if buffer.len() == 0 {
-            return Err(BcError::InvalidInput("buffer len is zero".to_string()));
+            return Err(Error::with_message(ErrorKind::InvalidInput,"buffer len is zero".to_string()));
         }
         Ok(DerIntegerImpl {
             start: sign_bytes_to_skip(buffer),
@@ -297,12 +297,12 @@ impl Into<Asn1Object> for DerIntegerImpl {
 
 impl Asn1ObjectImpl for DerIntegerImpl {}
 impl Asn1Encodable for DerIntegerImpl {
-    fn get_encoded_with_encoding(&self, encoding_str: &str) -> anyhow::Result<Vec<u8>> {
+    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
         let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> anyhow::Result<usize> {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
         let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }

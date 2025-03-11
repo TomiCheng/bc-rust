@@ -9,7 +9,7 @@ use super::asn1_write::EncodingType;
 use super::primitive_encoding::PrimitiveEncoding;
 use super::Asn1Encodable;
 use crate::asn1::asn1_write::get_encoding_type;
-use crate::{Result, BcError};
+use crate::{Error, ErrorKind, Result};
 
 #[derive(Clone)]
 pub struct DerBooleanImpl {
@@ -47,7 +47,10 @@ impl DerBooleanImpl {
     }
     pub(crate) fn with_primitive(contents: &[u8]) -> Result<Self> {
         if contents.len() != 1 {
-            return Err(BcError::InvalidInput("BOOLEAN value should have 1 byte in it".to_owned()));
+            return Err(Error::with_message(
+                ErrorKind::InvalidInput,
+                "BOOLEAN value should have 1 byte in it".to_owned(),
+            ));
         }
         Ok(DerBooleanImpl::new(contents[0] != 0))
     }
@@ -62,12 +65,12 @@ impl Display for DerBooleanImpl {
 }
 
 impl Asn1Encodable for DerBooleanImpl {
-    fn get_encoded_with_encoding(&self, encoding_str: &str) -> anyhow::Result<Vec<u8>> {
+    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
         let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> anyhow::Result<usize> {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
         let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }

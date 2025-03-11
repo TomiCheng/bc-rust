@@ -126,11 +126,11 @@ impl Display for Asn1Object {
 }
 
 impl Asn1Encodable for Asn1Object {
-    fn get_encoded_with_encoding(&self, encoding: &str) -> anyhow::Result<Vec<u8>> {
+    fn get_encoded_with_encoding(&self, encoding: &str) -> Result<Vec<u8>> {
         self.get_impl().get_encoded_with_encoding(encoding)
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding: &str) -> anyhow::Result<usize> {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding: &str) -> Result<usize> {
         self.get_impl().encode_to_with_encoding(writer, encoding)
     }
 }
@@ -144,7 +144,7 @@ impl From<DerBooleanImpl> for Asn1Object {
 pub(crate) fn get_encoded_with_encoding(
     encoding_str: &str,
     encoding: &dyn Asn1Encoding,
-) -> anyhow::Result<Vec<u8>> {
+) -> Result<Vec<u8>> {
     let length = encoding.get_length();
     let mut result = Vec::with_capacity(length);
     let mut asn1_writer = Asn1Write::create_with_encoding(&mut result, encoding_str);
@@ -156,7 +156,7 @@ pub(crate) fn encode_to_with_encoding(
     writer: &mut dyn Write,
     encoding_str: &str,
     asn1_encoding: &dyn Asn1Encoding,
-) -> anyhow::Result<usize> {
+) -> Result<usize> {
     let mut asn1_writer = Asn1Write::create_with_encoding(writer, encoding_str);
     let mut result = 0;
     result += asn1_encoding.encode(&mut asn1_writer)?;

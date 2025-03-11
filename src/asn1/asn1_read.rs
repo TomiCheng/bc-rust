@@ -1,14 +1,11 @@
 use std::io::Read;
 
-use anyhow::bail;
-
 use super::asn1_tags::{BOOLEAN, FLAGS, INTEGER, NULL, OBJECT_IDENTIFIER};
+use super::definite_length_read::DefiniteLengthRead;
 use super::der_object_identifier::check_contents_length;
 use super::DerIntegerImpl;
 use super::{Asn1Object, DerBooleanImpl, DerNullImpl, DerObjectIdentifierImpl};
-//use super::{asn1_tags::CONSTRUCTED, DerNull};
-use super::definite_length_read::DefiniteLengthRead;
-use crate::{BcError, Result};
+use crate::{Error, ErrorKind, Result};
 
 pub struct Asn1Read<'a> {
     reader: &'a mut dyn Read,
@@ -22,13 +19,12 @@ impl<'a> Asn1Read<'a> {
 
     pub fn read_u8(&mut self) -> Result<u8> {
         let mut buf = [0u8; 1];
-        self.reader.read(&mut buf).map_err(|e| BcError::IoError {
-            msg: "read u8 fail".to_string(),
-            source: e,
-        })?;
+        self.reader
+            .read(&mut buf)
+            .map_err(|e| Error::with_io_error("read u8 fail".to_owned(), e))?;
         Ok(buf[0])
     }
-    pub fn read_object(&mut self) -> anyhow::Result<Asn1Object> {
+    pub fn read_object(&mut self) -> Result<Asn1Object> {
         let tag_header = self.read_u8()?;
         let tag_no = read_tag_number(self.reader, tag_header)?;
         let length = read_length(self.reader, self.limit, true)?;
@@ -51,7 +47,7 @@ impl<'a> Asn1Read<'a> {
         todo!();
     }
 
-    fn build_object(&mut self, tag_header: u8, tag_no: u32, length: u32) -> anyhow::Result<Asn1Object> {
+    fn build_object(&mut self, tag_header: u8, tag_no: u32, length: u32) -> Result<Asn1Object> {
         let mut def_reader = DefiniteLengthRead::new(self.reader, length as usize, self.limit);
         if (tag_header as u32 & FLAGS) == 0 {
             return create_primitive_der_object(tag_no, &mut def_reader);
@@ -62,10 +58,9 @@ impl<'a> Asn1Read<'a> {
 
 fn read_u8(reader: &mut dyn Read) -> Result<u8> {
     let mut buf = [0u8; 1];
-    reader.read(&mut buf).map_err(|e| BcError::IoError {
-        msg: "read u8 fail".to_string(),
-        source: e,
-    })?;
+    reader
+        .read(&mut buf)
+        .map_err(|e| Error::with_io_error("read u8 fail".to_owned(), e))?;
     Ok(buf[0])
 }
 
@@ -74,7 +69,8 @@ pub(crate) fn read_tag_number(reader: &mut dyn Read, tag_header: u8) -> Result<u
     if tag_no == 0x1F {
         let mut b = read_u8(reader)?;
         if b < 31 {
-            return Err(BcError::InvalidFormat(
+            return Err(Error::with_message(
+                ErrorKind::InvalidFormat,
                 "corrupted stream - high tag number < 31 found".to_string(),
             ));
         }
@@ -84,14 +80,16 @@ pub(crate) fn read_tag_number(reader: &mut dyn Read, tag_header: u8) -> Result<u
         // X.690-0207 8.1.2.4.2
         // "c) bits 7 to 1 of the first subsequent octet shall not all be zero."
         if tag_no == 0 {
-            return Err(BcError::InvalidFormat(
+            return Err(Error::with_message(
+                ErrorKind::InvalidFormat,
                 "corrupted stream - invalid high tag number found".to_string(),
             ));
         }
 
         while b & 0x80 != 0 {
             if (tag_no as u32 >> 24) != 0 {
-                return Err(BcError::InvalidFormat(
+                return Err(Error::with_message(
+                    ErrorKind::InvalidFormat,
                     "Tag number more than 31 bits".to_string(),
                 ));
             }
@@ -117,7 +115,8 @@ pub(crate) fn read_length(
         // indefinite-length
         return Ok(None);
     } else if length == 0xFF {
-        return Err(BcError::InvalidFormat(
+        return Err(Error::with_message(
+            ErrorKind::InvalidFormat,
             "invalid long form definite-length 0xFF".to_string(),
         ));
     } else {
@@ -129,7 +128,8 @@ pub(crate) fn read_length(
         loop {
             let octet = read_u8(reader)? as u32;
             if (length >> 23) != 0 {
-                return Err(BcError::InvalidFormat(
+                return Err(Error::with_message(
+                    ErrorKind::InvalidFormat,
                     "long form definite-length more than 31 bits".to_string(),
                 ));
             }
@@ -144,10 +144,13 @@ pub(crate) fn read_length(
         }
 
         if length as usize >= limit && !is_parsing {
-            return Err(BcError::InvalidFormat(format!(
-                "corrupted stream - out of bounds length found: {} >= {}",
-                length, limit
-            )));
+            return Err(Error::with_message(
+                ErrorKind::InvalidFormat,
+                format!(
+                    "corrupted stream - out of bounds length found: {} >= {}",
+                    length, limit
+                ),
+            ));
         }
         Ok(Some(length))
     }
@@ -156,7 +159,7 @@ pub(crate) fn read_length(
 pub(crate) fn create_primitive_der_object(
     tag_no: u32,
     reader: &mut DefiniteLengthRead,
-) -> anyhow::Result<Asn1Object> {
+) -> Result<Asn1Object> {
     match tag_no {
         OBJECT_IDENTIFIER => {
             check_contents_length(reader.get_remaining())?;
@@ -171,7 +174,10 @@ pub(crate) fn create_primitive_der_object(
         BOOLEAN => Ok(DerBooleanImpl::with_primitive(&bytes)?.into()),
         INTEGER => Ok(DerIntegerImpl::with_primitive(&bytes)?.into()),
         NULL => Ok(DerNullImpl::with_primitive(&bytes)?.into()),
-        _ => bail!("unknown tag {tag_no} encountered"),
+        _ => Err(Error::with_message(
+            ErrorKind::Other,
+            "unknown tag {tag_no} encountered".to_owned(),
+        )),
     };
 }
 

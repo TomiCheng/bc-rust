@@ -1,12 +1,8 @@
-//use super::asn1_encoding::Asn1Encoding;
-// use super::asn1_object::Asn1ObjectInternal;
-// use super::Asn1Encodable;
-// use super::Asn1Object;
+use std::io::Write;
+
 use super::asn1_encodable::{DER, DL};
 use crate::util::pack::u32_to_be_bytes;
-use crate::{BcError, Result};
-// //use std::any::Any;
-use std::io::Write;
+use crate::{Error, Result};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum EncodingType {
@@ -45,12 +41,10 @@ impl<'a> Asn1Write<'a> {
     }
     pub(crate) fn write_identifier(&mut self, flags: u32, mut tag_no: u32) -> Result<usize> {
         if tag_no < 31 {
-            return Ok(self.writer.write(&[(flags | tag_no) as u8]).map_err(|e| {
-                BcError::IoError {
-                    msg: "write identifier fail".to_string(),
-                    source: e,
-                }
-            })?);
+            return Ok(self
+                .writer
+                .write(&[(flags | tag_no) as u8])
+                .map_err(|e| Error::with_io_error("write identifier fail".to_owned(), e))?);
         }
         let mut stack = [0u8; 6];
         let mut pos = stack.len();
@@ -72,20 +66,14 @@ impl<'a> Asn1Write<'a> {
         return Ok(self
             .writer
             .write(&stack[pos..])
-            .map_err(|e| BcError::IoError {
-                msg: "write identifier fail".to_string(),
-                source: e,
-            })?);
+            .map_err(|e| Error::with_io_error("write identifier fail".to_owned(), e))?);
     }
     pub(crate) fn write_dl(&mut self, dl: u32) -> Result<usize> {
         if dl < 128 {
             return Ok(self
                 .writer
                 .write(&[dl as u8])
-                .map_err(|e| BcError::IoError {
-                    msg: "write dl fail".to_string(),
-                    source: e,
-                })?);
+                .map_err(|e| Error::with_io_error("write dl fail".to_owned(), e))?);
         }
 
         let mut encoding = [0u8; 5];
@@ -95,22 +83,19 @@ impl<'a> Asn1Write<'a> {
         return Ok(self
             .writer
             .write(&encoding[leading_zero_bytes..])
-            .map_err(|e| BcError::IoError {
-                msg: "write dl fail".to_string(),
-                source: e,
-            })?);
+            .map_err(|e| Error::with_io_error("write dl fail".to_owned(), e))?);
     }
     pub fn write(&mut self, data: &[u8]) -> Result<usize> {
-        return Ok(self.writer.write(data).map_err(|e| BcError::IoError {
-            msg: "write fail".to_string(),
-            source: e,
-        })?);
+        return Ok(self
+            .writer
+            .write(data)
+            .map_err(|e| Error::with_io_error("write fail".to_owned(), e))?);
     }
     pub fn write_u8(&mut self, data: u8) -> Result<usize> {
-        return Ok(self.writer.write(&[data]).map_err(|e| BcError::IoError {
-            msg: "write dl fail".to_string(),
-            source: e,
-        })?);
+        return Ok(self
+            .writer
+            .write(&[data])
+            .map_err(|e| Error::with_io_error("write dl fail".to_owned(), e))?);
     }
     //     //     //     pub fn write_encodable(&mut self, asn1_encodable: &dyn Asn1Encodable) -> Result<usize> {
     //     //     //         let asn1_object = asn1_encodable.to_asn1_object();

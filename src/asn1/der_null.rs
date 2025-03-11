@@ -8,7 +8,7 @@ use super::asn1_tags::{NULL, UNIVERSAL};
 use super::asn1_write::{get_encoding_type, EncodingType};
 use super::primitive_encoding::PrimitiveEncoding;
 use super::{Asn1Encodable, Asn1Object};
-use crate::{BcError, Result};
+use crate::{Error, ErrorKind, Result};
 
 /// A Null object.
 #[derive(Clone)]
@@ -23,9 +23,10 @@ impl DerNullImpl {
     }
     pub(crate) fn with_primitive(contents: &[u8]) -> Result<Self> {
         if !contents.is_empty() {
-            Err(BcError::InvalidOperation(format!(
-                "malformed NULL encoding encountered"
-            )))
+            Err(Error::with_message(
+                ErrorKind::InvalidOperation,
+                format!("malformed NULL encoding encountered"),
+            ))
         } else {
             Ok(DerNullImpl::new())
         }
@@ -34,12 +35,12 @@ impl DerNullImpl {
 
 impl Asn1ObjectImpl for DerNullImpl {}
 impl Asn1Encodable for DerNullImpl {
-    fn get_encoded_with_encoding(&self, encoding_str: &str) -> anyhow::Result<Vec<u8>> {
+    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
         let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> anyhow::Result<usize> {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
         let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }
@@ -54,4 +55,3 @@ impl Into<Asn1Object> for DerNullImpl {
         Asn1Object::DerNull(self)
     }
 }
-

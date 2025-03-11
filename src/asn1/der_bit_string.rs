@@ -9,7 +9,7 @@ use super::asn1_write::{get_encoding_type, EncodingType};
 use super::primitive_encoding::PrimitiveEncoding;
 use super::primitive_encoding_suffixed::PrimitiveEncodingSuffixed;
 use super::{Asn1Encodable, Asn1Object};
-use crate::{BcError, Result};
+use crate::{Error, ErrorKind, Result};
 
 #[derive(Clone)]
 pub struct DerBitStringImpl {
@@ -26,13 +26,15 @@ impl DerBitStringImpl {
     /// - Returns an error if `contents` is empty and `pad_bits` is not 0.
     pub fn with_pad_bits(contents: &[u8], pad_bits: u8) -> Result<Self> {
         if pad_bits > 7 {
-            return Err(BcError::InvalidInput(
-                "must be in the range 0 to 7".to_string(),
+            return Err(Error::with_message(
+                ErrorKind::InvalidInput,
+                "must be in the range 0 to 7".to_owned(),
             ));
         }
         if contents.len() == 0 && pad_bits != 0 {
-            return Err(BcError::InvalidInput(
-                "if 'contents' is empty, 'pad_bits' must be 0".to_string(),
+            return Err(Error::with_message(
+                ErrorKind::InvalidInput,
+                "if 'contents' is empty, 'pad_bits' must be 0".to_owned(),
             ));
         }
 
@@ -119,12 +121,12 @@ impl Display for DerBitStringImpl {
     }
 }
 impl Asn1Encodable for DerBitStringImpl {
-    fn get_encoded_with_encoding(&self, encoding_str: &str) -> anyhow::Result<Vec<u8>> {
+    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
         let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> anyhow::Result<usize> {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
         let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
         encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }

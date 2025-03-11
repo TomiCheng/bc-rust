@@ -1,4 +1,3 @@
-use anyhow::{anyhow, ensure, Result};
 use std::cell::{Cell, RefCell};
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
@@ -8,9 +7,8 @@ use std::rc::Rc;
 use super::asn1_object::Asn1ObjectImpl;
 use super::{asn1_relative_oid, Asn1Encodable, Asn1Object};
 use crate::asn1::OidTokenizer;
-use crate::math::big_integer::ZERO;
 use crate::math::BigInteger;
-use crate::BcError;
+use crate::{Error, ErrorKind, Result};
 
 #[derive(Clone)]
 pub struct DerObjectIdentifierImpl {
@@ -55,15 +53,11 @@ impl DerObjectIdentifierImpl {
         index ^= index >> 10;
         index &= 1023;
 
-
         //let index = get_hash_code(&contents);
 
         todo!();
     }
 }
-
-
-
 
 impl Asn1ObjectImpl for DerObjectIdentifierImpl {}
 impl Display for DerObjectIdentifierImpl {
@@ -148,11 +142,18 @@ fn parse_contents(contents: &[u8]) -> String {
 }
 
 fn check_identifier(s: &str) -> Result<()> {
-    ensure!(
-        s.len() <= MAX_IDENTIFIER_LENGTH,
-        "exceeded OID contents length limit"
-    );
-    ensure!(is_valid_identifier(s), "string {s} not a valid OID");
+    if s.len() > MAX_IDENTIFIER_LENGTH {
+        return Err(Error::with_message(
+            ErrorKind::InvalidInput,
+            "exceeded OID contents length limit".to_string(),
+        ));
+    }
+    if !is_valid_identifier(s) {
+        return Err(Error::with_message(
+            ErrorKind::InvalidInput,
+            format!("string {} not a valid OID", s),
+        ));
+    }
     Ok(())
 }
 
@@ -185,10 +186,16 @@ fn is_valid_identifier(s: &str) -> bool {
 fn parse_identifier(identifier: &str) -> Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut tokenizer = OidTokenizer::new(identifier);
-    let token = tokenizer.next().ok_or(anyhow!("not found first token"))?;
+    let token = tokenizer.next().ok_or(Error::with_message(
+        ErrorKind::InvalidFormat,
+        "not found first token".to_owned(),
+    ))?;
     let first = i64::from_str_radix(token, 10)? * 40;
 
-    let token = tokenizer.next().ok_or(anyhow!("not found second token"))?;
+    let token = tokenizer.next().ok_or(Error::with_message(
+        ErrorKind::InvalidFormat,
+        "not found second token".to_owned(),
+    ))?;
     if token.len() <= 18 {
         asn1_relative_oid::write_field_with_i64(
             &mut result,
@@ -215,9 +222,11 @@ fn parse_identifier(identifier: &str) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn check_contents_length(length: usize) -> Result<()> {
-    ensure!(
-        length <= MAX_CONTENTS_LENGTH,
-        "exceeded OID contents length limit"
-    );
+    if length > MAX_CONTENTS_LENGTH {
+        return Err(Error::with_message(
+            ErrorKind::InvalidInput,
+            "exceeded OID contents length limit".to_string(),
+        ));
+    }
     Ok(())
 }

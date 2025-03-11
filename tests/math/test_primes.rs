@@ -3,7 +3,6 @@ use std::random::{DefaultRandomSource, RandomSource};
 use bc_rust::crypto::digests::Sha1Digest;
 use bc_rust::crypto::digests::Sha256Digest;
 use bc_rust::crypto::Digest;
-use bc_rust::error::InvalidOperationError;
 use bc_rust::math::big_integer::TWO;
 use bc_rust::math::primes::{
     enhanced_mr_probable_prime_test, generate_st_random_prime, has_any_small_factors,
@@ -11,6 +10,7 @@ use bc_rust::math::primes::{
 };
 use bc_rust::math::BigInteger;
 use bc_rust::util::big_integers::create_random_in_range;
+use bc_rust::ErrorKind;
 use bc_rust::Result;
 
 const ITERATIONS: u32 = 10;
@@ -124,11 +124,9 @@ fn test_st_random_prime() {
             {
                 Ok(v) => v,
                 Err(e) => {
-                    if let Some(e) = e.downcast_ref::<InvalidOperationError>() {
-                        if e.to_string().starts_with("Too many iterations") {
-                            iterations -= 1;
-                            continue;
-                        }
+                    if e.kind() == ErrorKind::InvalidOperation && e.message().starts_with("Too many iterations") {
+                        iterations -= 1;
+                        continue;
                     }
                     panic!("Unexpected error: {}", e);
                 }
@@ -139,11 +137,9 @@ fn test_st_random_prime() {
                 match generate_st_random_prime(digest.as_mut(), PRIME_BITS as u32, &input_seed) {
                     Ok(v) => v,
                     Err(e) => {
-                        if let Some(e) = e.downcast_ref::<InvalidOperationError>() {
-                            if e.to_string().starts_with("Too many iterations") {
-                                iterations -= 1;
-                                continue;
-                            }
+                        if e.kind() == ErrorKind::InvalidOperation && e.message().starts_with("Too many iterations") {
+                            iterations -= 1;
+                            continue;
                         }
                         panic!("Unexpected error: {}", e);
                     }
@@ -160,11 +156,9 @@ fn test_st_random_prime() {
                 match generate_st_random_prime(digest.as_mut(), PRIME_BITS as u32, &input_seed) {
                     Ok(v) => v,
                     Err(e) => {
-                        if let Some(e) = e.downcast_ref::<InvalidOperationError>() {
-                            if e.to_string().starts_with("Too many iterations") {
-                                iterations -= 1;
-                                continue;
-                            }
+                        if e.kind() == ErrorKind::InvalidOperation && e.message().starts_with("Too many iterations") {
+                            iterations -= 1;
+                            continue;
                         }
                         panic!("Unexpected error: {}", e);
                     }

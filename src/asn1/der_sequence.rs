@@ -27,11 +27,11 @@ impl Display for DerSequenceImpl {
     }
 }
 impl Asn1Encodable for DerSequenceImpl {
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding: &str) -> anyhow::Result<usize> {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding: &str) -> Result<usize> {
         todo!()
     }
 
-    fn get_encoded_with_encoding(&self, encoding: &str) -> anyhow::Result<Vec<u8>> {
+    fn get_encoded_with_encoding(&self, encoding: &str) -> Result<Vec<u8>> {
         todo!()
     }
 }
