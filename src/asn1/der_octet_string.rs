@@ -11,7 +11,7 @@ use super::Asn1Encodable;
 use crate::util::encoders::hex::to_hex_string;
 use crate::Result;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DerOctetStringImpl {
     contents: Rc<Vec<u8>>,
 }

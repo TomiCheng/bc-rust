@@ -5,6 +5,7 @@ use std::fmt;
 use std::io;
 use std::num;
 
+#[derive(Debug)]
 pub struct Error {
     kind: ErrorKind,
     message: String,
@@ -66,15 +67,10 @@ impl Error {
     }
 }
 
-impl error::Error for Error {}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.message)
-    }
+impl error::Error for Error {
 }
 
-impl fmt::Debug for Error {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.message)
     }

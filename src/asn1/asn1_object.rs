@@ -16,7 +16,7 @@ use crate::Result;
 
 pub(crate) trait Asn1ObjectImpl: Asn1Encodable + Display {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Asn1Object {
     DerBoolean(DerBooleanImpl),
     DerInteger(DerIntegerImpl),
@@ -132,6 +132,26 @@ impl Asn1Encodable for Asn1Object {
 
     fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding: &str) -> Result<usize> {
         self.get_impl().encode_to_with_encoding(writer, encoding)
+    }
+}
+
+impl PartialEq for Asn1Object {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Asn1Object::DerBoolean(der_boolean) => {
+                if let Asn1Object::DerBoolean(other_der_boolean) = other {
+                    return der_boolean == other_der_boolean;
+                }
+                false
+            }
+            Asn1Object::DerObjectIdentifier(der_object_identifier) => {
+                if let Asn1Object::DerObjectIdentifier(other_der_object_identifier) = other {
+                    return der_object_identifier == other_der_object_identifier;
+                }
+                false
+            }
+            _ => false,
+        }
     }
 }
 

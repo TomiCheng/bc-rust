@@ -1,35 +1,32 @@
-use std::cell::{Cell, RefCell};
-use std::fmt::{Display, Formatter};
-use std::hash::Hash;
-use std::io::Write;
+use std::cell;
+use std::fmt;
+use std::io;
 use std::rc::Rc;
 
 use super::asn1_object::Asn1ObjectImpl;
+use super::asn1_tags::{OBJECT_IDENTIFIER, UNIVERSAL};
+use super::primitive_encoding::PrimitiveEncoding;
 use super::{asn1_relative_oid, Asn1Encodable, Asn1Object};
+use crate::asn1::asn1_encoding;
+use crate::asn1::asn1_object;
+use crate::asn1::asn1_write;
 use crate::asn1::OidTokenizer;
 use crate::math::BigInteger;
 use crate::{Error, ErrorKind, Result};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DerObjectIdentifierImpl {
-    identifier: RefCell<String>,
+    identifier: cell::RefCell<Option<String>>,
     contents: Rc<Vec<u8>>,
 }
 
 impl DerObjectIdentifierImpl {
     fn new(identifier: String, contents: Rc<Vec<u8>>) -> Self {
         DerObjectIdentifierImpl {
-            identifier: RefCell::new(identifier),
+            identifier: cell::RefCell::new(Some(identifier)),
             contents,
         }
     }
-    pub fn get_id(&self) -> String {
-        let result = parse_contents(&self.contents);
-        let mut id = self.identifier.borrow_mut();
-        *id = result.clone();
-        return result;
-    }
-
     pub fn with_str(identifier: &str) -> Result<Self> {
         check_identifier(identifier)?;
 
@@ -43,35 +40,75 @@ impl DerObjectIdentifierImpl {
 
     pub fn with_primitive(contents: Vec<u8>) -> Result<Self> {
         check_contents_length(contents.len())?;
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::Hasher;
+        // todo cache
+        Ok(DerObjectIdentifierImpl {
+            identifier: cell::RefCell::new(None),
+            contents: Rc::new(contents),
+        })
+    }
 
-        let mut hasher = DefaultHasher::new();
-        contents.hash(&mut hasher);
-        let mut index = hasher.finish();
-        index ^= index >> 20;
-        index ^= index >> 10;
-        index &= 1023;
+    fn get_encoding_with_type(
+        &self,
+        _encode_type: asn1_write::EncodingType,
+    ) -> Box<dyn asn1_encoding::Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(
+            UNIVERSAL,
+            OBJECT_IDENTIFIER,
+            self.contents.clone(),
+        ))
+    }
 
-        //let index = get_hash_code(&contents);
+    pub fn try_from_id(identifier: &str) -> Option<Self> {
+        if identifier.is_empty() {
+            return None;
+        }
+        if identifier.len() <= MAX_IDENTIFIER_LENGTH && is_valid_identifier(identifier) {
+            let contents = parse_identifier(identifier);
+            if let Ok(c) = contents {
+                return Some(DerObjectIdentifierImpl::new(
+                    identifier.to_string(),
+                    Rc::new(c),
+                ));
+            }
+        }
+        None
+    }
 
-        todo!();
+    pub fn id(&self) -> String {
+        let mut s = self.identifier.borrow_mut();
+        if s.is_none() {
+            let id = parse_contents(self.contents.as_ref());
+            *s = Some(id);
+        }
+        s.clone().unwrap()
     }
 }
 
 impl Asn1ObjectImpl for DerObjectIdentifierImpl {}
-impl Display for DerObjectIdentifierImpl {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.get_id())
+impl fmt::Display for DerObjectIdentifierImpl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.id())
+    }
+}
+impl PartialEq for DerObjectIdentifierImpl {
+    fn eq(&self, other: &Self) -> bool {
+        self.contents.as_ref() == other.contents.as_ref()
     }
 }
 impl Asn1Encodable for DerObjectIdentifierImpl {
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding: &str) -> Result<usize> {
-        todo!()
+    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
+        let encoding = self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
+        asn1_object::get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
 
-    fn get_encoded_with_encoding(&self, encoding: &str) -> Result<Vec<u8>> {
-        todo!()
+    fn encode_to_with_encoding(
+        &self,
+        writer: &mut dyn io::Write,
+        encoding_str: &str,
+    ) -> Result<usize> {
+        let asn1_encoding =
+            self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
+        asn1_object::encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }
 }
 impl Into<Asn1Object> for DerObjectIdentifierImpl {
@@ -174,10 +211,10 @@ fn is_valid_identifier(s: &str) -> bool {
     if first == '2' {
         return true;
     }
-    if s.len() == 3 || s.chars().nth(3) != Some('.') {
+    if s.len() == 3 || s.chars().nth(3) == Some('.') {
         return true;
     }
-    if s.len() == 4 || s.chars().nth(4) != Some('.') {
+    if s.len() == 4 || s.chars().nth(4) == Some('.') {
         return s.chars().nth(2).unwrap() < '4';
     }
     return false;
@@ -185,37 +222,57 @@ fn is_valid_identifier(s: &str) -> bool {
 
 fn parse_identifier(identifier: &str) -> Result<Vec<u8>> {
     let mut result = Vec::new();
+    //let mut cursor = io::Cursor::new(result);
+    //let writer: &mut dyn io::Write = &mut result;
     let mut tokenizer = OidTokenizer::new(identifier);
     let token = tokenizer.next().ok_or(Error::with_message(
         ErrorKind::InvalidFormat,
         "not found first token".to_owned(),
     ))?;
+    if token.chars().any(|c| c < '0' || c > '9') {
+        return Err(Error::with_message(
+            ErrorKind::InvalidFormat,
+            " token must be 0 - 9".to_owned(),
+        ));
+    }
     let first = i64::from_str_radix(token, 10)? * 40;
 
     let token = tokenizer.next().ok_or(Error::with_message(
         ErrorKind::InvalidFormat,
         "not found second token".to_owned(),
     ))?;
+    if token.chars().any(|c| c < '0' || c > '9') {
+        return Err(Error::with_message(
+            ErrorKind::InvalidFormat,
+            " token must be 0 - 9".to_owned(),
+        ));
+    }
     if token.len() <= 18 {
         asn1_relative_oid::write_field_with_i64(
             &mut result,
             first + i64::from_str_radix(token, 10)?,
-        );
+        )?;
     } else {
         asn1_relative_oid::write_field_with_big_integer(
             &mut result,
             &BigInteger::with_string(token)?.add(&BigInteger::with_i64(first)),
-        );
+        )?;
     }
 
     for token in tokenizer {
+        if token.chars().any(|c| c < '0' || c > '9') {
+            return Err(Error::with_message(
+                ErrorKind::InvalidFormat,
+                " token must be 0 - 9".to_owned(),
+            ));
+        }
         if token.len() <= 18 {
-            asn1_relative_oid::write_field_with_i64(&mut result, i64::from_str_radix(token, 10)?);
+            asn1_relative_oid::write_field_with_i64(&mut result, i64::from_str_radix(token, 10)?)?;
         } else {
             asn1_relative_oid::write_field_with_big_integer(
                 &mut result,
                 &BigInteger::with_string(token)?,
-            );
+            )?;
         }
     }
     Ok(result)

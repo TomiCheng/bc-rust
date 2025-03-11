@@ -146,7 +146,7 @@ use super::{Asn1Encodable, Asn1Object};
 use crate::math::BigInteger;
 use crate::{Error, ErrorKind, Result};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DerIntegerImpl {
     buffer: Rc<Vec<u8>>,
     start: usize,

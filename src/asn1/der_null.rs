@@ -11,7 +11,7 @@ use super::{Asn1Encodable, Asn1Object};
 use crate::{Error, ErrorKind, Result};
 
 /// A Null object.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DerNullImpl;
 
 impl DerNullImpl {

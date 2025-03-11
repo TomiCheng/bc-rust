@@ -11,7 +11,7 @@ use super::Asn1Encodable;
 use crate::asn1::asn1_write::get_encoding_type;
 use crate::{Error, ErrorKind, Result};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DerBooleanImpl {
     value: u8,
 }
@@ -61,6 +61,12 @@ impl Asn1ObjectImpl for DerBooleanImpl {}
 impl Display for DerBooleanImpl {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "{}", if self.is_true() { "TRUE" } else { "FALSE" })
+    }
+}
+
+impl PartialEq for DerBooleanImpl {
+    fn eq(&self, other: &Self) -> bool {
+        self.is_true() == other.is_true()
     }
 }
 

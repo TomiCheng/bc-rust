@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Debug};
 use std::io::Write;
 use std::rc::Rc;
 
@@ -23,6 +23,12 @@ impl DerSequenceImpl {
 impl Asn1ObjectImpl for DerSequenceImpl {}
 impl Display for DerSequenceImpl {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!();
+    }
+}
+impl Debug for DerSequenceImpl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        //f.debug_struct("DerSequenceImpl").field("elements", &self.elements).finish()
         todo!();
     }
 }

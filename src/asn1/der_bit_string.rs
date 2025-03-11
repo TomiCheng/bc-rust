@@ -11,7 +11,7 @@ use super::primitive_encoding_suffixed::PrimitiveEncodingSuffixed;
 use super::{Asn1Encodable, Asn1Object};
 use crate::{Error, ErrorKind, Result};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DerBitStringImpl {
     contents: Rc<Vec<u8>>,
 }

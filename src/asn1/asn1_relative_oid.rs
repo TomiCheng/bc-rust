@@ -35,7 +35,7 @@ pub(crate) fn write_field_with_i64(writer: &mut dyn Write, mut value: i64) -> Re
         result[{
             pos -= 1;
             pos
-        }] = (value & 0x80) as u8;
+        }] = (value | 0x80) as u8;
     }
     writer.write(&result[pos..])?;
     Ok(())
