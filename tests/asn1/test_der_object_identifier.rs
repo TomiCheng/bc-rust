@@ -62,6 +62,26 @@ fn check_invalid_1() {
     check_invalid("1.100.1");
 }
 
+#[test]
+fn test_branch_check() {
+    check_branch("1.1", "2.2");
+}
+
+#[test]
+fn test_expected() {
+    check_expected("1.1", "1.1", false);
+    check_expected("1.1", "1.2", false);
+	check_expected("1.1", "1.2.1", false);
+	check_expected("1.1", "2.1", false);
+	check_expected("1.1", "1.11", false);
+	check_expected("1.12", "1.1.2", false);
+	check_expected("1.1", "1.1.1", true);
+	check_expected("1.1", "1.1.2", true);
+    check_expected("1.2.3.4.5.6", "1.2.3.4.5.6", false);
+    check_expected("1.2.3.4.5.6", "1.2.3.4.5.6.7", true);
+    check_expected("1.2.3.4.5.6", "1.2.3.4.5.6.7.8", true);
+}
+
 fn recode_check(oid: &str, req: &Vec<u8>) {
     let o: asn1::Asn1Object = asn1::DerObjectIdentifierImpl::with_str(oid).unwrap().into();
     let mut cursor = io::Cursor::new(req);
@@ -83,4 +103,24 @@ fn check_valid(oid: &str) {
 fn check_invalid(oid: &str) {
     assert!(asn1::DerObjectIdentifierImpl::try_from_id(oid).is_none());
     assert!(asn1::DerObjectIdentifierImpl::with_str(oid).is_err());
+}
+
+fn check_branch(stem: &str, branch: &str) {
+    let mut expected = stem.to_string();
+    expected.push('.');
+    expected.push_str(branch);
+
+    let actual = asn1::DerObjectIdentifierImpl::with_str(stem)
+        .unwrap()
+        .branch(branch)
+        .unwrap()
+        .id();
+    assert_eq!(expected, actual);
+}
+
+fn check_expected(stem: &str, test: &str, expected: bool) {
+    let stem_obj = asn1::DerObjectIdentifierImpl::with_str(stem).unwrap();
+    let test_obj = asn1::DerObjectIdentifierImpl::with_str(test).unwrap();
+    let actual = test_obj.on(&stem_obj);
+    assert_eq!(expected, actual);
 }

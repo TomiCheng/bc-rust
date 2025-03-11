@@ -1,7 +1,8 @@
 use std::io::Write;
 
+use super::OidTokenizer;
 use crate::math::BigInteger;
-use crate::Result;
+use crate::{Error, ErrorKind, Result};
 
 pub(crate) fn is_valid_identifier(s: &str) -> bool {
     let mut digit_count = 0;
@@ -59,4 +60,36 @@ pub(crate) fn write_field_with_big_integer(
         writer.write(&tmp)?;
     }
     Ok(())
+}
+
+const MAX_CONTENTS_LENGTH: usize = 4096;
+const MAX_IDENTIFIER_LENGTH: usize = MAX_CONTENTS_LENGTH * 4 + 1;
+
+pub(crate) fn check_identifier(identifier: &str) -> Result<()> {
+    if identifier.len() > MAX_IDENTIFIER_LENGTH {
+        return Err(Error::with_message(
+            ErrorKind::InvalidInput,
+            "exceeded relative OID contents length limit".to_owned(),
+        ));
+    }
+    if !is_valid_identifier(identifier) {
+        return Err(Error::with_message(
+            ErrorKind::InvalidInput,
+            format!("string {} noa a valid relative OID", identifier),
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn parse_identifier(s: &str) -> Result<Vec<u8>> {
+    let mut result = Vec::new();
+    let tokenizer = OidTokenizer::new(s);
+    for token in tokenizer {
+        if token.len() <= 18 {
+            write_field_with_i64(&mut result, i64::from_str_radix(token, 10)?)?;
+        } else {
+            write_field_with_big_integer(&mut result, &BigInteger::with_string(s)?)?;
+        }
+    }
+    Ok(result)
 }

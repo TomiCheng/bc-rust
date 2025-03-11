@@ -82,6 +82,37 @@ impl DerObjectIdentifierImpl {
         }
         s.clone().unwrap()
     }
+
+    pub fn branch(&self, branch_id: &str) -> Result<Self> {
+        asn1_relative_oid::check_identifier(branch_id)?;
+        let mut contents = self.contents.as_ref().clone();
+        if branch_id.len() <= 2 {
+            check_contents_length(self.contents.len() + 1)?;
+            let mut sub_id = branch_id.chars().nth(0).unwrap() as u32 - '0' as u32;
+            if branch_id.len() == 2 {
+                sub_id *= 10;
+                sub_id += branch_id.chars().nth(1).unwrap() as u32 - '0' as u32;
+            }
+            contents.push(sub_id as u8);
+        } else {
+            let branch_contents = asn1_relative_oid::parse_identifier(branch_id)?;
+            check_contents_length(self.contents.len() + branch_contents.len())?;
+            contents.extend(branch_contents);
+        }
+        let root_id = self.id();
+        Ok(DerObjectIdentifierImpl::new(
+            format!("{}.{}", root_id, branch_id),
+            Rc::new(contents),
+        ))
+    }
+
+    pub fn on(&self, stem: &Self) -> bool {
+        let contents = self.contents.as_ref();
+        let stem_contents = stem.contents.as_ref();
+        let contents_len = contents.len();
+        let stem_contents_len = stem_contents.len();
+        contents_len > stem_contents_len && stem_contents == &contents[0..stem_contents_len]
+    }
 }
 
 impl Asn1ObjectImpl for DerObjectIdentifierImpl {}
