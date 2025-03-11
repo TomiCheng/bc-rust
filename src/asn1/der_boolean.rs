@@ -42,7 +42,7 @@ impl DerBooleanImpl {
         Box::new(PrimitiveEncoding::new(
             UNIVERSAL,
             BOOLEAN,
-            Rc::new(self.get_contents(encode_type)),
+            std::sync::Arc::new(self.get_contents(encode_type)),
         ))
     }
     pub(crate) fn with_primitive(contents: &[u8]) -> Result<Self> {

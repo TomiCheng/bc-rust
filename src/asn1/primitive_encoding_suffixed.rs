@@ -7,7 +7,7 @@ use super::Asn1Write;
 pub(crate) struct PrimitiveEncodingSuffixed {
     tag_class: u32,
     tag_no: u32,
-    contents_octets: Rc<Vec<u8>>,
+    contents_octets: std::sync::Arc<Vec<u8>>,
     contents_suffix: u8,
 }
 
@@ -15,7 +15,7 @@ impl PrimitiveEncodingSuffixed {
     pub(crate) fn new(
         tag_class: u32,
         tag_no: u32,
-        contents_octets: Rc<Vec<u8>>,
+        contents_octets: std::sync::Arc<Vec<u8>>,
         contents_suffix: u8,
     ) -> Self {
         PrimitiveEncodingSuffixed {

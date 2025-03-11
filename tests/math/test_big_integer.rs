@@ -89,7 +89,7 @@ fn test_bit_count() {
 
         //println!("bit length: {}, bit count: {}", *test.get_bit_length(), *test.get_bit_count());
 
-        for bit in 0..*test.get_bit_length() {
+        for bit in 0..*test.bit_length() {
             if test.test_bit(bit) {
                 bit_count += 1;
             }
@@ -101,11 +101,11 @@ fn test_bit_count() {
 
 #[test]
 fn test_bit_length() {
-    assert_eq!(0, *(*ZERO).get_bit_length());
-    assert_eq!(1, *(*ONE).get_bit_length());
-    assert_eq!(0, *(*MINUS_ONE).get_bit_length());
-    assert_eq!(2, *(*TWO).get_bit_length());
-    assert_eq!(1, *(*MINUS_TWO).get_bit_length());
+    assert_eq!(0, *(*ZERO).bit_length());
+    assert_eq!(1, *(*ONE).bit_length());
+    assert_eq!(0, *(*MINUS_ONE).bit_length());
+    assert_eq!(2, *(*TWO).bit_length());
+    assert_eq!(1, *(*MINUS_TWO).bit_length());
 
     let mut random = DefaultRandomSource::default();
 
@@ -117,10 +117,10 @@ fn test_bit_length() {
             .set_bit(0);
         let pow2 = (*ONE).shift_left(bit as i32);
 
-        assert_eq!(bit + 2, *odd.get_bit_length(), "t1");
-        assert_eq!(bit + 2, *odd.negate().get_bit_length(), "t2");
-        assert_eq!(bit + 1, *pow2.get_bit_length(), "t3");
-        assert_eq!(bit, *pow2.negate().get_bit_length(), "t4");
+        assert_eq!(bit + 2, *odd.bit_length(), "t1");
+        assert_eq!(bit + 2, *odd.negate().bit_length(), "t2");
+        assert_eq!(bit + 1, *pow2.bit_length(), "t3");
+        assert_eq!(bit, *pow2.negate().bit_length(), "t4");
     }
 }
 
@@ -633,7 +633,7 @@ fn test_i32_value() {
     let tests = [i32::MIN, -1234, -10, -1, 0, !0, 1, 10, 5678, i32::MAX];
     for i in tests.iter() {
         let a = BigInteger::with_i32(*i);
-        assert_eq!(*i, a.get_i32_value(), "i = {}", i);
+        assert_eq!(*i, a.i32_value(), "i = {}", i);
     }
 }
 
@@ -780,7 +780,7 @@ fn test_mod_pow_02() {
     let mut random = DefaultRandomSource::default();
     for i in 0..100 {
         let m = BigInteger::with_probable_prime(10 + i, &mut random).unwrap();
-        let x = BigInteger::with_random(*m.get_bit_length() - 1, &mut random);
+        let x = BigInteger::with_random(*m.bit_length() - 1, &mut random);
         assert_eq!(x, x.mod_pow(&m, &m).unwrap(), "i = {}, x = {:?}, m = {:?}", i, x, m);
 
         if x.get_sign_value() != 0 {
@@ -788,8 +788,8 @@ fn test_mod_pow_02() {
             assert_eq!(*ONE, x.mod_pow(&m.subtract(&(*ONE)), &m).unwrap());
         }
 
-        let y = BigInteger::with_random(m.get_bit_length() - 1, &mut random);
-        let n = BigInteger::with_random(m.get_bit_length() - 1, &mut random);
+        let y = BigInteger::with_random(m.bit_length() - 1, &mut random);
+        let n = BigInteger::with_random(m.bit_length() - 1, &mut random);
         let n3 = n.mod_pow(&(*THREE), &m).unwrap();
 
         let res_x = n.mod_pow(&x, &m).unwrap();
@@ -1000,15 +1000,15 @@ fn test_shift_left() {
             i,
             shift
         );
-        assert_eq!(*a.get_bit_length() + shift, *b.get_bit_length());
-        assert_eq!(*neg_a.get_bit_length() + shift, *c.get_bit_length());
+        assert_eq!(*a.bit_length() + shift, *b.bit_length());
+        assert_eq!(*neg_a.bit_length() + shift, *c.bit_length());
 
         let mut j = 0usize;
         while j < shift {
             assert!(!b.test_bit(j));
             j += 1;
         }
-        while j < (*b.get_bit_length()) {
+        while j < (*b.bit_length()) {
             assert_eq!(a.test_bit(j - shift), b.test_bit(j));
             j += 1;
         }
@@ -1023,9 +1023,9 @@ fn test_shift_right() {
         let a = BigInteger::with_random(256 + i, &mut random);
         let b = a.shift_right(shift as i32);
 
-        assert_eq!(*a.get_bit_length() - shift, *b.get_bit_length());
+        assert_eq!(*a.bit_length() - shift, *b.bit_length());
 
-        for j in 0..(*b.get_bit_length()) {
+        for j in 0..(*b.bit_length()) {
             assert_eq!(a.test_bit(j + shift), b.test_bit(j));
         }
     }
@@ -1244,7 +1244,7 @@ fn test_value_of() {
 
     for i in -5..5 {
         let a = BigInteger::with_i32(i);
-        assert_eq!(i, a.get_i32_value());
+        assert_eq!(i, a.i32_value());
     }
 }
 

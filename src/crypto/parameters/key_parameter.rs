@@ -1,6 +1,3 @@
-use crate::crypto::cipher_parameters::CipherParameters;
-
-
 pub struct KeyParameter {
     pub(crate) key: Vec<u8>,
 }
@@ -21,5 +18,3 @@ impl KeyParameter {
         KeyParameter { key }
     }
 }
-
-impl CipherParameters for KeyParameter {}

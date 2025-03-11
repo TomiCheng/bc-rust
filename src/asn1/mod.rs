@@ -18,6 +18,7 @@ mod oid_tokenizer;
 mod primitive_encoding;
 mod primitive_encoding_suffixed;
 
+pub use asn1_convertiable::Asn1Convertiable;
 pub use asn1_encodable::Asn1Encodable;
 pub use asn1_object::Asn1Object;
 pub use asn1_read::Asn1Read;

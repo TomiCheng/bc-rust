@@ -6,7 +6,7 @@ use bc_rust::util::encoders::hex::to_decode_with_str;
 fn check_i32_value(obj: &Asn1Object, n: i32) {
     let i = obj.as_der_integer();
     let val = i.get_value();
-    assert_eq!(val.get_i32_value(), n);
+    assert_eq!(val.i32_value(), n);
     assert_eq!(val.try_get_i32_value(), Some(n));
     assert_eq!(i.try_get_i32_value(), Some(n));
     assert!(i.has_i32_value(n));

@@ -1,7 +1,7 @@
 use std::cell;
 use std::fmt;
 use std::io;
-use std::rc::Rc;
+use std::sync;
 
 use super::asn1_object::Asn1ObjectImpl;
 use super::asn1_tags::{OBJECT_IDENTIFIER, UNIVERSAL};
@@ -16,16 +16,18 @@ use crate::{Error, ErrorKind, Result};
 
 #[derive(Clone, Debug)]
 pub struct DerObjectIdentifierImpl {
-    identifier: cell::RefCell<Option<String>>,
-    contents: Rc<Vec<u8>>,
+    identifier: sync::OnceLock<String>,
+    contents: sync::Arc<Vec<u8>>,
 }
 
 impl DerObjectIdentifierImpl {
-    fn new(identifier: String, contents: Rc<Vec<u8>>) -> Self {
-        DerObjectIdentifierImpl {
-            identifier: cell::RefCell::new(Some(identifier)),
+    fn new(identifier: String, contents: sync::Arc<Vec<u8>>) -> Self {
+        let result = DerObjectIdentifierImpl {
+            identifier: sync::OnceLock::new(),
             contents,
-        }
+        };
+        result.identifier.get_or_init(|| identifier);
+        result
     }
     pub fn with_str(identifier: &str) -> Result<Self> {
         check_identifier(identifier)?;
@@ -34,7 +36,7 @@ impl DerObjectIdentifierImpl {
         check_contents_length(contents.len())?;
         Ok(DerObjectIdentifierImpl::new(
             identifier.to_string(),
-            Rc::new(contents),
+            sync::Arc::new(contents),
         ))
     }
 
@@ -42,8 +44,8 @@ impl DerObjectIdentifierImpl {
         check_contents_length(contents.len())?;
         // todo cache
         Ok(DerObjectIdentifierImpl {
-            identifier: cell::RefCell::new(None),
-            contents: Rc::new(contents),
+            identifier: sync::OnceLock::new(),
+            contents: sync::Arc::new(contents),
         })
     }
 
@@ -67,20 +69,16 @@ impl DerObjectIdentifierImpl {
             if let Ok(c) = contents {
                 return Some(DerObjectIdentifierImpl::new(
                     identifier.to_string(),
-                    Rc::new(c),
+                    sync::Arc::new(c),
                 ));
             }
         }
         None
     }
 
-    pub fn id(&self) -> String {
-        let mut s = self.identifier.borrow_mut();
-        if s.is_none() {
-            let id = parse_contents(self.contents.as_ref());
-            *s = Some(id);
-        }
-        s.clone().unwrap()
+    pub fn id(&self) -> &String {
+        self.identifier
+            .get_or_init(|| parse_contents(self.contents.as_ref()))
     }
 
     pub fn branch(&self, branch_id: &str) -> Result<Self> {
@@ -102,7 +100,7 @@ impl DerObjectIdentifierImpl {
         let root_id = self.id();
         Ok(DerObjectIdentifierImpl::new(
             format!("{}.{}", root_id, branch_id),
-            Rc::new(contents),
+            sync::Arc::new(contents),
         ))
     }
 

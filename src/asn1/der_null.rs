@@ -19,7 +19,7 @@ impl DerNullImpl {
         DerNullImpl {}
     }
     fn get_encoding_with_type(&self, _encode_type: EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(UNIVERSAL, NULL, Rc::new(vec![])))
+        Box::new(PrimitiveEncoding::new(UNIVERSAL, NULL, std::sync::Arc::new(vec![])))
     }
     pub(crate) fn with_primitive(contents: &[u8]) -> Result<Self> {
         if !contents.is_empty() {

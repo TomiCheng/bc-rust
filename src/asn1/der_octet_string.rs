@@ -1,6 +1,5 @@
 use std::fmt::{Display, Formatter};
 use std::io::Write;
-use std::rc::Rc;
 
 use super::asn1_encoding::Asn1Encoding;
 use super::asn1_object::{encode_to_with_encoding, get_encoded_with_encoding, Asn1ObjectImpl};
@@ -13,11 +12,11 @@ use crate::Result;
 
 #[derive(Clone, Debug)]
 pub struct DerOctetStringImpl {
-    contents: Rc<Vec<u8>>,
+    contents: std::sync::Arc<Vec<u8>>,
 }
 
 impl DerOctetStringImpl {
-    pub fn new(contents: Rc<Vec<u8>>) -> Self {
+    pub fn new(contents: std::sync::Arc<Vec<u8>>) -> Self {
         DerOctetStringImpl { contents }
     }
     fn get_encoding_with_type(&self, _encode_type: EncodingType) -> Box<dyn Asn1Encoding> {

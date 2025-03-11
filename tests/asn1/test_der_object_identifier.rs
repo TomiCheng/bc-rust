@@ -110,12 +110,13 @@ fn check_branch(stem: &str, branch: &str) {
     expected.push('.');
     expected.push_str(branch);
 
-    let actual = asn1::DerObjectIdentifierImpl::with_str(stem)
+    let binding = asn1::DerObjectIdentifierImpl::with_str(stem)
         .unwrap()
         .branch(branch)
-        .unwrap()
+        .unwrap();
+    let actual = binding
         .id();
-    assert_eq!(expected, actual);
+    assert_eq!(&expected, actual);
 }
 
 fn check_expected(stem: &str, test: &str, expected: bool) {

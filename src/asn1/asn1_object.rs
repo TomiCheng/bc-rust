@@ -16,7 +16,7 @@ use crate::Result;
 
 pub(crate) trait Asn1ObjectImpl: Asn1Encodable + Display {}
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Asn1Object {
     DerBoolean(DerBooleanImpl),
     DerInteger(DerIntegerImpl),

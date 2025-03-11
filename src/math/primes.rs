@@ -70,7 +70,7 @@ pub fn enhanced_mr_probable_prime_test(
             "iterations must be at least 1".to_owned(),
         ));
     }
-    if *candidate.get_bit_length() == 2 {
+    if *candidate.bit_length() == 2 {
         return Ok(MrOutput::with_probaly_prime());
     }
 
@@ -182,7 +182,7 @@ pub fn is_mr_probable_prime(
         ));
     }
 
-    if *candidate.get_bit_length() == 2 {
+    if *candidate.bit_length() == 2 {
         return Ok(true);
     }
 
@@ -482,7 +482,7 @@ fn impl_has_any_small_factors(x: &BigInteger) -> Result<bool> {
     // Bundle trial divisors into ~32-bit moduli then use fast tests on the ~32-bit remainders.
 
     let mut m = 2 * 3 * 5 * 7 * 11 * 13 * 17 * 19 * 23;
-    let mut r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    let mut r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 2) == 0
         || (r % 3) == 0
         || (r % 5) == 0
@@ -497,55 +497,55 @@ fn impl_has_any_small_factors(x: &BigInteger) -> Result<bool> {
     }
 
     m = 29 * 31 * 37 * 41 * 43;
-    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 29) == 0 || (r % 31) == 0 || (r % 37) == 0 || (r % 41) == 0 || (r % 43) == 0 {
         return Ok(true);
     }
 
     m = 47 * 53 * 59 * 61 * 67;
-    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 47) == 0 || (r % 53) == 0 || (r % 59) == 0 || (r % 61) == 0 || (r % 67) == 0 {
         return Ok(true);
     }
 
     m = 71 * 73 * 79 * 83;
-    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 71) == 0 || (r % 73) == 0 || (r % 79) == 0 || (r % 83) == 0 {
         return Ok(true);
     }
 
     m = 89 * 97 * 101 * 103;
-    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 89) == 0 || (r % 97) == 0 || (r % 101) == 0 || (r % 103) == 0 {
         return Ok(true);
     }
 
     m = 107 * 109 * 113 * 127;
-    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 107) == 0 || (r % 109) == 0 || (r % 113) == 0 || (r % 127) == 0 {
         return Ok(true);
     }
 
     m = 131 * 137 * 139 * 149;
-    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 131) == 0 || (r % 137) == 0 || (r % 139) == 0 || (r % 149) == 0 {
         return Ok(true);
     }
 
     m = 151 * 157 * 163 * 167;
-    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 151) == 0 || (r % 157) == 0 || (r % 163) == 0 || (r % 167) == 0 {
         return Ok(true);
     }
 
     m = 173 * 179 * 181 * 191;
-    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 173) == 0 || (r % 179) == 0 || (r % 181) == 0 || (r % 191) == 0 {
         return Ok(true);
     }
 
     m = 193 * 197 * 199 * 211;
-    r = x.r#mod(&BigInteger::with_u32(m))?.get_i32_value();
+    r = x.r#mod(&BigInteger::with_u32(m))?.i32_value();
     if (r % 193) == 0 || (r % 197) == 0 || (r % 199) == 0 || (r % 211) == 0 {
         return Ok(true);
     }
@@ -554,7 +554,7 @@ fn impl_has_any_small_factors(x: &BigInteger) -> Result<bool> {
 }
 
 fn check_candidate(n: &BigInteger, name: &str) -> Result<()> {
-    if n.get_sign_value() < 1 || *n.get_bit_length() < 2 {
+    if n.get_sign_value() < 1 || *n.bit_length() < 2 {
         return Err(Error::with_message(
             ErrorKind::InvalidInput,
             format!("{} must be positive", name),

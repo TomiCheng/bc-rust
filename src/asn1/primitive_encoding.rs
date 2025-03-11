@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync;
 
 use super::asn1_encoding::Asn1Encoding;
 use super::asn1_write::get_length_of_encoding_dl;
@@ -7,11 +7,11 @@ use super::Asn1Write;
 pub(crate) struct PrimitiveEncoding {
     tag_class: u32,
     tag_no: u32,
-    contents_octets: Rc<Vec<u8>>,
+    contents_octets: sync::Arc<Vec<u8>>,
 }
 
 impl PrimitiveEncoding {
-    pub fn new(tag_class: u32, tag_no: u32, contents_octets: Rc<Vec<u8>>) -> Self {
+    pub fn new(tag_class: u32, tag_no: u32, contents_octets: sync::Arc<Vec<u8>>) -> Self {
         PrimitiveEncoding {
             tag_class,
             tag_no,

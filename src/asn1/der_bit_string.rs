@@ -13,11 +13,11 @@ use crate::{Error, ErrorKind, Result};
 
 #[derive(Clone, Debug)]
 pub struct DerBitStringImpl {
-    contents: Rc<Vec<u8>>,
+    contents: std::sync::Arc<Vec<u8>>,
 }
 
 impl DerBitStringImpl {
-    pub fn new(contents: Rc<Vec<u8>>) -> Self {
+    pub fn new(contents: std::sync::Arc<Vec<u8>>) -> Self {
         DerBitStringImpl { contents }
     }
 
@@ -42,13 +42,13 @@ impl DerBitStringImpl {
         inner_contents[0] = pad_bits;
         inner_contents[1..].copy_from_slice(contents);
 
-        Ok(DerBitStringImpl::new(Rc::new(inner_contents)))
+        Ok(DerBitStringImpl::new(std::sync::Arc::new(inner_contents)))
     }
 
     pub fn with_named_bits(named_bits: u32) -> Self {
         let mut named_bits = named_bits;
         if named_bits == 0 {
-            return DerBitStringImpl::new(Rc::new(vec![0u8]));
+            return DerBitStringImpl::new(std::sync::Arc::new(vec![0u8]));
         }
         let bits = 32 - named_bits.leading_zeros();
         let bytes = (bits + 7) / 8;
@@ -69,7 +69,7 @@ impl DerBitStringImpl {
 
         debug_assert!(pad_bits < 8);
         data[0] = pad_bits;
-        DerBitStringImpl::new(Rc::new(data))
+        DerBitStringImpl::new(std::sync::Arc::new(data))
     }
 
     pub fn get_bytes(&self) -> Vec<u8> {

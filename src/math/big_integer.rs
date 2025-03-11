@@ -683,7 +683,7 @@ impl BigInteger {
         }
         return self.add_to_magnitude(&(*ONE).magnitude.as_slice());
     }
-    pub fn get_bit_length(&self) -> &usize {
+    pub fn bit_length(&self) -> &usize {
         self.bit_length.get_or_init(|| {
             if self.sign == 0 {
                 0usize
@@ -705,7 +705,7 @@ impl BigInteger {
         if other.quick_pow2_check() {
             let result = self
                 .abs()
-                .shift_right((other.abs().get_bit_length() - 1) as i32);
+                .shift_right((other.abs().bit_length() - 1) as i32);
             return if other.sign == self.sign {
                 Ok(result)
             } else {
@@ -729,14 +729,14 @@ impl BigInteger {
         if n < 0 {
             return self.shift_left(-n);
         }
-        if n as usize >= *self.get_bit_length() {
+        if n as usize >= *self.bit_length() {
             if self.sign < 0 {
                 return (*ONE).negate();
             } else {
                 return (*ZERO).clone();
             }
         }
-        let result_length = (self.get_bit_length() - (n as usize) + 31) >> 5;
+        let result_length = (self.bit_length() - (n as usize) + 31) >> 5;
         let mut res = vec![0u32; result_length];
         let num_ints = n >> 5;
         let num_bits = n & 31;
@@ -763,7 +763,7 @@ impl BigInteger {
         if self.sign == 0 {
             return ((*ZERO).clone(), (*ZERO).clone());
         } else if other.quick_pow2_check() {
-            let e = other.abs().get_bit_length() - 1;
+            let e = other.abs().bit_length() - 1;
             let quotient = self.abs().shift_right(e as i32);
 
             let divide = if self.sign == other.sign {
@@ -867,7 +867,7 @@ impl BigInteger {
 
         let mut result: Vec<u32>;
         if division.quick_pow2_check() {
-            result = self.last_n_bits(division.abs().get_bit_length() - 1);
+            result = self.last_n_bits(division.abs().bit_length() - 1);
         } else {
             result = self.magnitude.as_ref().clone();
             remainder(&mut result, division.magnitude.as_ref());
@@ -887,7 +887,7 @@ impl BigInteger {
         }
         acc as u32
     }
-    pub fn get_i32_value(&self) -> i32 {
+    pub fn i32_value(&self) -> i32 {
         if self.sign == 0 {
             return 0;
         }
@@ -901,10 +901,10 @@ impl BigInteger {
     }
 
     pub fn try_get_i32_value(&self) -> Option<i32> {
-        if *self.get_bit_length() > 31 {
+        if *self.bit_length() > 31 {
             return None;
         }
-        Some(self.get_i32_value())
+        Some(self.i32_value())
     }
 
     pub fn get_i64_value(&self) -> i64 {
@@ -924,7 +924,7 @@ impl BigInteger {
     }
 
     pub fn try_get_i64_value(&self) -> Option<i64> {
-        if *self.get_bit_length() > 63 {
+        if *self.bit_length() > 63 {
             return None;
         }
         Some(self.get_i64_value())
@@ -984,14 +984,14 @@ impl BigInteger {
             8 => {
                 let mask = (1 << 30) - 1;
                 let mut u = self.abs();
-                let mut bits = *u.get_bit_length();
+                let mut bits = *u.bit_length();
                 let mut s: Vec<String> = Vec::new();
                 while bits > 30 {
-                    s.push(format!("{:o}", u.get_i32_value() & mask));
+                    s.push(format!("{:o}", u.i32_value() & mask));
                     u = u.shift_right(30);
                     bits -= 30;
                 }
-                sb.push_str(&format!("{:o}", u.get_i32_value()));
+                sb.push_str(&format!("{:o}", u.i32_value()));
                 for i in (0..s.len()).rev() {
                     append_zero_extended_string(&mut sb, &s[i], 10);
                 }
@@ -1010,7 +1010,7 @@ impl BigInteger {
             // TODO This could work for other radices if there is an alternative to Convert.ToString method
             10 => {
                 let q = self.abs();
-                if *q.get_bit_length() < 64 {
+                if *q.bit_length() < 64 {
                     sb.push_str(&format!("{}", q.get_i64_value()));
                 } else {
                     // TODO Could cache the moduli for each radix (soft reference?)
@@ -1053,7 +1053,7 @@ impl BigInteger {
             return (*ZERO).clone();
         }
         if self.quick_pow2_check() {
-            return self.shift_left((self.abs().get_bit_length() - 1) as i32);
+            return self.shift_left((self.abs().bit_length() - 1) as i32);
         }
         let mut res_length = self.magnitude.len() << 1;
         if self.magnitude[0] >> 16 == 0 {
@@ -1091,7 +1091,7 @@ impl BigInteger {
 
         result
             .bit_length
-            .get_or_init(|| self.get_bit_length() + n as usize);
+            .get_or_init(|| self.bit_length() + n as usize);
 
         result
     }
@@ -1120,7 +1120,7 @@ impl BigInteger {
         debug_assert!(self.test_bit(0));
 
         // Try to reduce the penalty for really small numbers
-        let num_lists = std::cmp::min(self.get_bit_length() - 1, PRIME_LISTS.len());
+        let num_lists = std::cmp::min(self.bit_length() - 1, PRIME_LISTS.len());
         for i in 0..num_lists {
             let test = self.remainder_with_u32(*(&(*PRIME_PRODUCTS)[i]));
             let prime_list = &(*PRIME_LISTS)[i];
@@ -1128,7 +1128,7 @@ impl BigInteger {
                 let prime = prime_list[j];
                 let q_rem = test % prime;
                 if q_rem == 0 {
-                    return Ok(*self.get_bit_length() < 16 && self.get_i32_value() as u32 == prime);
+                    return Ok(*self.bit_length() < 16 && self.i32_value() as u32 == prime);
                 }
             }
         }
@@ -1159,7 +1159,7 @@ impl BigInteger {
         random: &mut dyn RandomSource,
         randomly_selected: bool,
     ) -> Result<bool> {
-        let bits = *self.get_bit_length();
+        let bits = *self.bit_length();
 
         debug_assert!(certainty > 0);
         debug_assert!(bits > 2);
@@ -1202,7 +1202,7 @@ impl BigInteger {
         loop {
             let mut a: BigInteger;
             loop {
-                a = BigInteger::with_random(*n.get_bit_length(), random);
+                a = BigInteger::with_random(*n.bit_length(), random);
                 //a = BigInteger::with_string("4571627816229255254").expect("msg");
                 if a.sign == 0
                     || a >= n
@@ -1266,7 +1266,7 @@ impl BigInteger {
     ) -> Result<BigInteger> {
         let n = m.magnitude.len();
         let pow_r = 32 * n;
-        let small_monty_modulus = m.get_bit_length() + 2 <= pow_r;
+        let small_monty_modulus = m.bit_length() + 2 <= pow_r;
         let m_dash = m.get_m_quote();
 
         // tmp = this * R mod m
@@ -1290,7 +1290,7 @@ impl BigInteger {
 
         // Filter the common case of small RSA exponents with few bits set
         if e.magnitude.len() > 1 || *e.get_bit_count() > 2 {
-            let exp_length = *e.get_bit_length();
+            let exp_length = *e.bit_length();
             while exp_length > EXP_WINDOW_THRESHOLDS[extra_bits] {
                 extra_bits += 1;
             }
@@ -1389,7 +1389,7 @@ impl BigInteger {
     fn mod_square_monty(y_accum: &mut [u32], b: &BigInteger, m: &BigInteger) -> BigInteger {
         let n = m.magnitude.len();
         let pow_r = 32 * n;
-        let small_monty_modulus = m.get_bit_length() + 2 <= pow_r;
+        let small_monty_modulus = m.bit_length() + 2 <= pow_r;
         let m_dash = m.get_m_quote();
 
         debug_assert!(y_accum.len() == n + 1);
@@ -1428,7 +1428,7 @@ impl BigInteger {
             return self.clone();
         }
         // TODO Handle negative values and zero
-        if self.sign > 0 && n < (*self.get_bit_length() - 1) {
+        if self.sign > 0 && n < (*self.bit_length() - 1) {
             return self.flip_existing_bit(n);
         } else {
             return self.or(&(*ONE).shift_left(n as i32));
@@ -1437,7 +1437,7 @@ impl BigInteger {
 
     fn flip_existing_bit(&self, n: usize) -> BigInteger {
         debug_assert!(self.sign > 0);
-        debug_assert!(n < self.get_bit_length() - 1);
+        debug_assert!(n < self.bit_length() - 1);
 
         let mut mag = self.magnitude.to_vec();
         let mag_len = mag.len();
@@ -1452,7 +1452,7 @@ impl BigInteger {
         }
 
         // TODO Handle negative values
-        if self.sign > 0 && n < (self.get_bit_length() - 1) {
+        if self.sign > 0 && n < (self.bit_length() - 1) {
             return self.flip_existing_bit(n);
         }
 
@@ -1471,7 +1471,7 @@ impl BigInteger {
         }
 
         if other.quick_pow2_check() {
-            let result = self.shift_left((other.abs().get_bit_length() - 1) as i32);
+            let result = self.shift_left((other.abs().bit_length() - 1) as i32);
             return if other.sign > 0 {
                 result
             } else {
@@ -1480,7 +1480,7 @@ impl BigInteger {
         }
 
         if self.quick_pow2_check() {
-            let result = other.shift_left((self.abs().get_bit_length() - 1) as i32);
+            let result = other.shift_left((self.abs().bit_length() - 1) as i32);
             return if self.sign > 0 {
                 result
             } else {
@@ -1500,7 +1500,7 @@ impl BigInteger {
 
     pub fn flip_bit(&self, n: usize) -> BigInteger {
         // TODO Handle negative values and zero
-        if self.sign > 0 && n < (*self.get_bit_length() - 1) {
+        if self.sign > 0 && n < (*self.bit_length() - 1) {
             return self.flip_existing_bit(n);
         }
         let n1 = &(*ONE).shift_left(n as i32);
@@ -1576,7 +1576,7 @@ impl BigInteger {
             return Ok(self.clone());
         }
         if self.quick_pow2_check() {
-            let pow_of_2 = exp as u64 * (self.get_bit_length() - 1) as u64;
+            let pow_of_2 = exp as u64 * (self.bit_length() - 1) as u64;
             if pow_of_2 > i32::MAX as u64 {
                 return Err(Error::with_message(
                     ErrorKind::ArithmeticError,
@@ -1617,9 +1617,9 @@ impl BigInteger {
             return if unsigned { vec![0u8; 0] } else { vec![0u8; 1] };
         }
         let n_bits = if unsigned && self.sign > 0 {
-            *self.get_bit_length()
+            *self.bit_length()
         } else {
-            *self.get_bit_length() + 1
+            *self.bit_length() + 1
         };
         let n_bytes = get_bytes_length(n_bits);
 
@@ -1792,7 +1792,7 @@ impl BigInteger {
 
         // Sliding window from MSW to LSW
         let mut extra_bits = 0;
-        let exp_length = *e.get_bit_length();
+        let exp_length = *e.bit_length();
         while exp_length > EXP_WINDOW_THRESHOLDS[extra_bits] {
             extra_bits += 1;
         }
@@ -1856,8 +1856,8 @@ impl BigInteger {
         mr: &BigInteger,
         yu: &BigInteger,
     ) -> BigInteger {
-        let x_len = *x.get_bit_length();
-        let m_len = *m.get_bit_length();
+        let x_len = *x.bit_length();
+        let m_len = *m.bit_length();
         if x_len < m_len {
             return x.clone();
         }
@@ -1943,7 +1943,7 @@ impl BigInteger {
                 "Numbers not relatively prime".to_owned(),
             ));
         }
-        let pow = *m.get_bit_length() << 1;
+        let pow = *m.bit_length() << 1;
         let mut inv64 = inverse_u64(self.get_i64_value() as u64) as i64;
         if pow < 64 {
             inv64 &= (1 << pow) - 1;
@@ -2694,7 +2694,7 @@ fn to_string_with_moduli(
     mut scale: usize,
     pos: &BigInteger,
 ) {
-    if *pos.get_bit_length() < 64 {
+    if *pos.bit_length() < 64 {
         let s = match radix {
             2 => format!("{:b}", pos.get_i64_value()),
             8 => format!("{:o}", pos.get_i64_value()),

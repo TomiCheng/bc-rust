@@ -65,9 +65,13 @@ impl Error {
     pub fn message(&self) -> &str {
         &self.message
     }
+   
 }
 
 impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        self.source.as_ref().map(|e| &**e)
+    }
 }
 
 impl fmt::Display for Error {

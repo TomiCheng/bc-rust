@@ -26,16 +26,16 @@ pub fn create_random_in_range(min: &BigInteger, max: &BigInteger, random: &mut d
         return min.clone();
     }
 
-    if *min.get_bit_length() > max.get_bit_length() / 2 {
+    if *min.bit_length() > max.bit_length() / 2 {
         return create_random_in_range(&(*ZERO), &max.subtract(min), random);
     }
 
     for _ in 0..MAX_ITERATIONS {
-        let x = BigInteger::with_random(*max.get_bit_length(), random);
+        let x = BigInteger::with_random(*max.bit_length(), random);
         if &x >= min && &x <= max {
             return x;
         }
     }
 
-    BigInteger::with_random(*max.subtract(min).get_bit_length() - 1, random).add(min)
+    BigInteger::with_random(*max.subtract(min).bit_length() - 1, random).add(min)
 }

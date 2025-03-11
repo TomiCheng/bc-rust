@@ -46,14 +46,14 @@ pub(crate) fn write_field_with_big_integer(
     writer: &mut dyn Write,
     value: &BigInteger,
 ) -> Result<()> {
-    let byte_count = (value.get_bit_length() + 6) / 7;
+    let byte_count = (value.bit_length() + 6) / 7;
     if byte_count == 0 {
         writer.write(&[0])?;
     } else {
         let mut tmp_value = value.clone();
         let mut tmp = vec![0u8; byte_count];
         for i in (0..byte_count).rev() {
-            tmp[i] = (tmp_value.get_i32_value() | 0x80) as u8;
+            tmp[i] = (tmp_value.i32_value() | 0x80) as u8;
             tmp_value = tmp_value.shift_right(7);
         }
         tmp[byte_count - 1] &= 0x7F;

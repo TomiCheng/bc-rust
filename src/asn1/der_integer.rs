@@ -148,7 +148,7 @@ use crate::{Error, ErrorKind, Result};
 
 #[derive(Clone, Debug)]
 pub struct DerIntegerImpl {
-    buffer: Rc<Vec<u8>>,
+    buffer: std::sync::Arc<Vec<u8>>,
     start: usize,
 }
 
@@ -157,20 +157,20 @@ impl DerIntegerImpl {
         let integer = BigInteger::with_i32(value);
         Self {
             start: 0,
-            buffer: Rc::new(integer.to_vec()),
+            buffer: std::sync::Arc::new(integer.to_vec()),
         }
     }
     pub fn with_i64(value: i64) -> Self {
         let integer = BigInteger::with_i64(value);
         Self {
             start: 0,
-            buffer: Rc::new(integer.to_vec()),
+            buffer: std::sync::Arc::new(integer.to_vec()),
         }
     }
     pub fn with_big_integer(value: &BigInteger) -> Self {
         Self {
             start: 0,
-            buffer: Rc::new(value.to_vec()),
+            buffer: std::sync::Arc::new(value.to_vec()),
         }
     }
     pub fn with_buffer(buffer: &[u8]) -> Result<DerIntegerImpl> {
@@ -179,7 +179,7 @@ impl DerIntegerImpl {
         }
         Ok(DerIntegerImpl {
             start: sign_bytes_to_skip(buffer),
-            buffer: Rc::new(buffer.to_vec()),
+            buffer: std::sync::Arc::new(buffer.to_vec()),
         })
     }
     pub fn with_buffer_allow_unsafe(buffer: &[u8]) -> Result<DerIntegerImpl> {
@@ -188,7 +188,7 @@ impl DerIntegerImpl {
         }
         Ok(DerIntegerImpl {
             start: sign_bytes_to_skip(buffer),
-            buffer: Rc::new(buffer.to_vec()),
+            buffer: std::sync::Arc::new(buffer.to_vec()),
         })
     }
     pub(crate) fn with_primitive(contents: &[u8]) -> Result<Self> {
