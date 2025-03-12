@@ -1,4 +1,3 @@
-use std::cell;
 use std::fmt;
 use std::io;
 use std::sync;

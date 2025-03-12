@@ -1,11 +1,11 @@
 use std::io::Read;
 
-use super::asn1_tags::{BOOLEAN, FLAGS, INTEGER, NULL, OBJECT_IDENTIFIER};
+use super::asn1_tags::{BOOLEAN, FLAGS, INTEGER, NULL, OBJECT_IDENTIFIER, RELATIVE_OID};
 use super::definite_length_read::DefiniteLengthRead;
-use super::der_object_identifier::check_contents_length;
 use super::DerIntegerImpl;
 use super::{Asn1Object, DerBooleanImpl, DerNullImpl, DerObjectIdentifierImpl};
 use crate::{Error, ErrorKind, Result};
+use super::asn1_relative_oid;
 
 pub struct Asn1Read<'a> {
     reader: &'a mut dyn Read,
@@ -162,9 +162,14 @@ pub(crate) fn create_primitive_der_object(
 ) -> Result<Asn1Object> {
     match tag_no {
         OBJECT_IDENTIFIER => {
-            check_contents_length(reader.get_remaining())?;
+            super::der_object_identifier::check_contents_length(reader.get_remaining())?;
             let contents = get_buffer(reader)?;
             return Ok(DerObjectIdentifierImpl::with_primitive(contents)?.into());
+        },
+        RELATIVE_OID => {
+            super::asn1_relative_oid::check_contents_length(reader.get_remaining())?;
+            let contents = get_buffer(reader)?;
+            return Ok(super::Asn1RelativeOidImpl::with_vec(contents)?.into());
         }
         _ => {} // Nothing
     }

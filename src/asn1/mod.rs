@@ -22,6 +22,7 @@ pub use asn1_convertiable::Asn1Convertiable;
 pub use asn1_encodable::Asn1Encodable;
 pub use asn1_object::Asn1Object;
 pub use asn1_read::Asn1Read;
+pub use asn1_relative_oid::Asn1RelativeOidImpl;
 pub use asn1_write::Asn1Write;
 pub use der_bit_string::DerBitStringImpl;
 pub use der_boolean::DerBooleanImpl;

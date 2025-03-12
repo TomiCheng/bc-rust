@@ -1,6 +1,5 @@
 use std::fmt::{Display, Formatter};
 use std::io::Write;
-use std::rc::Rc;
 
 use super::asn1_encoding::Asn1Encoding;
 use super::asn1_object::{encode_to_with_encoding, get_encoded_with_encoding, Asn1ObjectImpl};

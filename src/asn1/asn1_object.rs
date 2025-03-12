@@ -24,6 +24,7 @@ pub enum Asn1Object {
     DerOctetString(DerOctetStringImpl),
     DerNull(DerNullImpl),
     DerObjectIdentifier(DerObjectIdentifierImpl),
+    Asn1RelativeOid(super::Asn1RelativeOidImpl),
     DerSequence(DerSequenceImpl),
 }
 
@@ -81,6 +82,7 @@ impl Asn1Object {
             Asn1Object::DerOctetString(der_octet_string) => der_octet_string,
             Asn1Object::DerNull(der_null) => der_null,
             Asn1Object::DerObjectIdentifier(der_object_identifier) => der_object_identifier,
+            Asn1Object::Asn1RelativeOid(asn1_relative_oid) => asn1_relative_oid,
             Asn1Object::DerSequence(der_sequence) => der_sequence,
         }
     }
@@ -91,6 +93,7 @@ impl Asn1Object {
     is_variant!(is_der_octet_string, Asn1Object::DerOctetString(_));
     is_variant!(is_der_null, Asn1Object::DerNull(_));
     is_variant!(is_der_sequence, Asn1Object::DerSequence(_));
+    is_variant!(is_asn1_relative_oid, Asn1Object::Asn1RelativeOid(_));
 
     as_variant!(as_der_boolean, Asn1Object::DerBoolean, DerBooleanImpl);
     as_variant!(as_der_integer, Asn1Object::DerInteger, DerIntegerImpl);
@@ -105,6 +108,16 @@ impl Asn1Object {
         DerOctetStringImpl
     );
     as_variant!(as_der_null, Asn1Object::DerNull, DerNullImpl);
+    as_variant!(
+        as_der_object_identifier,
+        Asn1Object::DerObjectIdentifier,
+        DerObjectIdentifierImpl
+    );
+    as_variant!(
+        as_asn1_relative_oid,
+        Asn1Object::Asn1RelativeOid,
+        super::Asn1RelativeOidImpl
+    );
 
     /// Read a base ASN.1 object from a Read.
     /// # Arguments
@@ -147,6 +160,12 @@ impl PartialEq for Asn1Object {
             Asn1Object::DerObjectIdentifier(der_object_identifier) => {
                 if let Asn1Object::DerObjectIdentifier(other_der_object_identifier) = other {
                     return der_object_identifier == other_der_object_identifier;
+                }
+                false
+            }
+            Asn1Object::Asn1RelativeOid(asn1_relative_oid) => {
+                if let Asn1Object::Asn1RelativeOid(other_asn1_relative_oid) = other {
+                    return asn1_relative_oid == other_asn1_relative_oid;
                 }
                 false
             }
