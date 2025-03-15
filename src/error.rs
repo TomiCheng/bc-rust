@@ -65,6 +65,14 @@ impl Error {
     pub fn message(&self) -> &str {
         &self.message
     }
+
+    pub fn backtrace(&self) -> &Backtrace {
+        &self.backtrace
+    }
+    
+    pub fn extensions(&self) -> &HashMap<String, String> {
+        &self.extensions
+    }
    
 }
 

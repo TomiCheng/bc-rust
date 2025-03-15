@@ -1,4 +1,3 @@
-use std::rc::Rc;
 
 use super::asn1_encoding::Asn1Encoding;
 use super::asn1_write::get_length_of_encoding_dl;

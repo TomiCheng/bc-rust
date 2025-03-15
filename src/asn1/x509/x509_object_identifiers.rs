@@ -1,15 +1,15 @@
-use std::sync::LazyLock;
+use std::sync;
 
 use crate::asn1;
 
 macro_rules! define_oid {
     ($name:ident, $oid:expr) => {
-        pub static $name: LazyLock<asn1::DerObjectIdentifierImpl> =
-            LazyLock::new(|| asn1::DerObjectIdentifierImpl::with_str($oid).unwrap());
+        pub static $name: sync::LazyLock<asn1::DerObjectIdentifierImpl> =
+        sync::LazyLock::new(|| asn1::DerObjectIdentifierImpl::with_str($oid).unwrap());
     };
     ($name:ident, $base:expr, $branch:expr) => {
-        pub static $name: LazyLock<asn1::DerObjectIdentifierImpl> =
-            LazyLock::new(|| $base.branch($branch).unwrap());
+        pub static $name: sync::LazyLock<asn1::DerObjectIdentifierImpl> =
+        sync::LazyLock::new(|| $base.branch($branch).unwrap());
     };
 }
 

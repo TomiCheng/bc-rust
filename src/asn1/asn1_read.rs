@@ -5,7 +5,6 @@ use super::definite_length_read::DefiniteLengthRead;
 use super::DerIntegerImpl;
 use super::{Asn1Object, DerBooleanImpl, DerNullImpl, DerObjectIdentifierImpl};
 use crate::{Error, ErrorKind, Result};
-use super::asn1_relative_oid;
 
 pub struct Asn1Read<'a> {
     reader: &'a mut dyn Read,
