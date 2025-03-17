@@ -15,7 +15,7 @@ impl Time {
     pub fn with_local(date_time: &chrono::DateTime<chrono::Local>) -> Time {
         let utc = date_time.to_utc();
         if utc.year() < 1950 || utc.year() > 2049 {
-            Self::new(super::rfc5280_asn1_utilities::create_generalized_time(utc))
+            Self::new(super::rfc5280_asn1_utilities::create_generalized_time(&utc))
         } else {
             Self::new(super::rfc5280_asn1_utilities::create_utc_time(utc))
         }

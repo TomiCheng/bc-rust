@@ -1,5 +1,7 @@
+use std::any;
+
 use crate::math;
-use crate::{Error, Result};
+use crate::{BcError, Result};
 
 pub struct RsaKeyParametersImpl {
     modulus: math::BigInteger,
@@ -11,24 +13,18 @@ impl RsaKeyParametersImpl {
         modulus: math::BigInteger,
         exponent: math::BigInteger,
     ) -> Result<Self> {
-        if modulus.get_sign_value() <= 0 {
-            return Err(Error::with_invalid_input(
-                "RSA modulus must be positive".to_owned(),
-                "modulus".to_owned(),
-            ));
-        }
-        if exponent.get_sign_value() <= 0 {
-            return Err(Error::with_invalid_input(
-                "RSA exponent must be positive".to_owned(),
-                "exponent".to_owned(),
-            ));
-        }
-        if exponent.i32_value() & 1 == 0 {
-            return Err(Error::with_invalid_input(
-                "RSA public exponent must be odd".to_owned(),
-                "exponent".to_owned(),
-            ));
-        }
+        anyhow::ensure!(
+            modulus.get_sign_value() > 0,
+            BcError::invalid_argument("RSA modulus must be positive", "modulus")
+        );
+        anyhow::ensure!(
+            exponent.get_sign_value() > 0,
+            BcError::invalid_argument("RSA exponent must be positive", "exponent")
+        );
+        anyhow::ensure!(
+            exponent.i32_value() & 1 != 0 ,
+            BcError::invalid_argument("RSA public exponent must be odd", "exponent")
+        );
         Ok(RsaKeyParametersImpl {            
             modulus,
             exponent,

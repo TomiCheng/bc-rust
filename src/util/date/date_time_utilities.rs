@@ -1,6 +1,6 @@
 use chrono::{self, TimeZone, Timelike};
 
-use crate::{Error, ErrorKind, Result};
+use crate::{Result, BcError};
 
 /// Return the number of milliseconds since the Unix epoch (1 Jan., 1970 UTC) for a given DateTime value.
 /// # Arguments
@@ -15,12 +15,15 @@ pub fn date_time_to_unix_ms<Tz: chrono::TimeZone>(date_time: &chrono::DateTime<T
     let utc = date_time.to_utc();
 
     let result = utc.timestamp_millis();
-    if result < 0 {
-        return Err(Error::with_message(
-            ErrorKind::InvalidInput,
-            "date_time value may not be before the epoch".to_owned(),
-        ));
-    }
+
+    anyhow::ensure!(
+        result >= 0,
+        BcError::invalid_argument(
+            "date_time value may not be before the epoch",
+            "date_time"
+        )
+    );
+
     Ok(result)
 }
 
@@ -34,9 +37,9 @@ pub fn date_time_to_unix_ms<Tz: chrono::TimeZone>(date_time: &chrono::DateTime<T
 pub fn unix_ms_to_date_time(unix_ms: i64) -> Result<chrono::DateTime<chrono::Utc>> {
     match chrono::Utc.timestamp_millis_opt(unix_ms) {
         chrono::MappedLocalTime::Single(result) => Ok(result),
-        _ => Err(Error::with_message(
-            ErrorKind::InvalidInput,
-            "unix_ms out of range".to_owned(),
+        _ => anyhow::bail!(BcError::invalid_argument(
+            "unix_ms out of range",
+            "unix_ms"
         )),
     }
 }

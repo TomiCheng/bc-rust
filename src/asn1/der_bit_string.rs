@@ -1,53 +1,54 @@
-use std::fmt::{Display, Formatter};
-use std::io::Write;
+use std::fmt;
+use std::io;
+use std::sync;
 
-use super::asn1_encoding::Asn1Encoding;
-use super::asn1_object::{encode_to_with_encoding, get_encoded_with_encoding, Asn1ObjectImpl};
-use super::asn1_tags::{BIT_STRING, UNIVERSAL};
-use super::asn1_write::{get_encoding_type, EncodingType};
-use super::primitive_encoding::PrimitiveEncoding;
-use super::primitive_encoding_suffixed::PrimitiveEncodingSuffixed;
-use super::{Asn1Encodable, Asn1Object};
-use crate::{Error, ErrorKind, Result};
+// use super::asn1_encoding::Asn1Encoding;
+// use super::asn1_object::{encode_to_with_encoding, get_encoded_with_encoding};
+// use super::asn1_tags::{BIT_STRING, UNIVERSAL};
+// use super::asn1_write::{get_encoding_type, EncodingType};
+//use super::primitive_encoding;
+// use super::primitive_encoding_suffixed;
+// use super::{Asn1Encodable, Asn1Object};
+use super::*;
+use crate::{BcError, Result};
 
 #[derive(Clone, Debug)]
-pub struct DerBitStringImpl {
-    contents: std::sync::Arc<Vec<u8>>,
+pub struct DerBitString {
+    contents: sync::Arc<Vec<u8>>,
 }
 
-impl DerBitStringImpl {
-    pub fn new(contents: std::sync::Arc<Vec<u8>>) -> Self {
-        DerBitStringImpl { contents }
+impl DerBitString {
+    pub fn new(contents: sync::Arc<Vec<u8>>) -> Self {
+        DerBitString { contents }
     }
 
     /// # Errors
     /// - Returns an error if `pad_bits` is greater than 7.
     /// - Returns an error if `contents` is empty and `pad_bits` is not 0.
     pub fn with_pad_bits(contents: &[u8], pad_bits: u8) -> Result<Self> {
-        if pad_bits > 7 {
-            return Err(Error::with_message(
-                ErrorKind::InvalidInput,
-                "must be in the range 0 to 7".to_owned(),
-            ));
-        }
-        if contents.len() == 0 && pad_bits != 0 {
-            return Err(Error::with_message(
-                ErrorKind::InvalidInput,
-                "if 'contents' is empty, 'pad_bits' must be 0".to_owned(),
-            ));
-        }
+        anyhow::ensure!(
+            pad_bits <= 7,
+            BcError::invalid_argument("must be in the range 0 to 7", "pad_bits")
+        );
+        anyhow::ensure!(
+            !(contents.len() == 0 && pad_bits != 0),
+            BcError::invalid_argument(
+                "if 'contents' is empty, 'pad_bits' must be 0",
+                "contents, pad_bits"
+            )
+        );
 
         let mut inner_contents = vec![0u8; contents.len() + 1];
         inner_contents[0] = pad_bits;
         inner_contents[1..].copy_from_slice(contents);
 
-        Ok(DerBitStringImpl::new(std::sync::Arc::new(inner_contents)))
+        Ok(DerBitString::new(std::sync::Arc::new(inner_contents)))
     }
 
     pub fn with_named_bits(named_bits: u32) -> Self {
         let mut named_bits = named_bits;
         if named_bits == 0 {
-            return DerBitStringImpl::new(std::sync::Arc::new(vec![0u8]));
+            return DerBitString::new(std::sync::Arc::new(vec![0u8]));
         }
         let bits = 32 - named_bits.leading_zeros();
         let bytes = (bits + 7) / 8;
@@ -68,7 +69,7 @@ impl DerBitStringImpl {
 
         debug_assert!(pad_bits < 8);
         data[0] = pad_bits;
-        DerBitStringImpl::new(std::sync::Arc::new(data))
+        DerBitString::new(std::sync::Arc::new(data))
     }
 
     pub fn get_bytes(&self) -> Vec<u8> {
@@ -82,33 +83,35 @@ impl DerBitStringImpl {
         result[last_index] &= 0xFF << pad_bits;
         result
     }
-    fn get_encoding_with_type(&self, _encode_type: EncodingType) -> Box<dyn Asn1Encoding> {
+    fn get_encoding_with_type(
+        &self,
+        _encode_type: asn1_write::EncodingType,
+    ) -> Box<dyn asn1_encoding::Asn1Encoding> {
         let pad_bits = self.contents[0];
         if pad_bits != 0 {
             let last = self.contents.len() - 1;
             let last_ber = self.contents[last];
             let last_der = last_ber & (0xFF << pad_bits);
             if last_ber != last_der {
-                return Box::new(PrimitiveEncodingSuffixed::new(
-                    UNIVERSAL,
-                    BIT_STRING,
+                return Box::new(primitive_encoding_suffixed::PrimitiveEncodingSuffixed::new(
+                    asn1_tags::UNIVERSAL,
+                    asn1_tags::BIT_STRING,
                     self.contents.clone(),
                     last_der,
                 ));
             }
         }
 
-        return Box::new(PrimitiveEncoding::new(
-            UNIVERSAL,
-            BIT_STRING,
+        return Box::new(primitive_encoding::PrimitiveEncoding::new(
+            asn1_tags::UNIVERSAL,
+            asn1_tags::BIT_STRING,
             self.contents.clone(),
         ));
     }
 }
 
-impl Asn1ObjectImpl for DerBitStringImpl {}
-impl Display for DerBitStringImpl {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for DerBitString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let buffer = self
             .get_der_encoded()
             .expect("DerBitStringImpl::get_der_encoded failed");
@@ -119,20 +122,19 @@ impl Display for DerBitStringImpl {
         Ok(())
     }
 }
-impl Asn1Encodable for DerBitStringImpl {
+impl Asn1Encodable for DerBitString {
     fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
-        let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
-        get_encoded_with_encoding(encoding_str, encoding.as_ref())
+        let encoding = self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
+        asn1_object::get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
-        let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
-        encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
-    }
-}
-
-impl Into<Asn1Object> for DerBitStringImpl {
-    fn into(self) -> Asn1Object {
-        Asn1Object::DerBitString(self)
+    fn encode_to_with_encoding(
+        &self,
+        writer: &mut dyn io::Write,
+        encoding_str: &str,
+    ) -> Result<usize> {
+        let asn1_encoding =
+            self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
+        asn1_object::encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }
 }

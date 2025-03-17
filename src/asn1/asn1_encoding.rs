@@ -1,5 +1,5 @@
 use crate::Result;
-use super::Asn1Write;
+use super::*;
 
 pub(crate) trait Asn1Encoding {
     fn encode(&self, writer: &mut Asn1Write) -> Result<usize>;

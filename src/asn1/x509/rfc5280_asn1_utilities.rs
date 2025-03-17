@@ -1,11 +1,13 @@
 use chrono;
 
 use crate::asn1;
+use crate::util::date::date_time_utilities;
 
 pub(crate) fn create_generalized_time(
-    date_time: chrono::DateTime<chrono::Utc>,
+    date_time: &chrono::DateTime<chrono::Utc>,
 ) -> asn1::Asn1Object {
-    //asn1::Asn1Object::with_der_generalized_time(DerGerneralizedTimeImpl::with_p)
+    let v = date_time_utilities::with_precision_second(date_time);
+    //asn1::Asn1Object::with_der_generalized_time(DerGerneralizedTimeImpl::with_utc)
     todo!()
 }
 

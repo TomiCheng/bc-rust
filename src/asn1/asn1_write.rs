@@ -1,8 +1,10 @@
 use std::io::Write;
 
+use anyhow::Context;
+
 use super::asn1_encodable::{DER, DL};
 use crate::util::pack::u32_to_be_bytes;
-use crate::{Error, Result};
+use crate::Result;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum EncodingType {
@@ -44,7 +46,7 @@ impl<'a> Asn1Write<'a> {
             return Ok(self
                 .writer
                 .write(&[(flags | tag_no) as u8])
-                .map_err(|e| Error::with_io_error("write identifier fail".to_owned(), e))?);
+                .with_context(|| "write identifier fail")?);
         }
         let mut stack = [0u8; 6];
         let mut pos = stack.len();
@@ -66,14 +68,14 @@ impl<'a> Asn1Write<'a> {
         return Ok(self
             .writer
             .write(&stack[pos..])
-            .map_err(|e| Error::with_io_error("write identifier fail".to_owned(), e))?);
+            .with_context(|| "write identifier fail")?);
     }
     pub(crate) fn write_dl(&mut self, dl: u32) -> Result<usize> {
         if dl < 128 {
             return Ok(self
                 .writer
                 .write(&[dl as u8])
-                .map_err(|e| Error::with_io_error("write dl fail".to_owned(), e))?);
+                .with_context(|| "write dl fail")?);
         }
 
         let mut encoding = [0u8; 5];
@@ -83,19 +85,19 @@ impl<'a> Asn1Write<'a> {
         return Ok(self
             .writer
             .write(&encoding[leading_zero_bytes..])
-            .map_err(|e| Error::with_io_error("write dl fail".to_owned(), e))?);
+            .with_context(|| "write dl fail")?);
     }
     pub fn write(&mut self, data: &[u8]) -> Result<usize> {
         return Ok(self
             .writer
             .write(data)
-            .map_err(|e| Error::with_io_error("write fail".to_owned(), e))?);
+            .with_context(|| "write fail")?);
     }
     pub fn write_u8(&mut self, data: u8) -> Result<usize> {
         return Ok(self
             .writer
             .write(&[data])
-            .map_err(|e| Error::with_io_error("write dl fail".to_owned(), e))?);
+            .with_context(|| "write dl fail")?);
     }
     //     //     //     pub fn write_encodable(&mut self, asn1_encodable: &dyn Asn1Encodable) -> Result<usize> {
     //     //     //         let asn1_object = asn1_encodable.to_asn1_object();

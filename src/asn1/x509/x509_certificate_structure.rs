@@ -1,4 +1,4 @@
-use crate::asn1::DerBitStringImpl;
+use crate::asn1;
 
 use super::{AlgorithmIdentifier, TbsCertificateStructure};
 
@@ -13,14 +13,14 @@ use super::{AlgorithmIdentifier, TbsCertificateStructure};
 pub struct X509CertificateStructure {
     tbs_certificate: TbsCertificateStructure,
     sign_alg_id: AlgorithmIdentifier,
-    sign: DerBitStringImpl,
+    sign: asn1::DerBitString,
 }
 
 impl X509CertificateStructure {
     pub fn new(
         tbs_certificate: TbsCertificateStructure,
         sign_alg_id: AlgorithmIdentifier,
-        sign: DerBitStringImpl,
+        sign: asn1::DerBitString,
     ) -> Self {
         X509CertificateStructure {
             tbs_certificate,
@@ -33,7 +33,7 @@ impl X509CertificateStructure {
         &self.sign_alg_id
     }
 
-    pub fn get_signature(&self) -> &DerBitStringImpl {
+    pub fn get_signature(&self) -> &asn1::DerBitString {
         &self.sign
     }
 }

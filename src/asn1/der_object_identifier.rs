@@ -1,27 +1,21 @@
+use std::any;
 use std::fmt;
 use std::io;
 use std::sync;
 
-use super::asn1_object::Asn1ObjectImpl;
-use super::asn1_tags::{OBJECT_IDENTIFIER, UNIVERSAL};
-use super::primitive_encoding::PrimitiveEncoding;
-use super::{asn1_relative_oid, Asn1Encodable, Asn1Object};
-use crate::asn1::asn1_encoding;
-use crate::asn1::asn1_object;
-use crate::asn1::asn1_write;
-use crate::asn1::OidTokenizer;
-use crate::math::BigInteger;
-use crate::{Error, ErrorKind, Result};
+use super::*;
+use crate::math;
+use crate::{BcError, Result};
 
 #[derive(Clone, Debug)]
-pub struct DerObjectIdentifierImpl {
+pub struct DerObjectIdentifier {
     identifier: sync::OnceLock<String>,
     contents: sync::Arc<Vec<u8>>,
 }
 
-impl DerObjectIdentifierImpl {
+impl DerObjectIdentifier {
     fn new(identifier: String, contents: sync::Arc<Vec<u8>>) -> Self {
-        let result = DerObjectIdentifierImpl {
+        let result = DerObjectIdentifier {
             identifier: sync::OnceLock::new(),
             contents,
         };
@@ -33,7 +27,7 @@ impl DerObjectIdentifierImpl {
 
         let contents = parse_identifier(identifier)?;
         check_contents_length(contents.len())?;
-        Ok(DerObjectIdentifierImpl::new(
+        Ok(DerObjectIdentifier::new(
             identifier.to_string(),
             sync::Arc::new(contents),
         ))
@@ -42,7 +36,7 @@ impl DerObjectIdentifierImpl {
     pub fn with_primitive(contents: Vec<u8>) -> Result<Self> {
         check_contents_length(contents.len())?;
         // todo cache
-        Ok(DerObjectIdentifierImpl {
+        Ok(DerObjectIdentifier {
             identifier: sync::OnceLock::new(),
             contents: sync::Arc::new(contents),
         })
@@ -52,9 +46,9 @@ impl DerObjectIdentifierImpl {
         &self,
         _encode_type: asn1_write::EncodingType,
     ) -> Box<dyn asn1_encoding::Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(
-            UNIVERSAL,
-            OBJECT_IDENTIFIER,
+        Box::new(primitive_encoding::PrimitiveEncoding::new(
+            asn1_tags::UNIVERSAL,
+            asn1_tags::OBJECT_IDENTIFIER,
             self.contents.clone(),
         ))
     }
@@ -66,7 +60,7 @@ impl DerObjectIdentifierImpl {
         if identifier.len() <= MAX_IDENTIFIER_LENGTH && is_valid_identifier(identifier) {
             let contents = parse_identifier(identifier);
             if let Ok(c) = contents {
-                return Some(DerObjectIdentifierImpl::new(
+                return Some(DerObjectIdentifier::new(
                     identifier.to_string(),
                     sync::Arc::new(c),
                 ));
@@ -97,7 +91,7 @@ impl DerObjectIdentifierImpl {
             contents.extend(branch_contents);
         }
         let root_id = self.id();
-        Ok(DerObjectIdentifierImpl::new(
+        Ok(DerObjectIdentifier::new(
             format!("{}.{}", root_id, branch_id),
             sync::Arc::new(contents),
         ))
@@ -112,18 +106,27 @@ impl DerObjectIdentifierImpl {
     }
 }
 
-impl Asn1ObjectImpl for DerObjectIdentifierImpl {}
-impl fmt::Display for DerObjectIdentifierImpl {
+// Trait
+impl fmt::Display for DerObjectIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.id())
     }
 }
-impl PartialEq for DerObjectIdentifierImpl {
+impl PartialEq for DerObjectIdentifier {
     fn eq(&self, other: &Self) -> bool {
         self.contents.as_ref() == other.contents.as_ref()
     }
 }
-impl Asn1Encodable for DerObjectIdentifierImpl {
+impl PartialEq<dyn Asn1Object> for DerObjectIdentifier {
+    fn eq(&self, other: &dyn Asn1Object) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<DerObjectIdentifier>() {
+            return self == other;
+        } else {
+            return false;
+        }
+    }
+}
+impl Asn1Encodable for DerObjectIdentifier {
     fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
         let encoding = self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
         asn1_object::get_encoded_with_encoding(encoding_str, encoding.as_ref())
@@ -139,11 +142,13 @@ impl Asn1Encodable for DerObjectIdentifierImpl {
         asn1_object::encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }
 }
-impl Into<Asn1Object> for DerObjectIdentifierImpl {
-    fn into(self) -> Asn1Object {
-        Asn1Object::DerObjectIdentifier(self)
+impl Asn1Object for DerObjectIdentifier {
+    fn as_any(&self) -> sync::Arc<dyn any::Any> {
+        sync::Arc::new(self.clone())
     }
 }
+
+// fn
 
 const LONG_LIMIT: i64 = (i64::MAX >> 7) - 0x7F;
 /// Implementation limit on the length of the contents octets for an Object Identifier.
@@ -159,7 +164,7 @@ fn parse_contents(contents: &[u8]) -> String {
     let mut result = String::new();
     let mut value = 0;
     let mut first = true;
-    let mut big_value: Option<BigInteger> = None;
+    let mut big_value: Option<math::BigInteger> = None;
     contents.iter().for_each(|b| {
         if value <= LONG_LIMIT {
             value += (b & 0x7F) as i64;
@@ -183,15 +188,15 @@ fn parse_contents(contents: &[u8]) -> String {
             }
         } else {
             if let Some(v) = &big_value {
-                big_value = Some(v.or(&BigInteger::with_i64((b & 0x7F) as i64)));
+                big_value = Some(v.or(&math::BigInteger::with_i64((b & 0x7F) as i64)));
             } else {
-                big_value = Some(BigInteger::with_i64(value));
+                big_value = Some(math::BigInteger::with_i64(value));
             }
             let mut v = big_value.clone().unwrap();
             if (b & 0x80) == 0 {
                 if first {
                     result.push('2');
-                    v = v.subtract(&BigInteger::with_i64(80));
+                    v = v.subtract(&math::BigInteger::with_i64(80));
                     first = false;
                 }
                 result.push('.');
@@ -207,18 +212,16 @@ fn parse_contents(contents: &[u8]) -> String {
 }
 
 fn check_identifier(s: &str) -> Result<()> {
-    if s.len() > MAX_IDENTIFIER_LENGTH {
-        return Err(Error::with_message(
-            ErrorKind::InvalidInput,
-            "exceeded OID contents length limit".to_string(),
-        ));
-    }
-    if !is_valid_identifier(s) {
-        return Err(Error::with_message(
-            ErrorKind::InvalidInput,
-            format!("string {} not a valid OID", s),
-        ));
-    }
+    anyhow::ensure!(
+        s.len() <= MAX_IDENTIFIER_LENGTH,
+        BcError::invalid_argument("exceeded OID contents length limit", "s")
+    );
+
+    anyhow::ensure!(
+        is_valid_identifier(s),
+        BcError::invalid_argument(&format!("string {} not a valid OID", s), "s")
+    );
+
     Ok(())
 }
 
@@ -250,31 +253,23 @@ fn is_valid_identifier(s: &str) -> bool {
 
 fn parse_identifier(identifier: &str) -> Result<Vec<u8>> {
     let mut result = Vec::new();
-    //let mut cursor = io::Cursor::new(result);
-    //let writer: &mut dyn io::Write = &mut result;
     let mut tokenizer = OidTokenizer::new(identifier);
-    let token = tokenizer.next().ok_or(Error::with_message(
-        ErrorKind::InvalidFormat,
-        "not found first token".to_owned(),
-    ))?;
-    if token.chars().any(|c| c < '0' || c > '9') {
-        return Err(Error::with_message(
-            ErrorKind::InvalidFormat,
-            " token must be 0 - 9".to_owned(),
-        ));
-    }
+    let token = tokenizer
+        .next()
+        .ok_or(BcError::invalid_format("not found first token"))?;
+    anyhow::ensure!(
+        token.chars().all(|c| c >= '0' || c <= '9'),
+        BcError::invalid_format("token must be 0 - 9")
+    );
     let first = i64::from_str_radix(token, 10)? * 40;
 
-    let token = tokenizer.next().ok_or(Error::with_message(
-        ErrorKind::InvalidFormat,
-        "not found second token".to_owned(),
-    ))?;
-    if token.chars().any(|c| c < '0' || c > '9') {
-        return Err(Error::with_message(
-            ErrorKind::InvalidFormat,
-            " token must be 0 - 9".to_owned(),
-        ));
-    }
+    let token = tokenizer
+        .next()
+        .ok_or(BcError::invalid_format("not found second token"))?;
+    anyhow::ensure!(
+        token.chars().all(|c| c >= '0' || c <= '9'),
+        BcError::invalid_format("token must be 0 - 9")
+    );
     if token.len() <= 18 {
         asn1_relative_oid::write_field_with_i64(
             &mut result,
@@ -283,23 +278,21 @@ fn parse_identifier(identifier: &str) -> Result<Vec<u8>> {
     } else {
         asn1_relative_oid::write_field_with_big_integer(
             &mut result,
-            &BigInteger::with_string(token)?.add(&BigInteger::with_i64(first)),
+            &math::BigInteger::with_string(token)?.add(&math::BigInteger::with_i64(first)),
         )?;
     }
 
     for token in tokenizer {
-        if token.chars().any(|c| c < '0' || c > '9') {
-            return Err(Error::with_message(
-                ErrorKind::InvalidFormat,
-                " token must be 0 - 9".to_owned(),
-            ));
-        }
+        anyhow::ensure!(
+            token.chars().all(|c| c >= '0' || c <= '9'),
+            BcError::invalid_format("token must be 0 - 9")
+        );
         if token.len() <= 18 {
             asn1_relative_oid::write_field_with_i64(&mut result, i64::from_str_radix(token, 10)?)?;
         } else {
             asn1_relative_oid::write_field_with_big_integer(
                 &mut result,
-                &BigInteger::with_string(token)?,
+                &math::BigInteger::with_string(token)?,
             )?;
         }
     }
@@ -307,11 +300,9 @@ fn parse_identifier(identifier: &str) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn check_contents_length(length: usize) -> Result<()> {
-    if length > MAX_CONTENTS_LENGTH {
-        return Err(Error::with_message(
-            ErrorKind::InvalidInput,
-            "exceeded OID contents length limit".to_string(),
-        ));
-    }
+    anyhow::ensure!(
+        length <= MAX_CONTENTS_LENGTH,
+        BcError::invalid_argument("exceeded OID contents length limit", "length")
+    );
     Ok(())
 }

@@ -1,191 +1,57 @@
-// use std::rc::Rc;
+use std::fmt;
+use std::io;
+use std::sync;
+use std::any;
 
-// use super::asn1_encoding::Asn1Encoding;
-// use super::asn1_object::Asn1ObjectInternal;
-
-// use super::asn1_write::EncodingType;
-// use super::primitive_encoding::PrimitiveEncoding;
-// use super::{Asn1Convertiable, Asn1Encodable, Asn1ObjectImpl};
-// use crate::math::BigInteger;
-// use crate::{BcError, Result};
+use super::*;
+use crate::math;
+use crate::{BcError, Result};
 
 pub(crate) const SIGN_EXT_SIGNED: i32 = -1;
 
-// pub struct DerInteger {
-//     buffer: Rc<Vec<u8>>,
-//     start: usize,
-// }
-
-// impl DerInteger {
-//     pub fn with_i32(value: i32) -> Self {
-//         let integer = BigInteger::with_i32(value);
-//         Self {
-//             start: 0,
-//             buffer: Rc::new(integer.to_vec()),
-//         }
-//     }
-//     pub fn with_i64(value: i64) -> Self {
-//         let integer = BigInteger::with_i64(value);
-//         Self {
-//             start: 0,
-//             buffer: Rc::new(integer.to_vec()),
-//         }
-//     }
-//     pub fn with_big_integer(value: &BigInteger) -> Self {
-//         Self {
-//             start: 0,
-//             buffer: Rc::new(value.to_vec()),
-//         }
-//     }
-//     pub fn with_buffer(buffer: &[u8]) -> Result<DerInteger> {
-//         if is_malformed(buffer) {
-//             return Err(BcError::InvalidInput("malformed integer".to_string()));
-//         }
-//         Ok(DerInteger {
-//             start: sign_bytes_to_skip(buffer),
-//             buffer: Rc::new(buffer.to_vec()),
-//         })
-//     }
-//     pub fn with_buffer_allow_unsafe(buffer: &[u8]) -> Result<DerInteger> {
-//         if buffer.len() == 0 {
-//             return Err(BcError::InvalidInput("buffer len is zero".to_string()));
-//         }
-//         Ok(DerInteger {
-//             start: sign_bytes_to_skip(buffer),
-//             buffer: Rc::new(buffer.to_vec()),
-//         })
-//     }
-//     pub(crate) fn with_primitive(contents: &[u8]) -> Result<Self> {
-//         Self::with_buffer(contents)
-//     }
-
-//     pub fn get_value(&self) -> BigInteger {
-//         BigInteger::with_buffer(&self.buffer)
-//     }
-
-//     /// in some cases positive values Get crammed into a space, that's not quite big enough...
-//     pub fn get_positive_value(&self) -> BigInteger {
-//         BigInteger::with_sign_buffer(1, &self.buffer).expect("nothing")
-//     }
-
-//     pub fn try_get_i32_value(&self) -> Option<i32> {
-//         let count = self.buffer.len() - self.start;
-//         if count > 4 {
-//             return None;
-//         }
-//         Some(get_i32_value(&self.buffer, self.start, SIGN_EXT_SIGNED))
-//     }
-
-// }
-
-// impl Asn1Convertiable for DerInteger {
-//     fn to_asn1_encodable(self: &Rc<Self>) -> Box<dyn Asn1Encodable> {
-//         Box::new(Asn1ObjectImpl::new(self.clone()))
-//     }
-// }
-
-// impl Asn1ObjectInternal for DerInteger {
-//     fn get_encoding_with_type(&self, _encoding: &EncodingType) -> Box<dyn Asn1Encoding> {
-//         Box::new(PrimitiveEncoding::new(
-//             UNIVERSAL,
-//             INTEGER,
-//             self.buffer.clone(),
-//         ))
-//     }
-// }
-
-// // use super::asn1_tags::{UNIVERSAL, INTEGER};
-
-// // impl Asn1ObjectInternal for DerInteger {
-// //     fn get_encoding_with_type(&self, _encoding: &EncodingType) -> Box<dyn Asn1Encoding> {
-// //         Box::new(PrimitiveEncoding::new(UNIVERSAL, INTEGER, &self.buffer))
-// //     }
-
-// //     fn get_encoding_with_implicit(&self, _encoding: &EncodingType, tag_class: u32, tag_no: u32) -> Box<dyn Asn1Encoding> {
-// //         Box::new(PrimitiveEncoding::new(tag_class, tag_no, &self.buffer))
-// //     }
-
-// //     fn get_encoding_der(&self) -> Box<dyn DerEncoding> {
-// //         Box::new(PrimitiveDerEncoding::new(UNIVERSAL, INTEGER, &self.buffer))
-// //     }
-
-// //     fn get_encoding_der_implicit(&self, tag_class: u32, tag_no: u32) -> Box<dyn super::der_encoding::DerEncoding> {
-// //         Box::new(PrimitiveDerEncoding::new(tag_class, tag_no, &self.buffer))
-// //     }
-// // }
-
-// // impl Asn1Object for DerInteger {
-
-// // }
-
-// // impl Asn1Encodable for DerInteger {
-// //     fn encode_to(&self, writer: &mut dyn Write) -> Result<usize> {
-// //         todo!()
-// //     }
-// // }
-
-// // impl Asn1Convertiable for DerInteger {
-// //     fn to_asn1_object(&self) -> &dyn Asn1Object {
-// //         self
-// //     }
-// //     fn to_any(&self) -> &dyn std::any::Any {
-// //         self
-// //     }
-// // }
-
-use std::fmt::{Display, Formatter};
-use std::io::Write;
-
-use super::asn1_encoding::Asn1Encoding;
-use super::asn1_object::{encode_to_with_encoding, get_encoded_with_encoding, Asn1ObjectImpl};
-use super::asn1_tags::{INTEGER, UNIVERSAL};
-use super::asn1_write::{get_encoding_type, EncodingType};
-use super::primitive_encoding::PrimitiveEncoding;
-use super::{Asn1Encodable, Asn1Object};
-use crate::math::BigInteger;
-use crate::{Error, ErrorKind, Result};
-
 #[derive(Clone, Debug)]
-pub struct DerIntegerImpl {
-    buffer: std::sync::Arc<Vec<u8>>,
+pub struct DerInteger {
+    buffer: sync::Arc<Vec<u8>>,
     start: usize,
 }
 
-impl DerIntegerImpl {
+impl DerInteger {
     pub fn with_i32(value: i32) -> Self {
-        let integer = BigInteger::with_i32(value);
+        let integer = math::BigInteger::with_i32(value);
         Self {
             start: 0,
             buffer: std::sync::Arc::new(integer.to_vec()),
         }
     }
     pub fn with_i64(value: i64) -> Self {
-        let integer = BigInteger::with_i64(value);
+        let integer = math::BigInteger::with_i64(value);
         Self {
             start: 0,
             buffer: std::sync::Arc::new(integer.to_vec()),
         }
     }
-    pub fn with_big_integer(value: &BigInteger) -> Self {
+    pub fn with_big_integer(value: &math::BigInteger) -> Self {
         Self {
             start: 0,
             buffer: std::sync::Arc::new(value.to_vec()),
         }
     }
-    pub fn with_buffer(buffer: &[u8]) -> Result<DerIntegerImpl> {
-        if is_malformed(buffer) {
-            return Err(Error::with_message(ErrorKind::InvalidInput,"malformed integer".to_string()));
-        }
-        Ok(DerIntegerImpl {
+    pub fn with_buffer(buffer: &[u8]) -> Result<DerInteger> {
+        anyhow::ensure!(
+            !is_malformed(buffer),
+            BcError::invalid_argument("malformed integer", "buffer")
+        );
+        Ok(DerInteger {
             start: sign_bytes_to_skip(buffer),
             buffer: std::sync::Arc::new(buffer.to_vec()),
         })
     }
-    pub fn with_buffer_allow_unsafe(buffer: &[u8]) -> Result<DerIntegerImpl> {
-        if buffer.len() == 0 {
-            return Err(Error::with_message(ErrorKind::InvalidInput,"buffer len is zero".to_string()));
-        }
-        Ok(DerIntegerImpl {
+    pub fn with_buffer_allow_unsafe(buffer: &[u8]) -> Result<DerInteger> {
+        anyhow::ensure!(
+            buffer.len() != 0,
+            BcError::invalid_argument("buffer len is zero", "buffer")
+        );
+        Ok(DerInteger {
             start: sign_bytes_to_skip(buffer),
             buffer: std::sync::Arc::new(buffer.to_vec()),
         })
@@ -194,8 +60,8 @@ impl DerIntegerImpl {
         Self::with_buffer(contents)
     }
 
-    pub fn get_value(&self) -> BigInteger {
-        BigInteger::with_buffer(&self.buffer)
+    pub fn get_value(&self) -> math::BigInteger {
+        math::BigInteger::with_buffer(&self.buffer)
     }
 
     // /// in some cases positive values Get crammed into a space, that's not quite big enough...
@@ -229,10 +95,10 @@ impl DerIntegerImpl {
             && get_i64_value(&self.buffer, self.start, SIGN_EXT_SIGNED) == x
     }
 
-    fn get_encoding_with_type(&self, _encode_type: EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(
-            UNIVERSAL,
-            INTEGER,
+    fn get_encoding_with_type(&self, _encode_type: asn1_write::EncodingType) -> Box<dyn asn1_encoding::Asn1Encoding> {
+        Box::new(primitive_encoding::PrimitiveEncoding::new(
+            asn1_tags::UNIVERSAL,
+            asn1_tags::INTEGER,
             self.buffer.clone(),
         ))
     }
@@ -288,26 +154,25 @@ pub(crate) fn get_i64_value(bytes: &[u8], start: usize, sign_ext: i32) -> i64 {
     val
 }
 
-impl Into<Asn1Object> for DerIntegerImpl {
-    fn into(self) -> Asn1Object {
-        Asn1Object::DerInteger(self)
-    }
-}
-
-impl Asn1ObjectImpl for DerIntegerImpl {}
-impl Asn1Encodable for DerIntegerImpl {
+// trait
+impl Asn1Encodable for DerInteger {
     fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
-        let encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
-        get_encoded_with_encoding(encoding_str, encoding.as_ref())
+        let encoding = self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
+        asn1_object::get_encoded_with_encoding(encoding_str, encoding.as_ref())
     }
 
-    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
-        let asn1_encoding = self.get_encoding_with_type(get_encoding_type(encoding_str));
-        encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
+    fn encode_to_with_encoding(&self, writer: &mut dyn io::Write, encoding_str: &str) -> Result<usize> {
+        let asn1_encoding = self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
+        asn1_object::encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }
 }
-impl Display for DerIntegerImpl {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+impl fmt::Display for DerInteger {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.get_value().fmt(f)
+    }
+}
+impl Asn1Object for DerInteger {
+    fn as_any(&self) -> sync::Arc<dyn any::Any> {
+        sync::Arc::new(self.clone())
     }
 }

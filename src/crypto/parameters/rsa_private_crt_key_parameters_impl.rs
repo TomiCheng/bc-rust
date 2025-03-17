@@ -1,5 +1,5 @@
 use crate::math;
-use crate::{Error, Result};
+use crate::{BcError, Result};
 
 #[derive(PartialEq, Hash, Debug)]
 pub struct RsaPrivateCrtKeyParametersImpl {
@@ -31,7 +31,7 @@ impl RsaPrivateCrtKeyParametersImpl {
         validate_value(&d_p, "d_p", "DP value")?;
         validate_value(&d_q, "d_q", "DQ value")?;
         validate_value(&q_inv, "q_inv", "InverseQ value")?;
-       
+
         Ok(RsaPrivateCrtKeyParametersImpl {
             modulus,
             public_exponent,
@@ -70,13 +70,10 @@ impl RsaPrivateCrtKeyParametersImpl {
     }
 }
 
-
 fn validate_value(x: &math::BigInteger, name: &str, desc: &str) -> Result<()> {
-    if x.get_sign_value() <= 0 {
-        return Err(Error::with_invalid_input(
-            format!("Not a valid RSA {}", desc),
-            name.to_owned(),
-        ));
-    }
+    anyhow::ensure!(
+        x.get_sign_value() > 0,
+        BcError::invalid_argument(&format!("Not a valid RSA {}", desc), "name")
+    );
     Ok(())
 }

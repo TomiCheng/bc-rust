@@ -10,7 +10,7 @@ use bc_rust::math::primes::{
 };
 use bc_rust::math::BigInteger;
 use bc_rust::util::big_integers::create_random_in_range;
-use bc_rust::ErrorKind;
+use bc_rust::BcError;
 use bc_rust::Result;
 
 const ITERATIONS: u32 = 10;
@@ -124,9 +124,11 @@ fn test_st_random_prime() {
             {
                 Ok(v) => v,
                 Err(e) => {
-                    if e.kind() == ErrorKind::InvalidOperation && e.message().starts_with("Too many iterations") {
-                        iterations -= 1;
-                        continue;
+                    if let Some(BcError::InvalidOperation { msg }) = e.downcast_ref::<BcError>() {
+                        if msg.starts_with("Too many iterations") {
+                            iterations -= 1;
+                            continue;
+                        }
                     }
                     panic!("Unexpected error: {}", e);
                 }
@@ -137,9 +139,11 @@ fn test_st_random_prime() {
                 match generate_st_random_prime(digest.as_mut(), PRIME_BITS as u32, &input_seed) {
                     Ok(v) => v,
                     Err(e) => {
-                        if e.kind() == ErrorKind::InvalidOperation && e.message().starts_with("Too many iterations") {
-                            iterations -= 1;
-                            continue;
+                        if let Some(BcError::InvalidOperation { msg }) = e.downcast_ref::<BcError>() {
+                            if msg.starts_with("Too many iterations") {
+                                iterations -= 1;
+                                continue;
+                            }
                         }
                         panic!("Unexpected error: {}", e);
                     }
@@ -156,9 +160,11 @@ fn test_st_random_prime() {
                 match generate_st_random_prime(digest.as_mut(), PRIME_BITS as u32, &input_seed) {
                     Ok(v) => v,
                     Err(e) => {
-                        if e.kind() == ErrorKind::InvalidOperation && e.message().starts_with("Too many iterations") {
-                            iterations -= 1;
-                            continue;
+                        if let Some(BcError::InvalidOperation { msg }) = e.downcast_ref::<BcError>() {
+                            if msg.starts_with("Too many iterations") {
+                                iterations -= 1;
+                                continue;
+                            }
                         }
                         panic!("Unexpected error: {}", e);
                     }

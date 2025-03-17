@@ -1,6 +1,7 @@
 use std::io;
 
 use bc_rust::asn1;
+use bc_rust::asn1::asn1_object;
 use bc_rust::asn1::Asn1Encodable;
 use bc_rust::util::encoders::hex;
 
@@ -83,26 +84,26 @@ fn test_expected() {
 }
 
 fn recode_check(oid: &str, req: &Vec<u8>) {
-    let o: asn1::Asn1Object = asn1::DerObjectIdentifierImpl::with_str(oid).unwrap().into();
+    let o = asn1::DerObjectIdentifier::with_str(oid).unwrap();
     let mut cursor = io::Cursor::new(req);
-    let enc_o = asn1::Asn1Object::parse(&mut cursor).unwrap();
+    let enc_o = asn1_object::from_read(&mut cursor).unwrap();
 
-    assert_eq!(o, enc_o);
+    assert_eq!(o, *enc_o);
 
     let bytes = o.get_der_encoded().unwrap();
     assert_eq!(req, bytes.as_slice());
 }
 
 fn check_valid(oid: &str) {
-    assert!(asn1::DerObjectIdentifierImpl::try_from_id(oid).is_some());
+    assert!(asn1::DerObjectIdentifier::try_from_id(oid).is_some());
 
-    let o = asn1::DerObjectIdentifierImpl::with_str(oid).unwrap();
+    let o = asn1::DerObjectIdentifier::with_str(oid).unwrap();
     assert_eq!(oid, o.id());
 }
 
 fn check_invalid(oid: &str) {
-    assert!(asn1::DerObjectIdentifierImpl::try_from_id(oid).is_none());
-    assert!(asn1::DerObjectIdentifierImpl::with_str(oid).is_err());
+    assert!(asn1::DerObjectIdentifier::try_from_id(oid).is_none());
+    assert!(asn1::DerObjectIdentifier::with_str(oid).is_err());
 }
 
 fn check_branch(stem: &str, branch: &str) {
@@ -110,7 +111,7 @@ fn check_branch(stem: &str, branch: &str) {
     expected.push('.');
     expected.push_str(branch);
 
-    let binding = asn1::DerObjectIdentifierImpl::with_str(stem)
+    let binding = asn1::DerObjectIdentifier::with_str(stem)
         .unwrap()
         .branch(branch)
         .unwrap();
@@ -120,8 +121,8 @@ fn check_branch(stem: &str, branch: &str) {
 }
 
 fn check_expected(stem: &str, test: &str, expected: bool) {
-    let stem_obj = asn1::DerObjectIdentifierImpl::with_str(stem).unwrap();
-    let test_obj = asn1::DerObjectIdentifierImpl::with_str(test).unwrap();
+    let stem_obj = asn1::DerObjectIdentifier::with_str(stem).unwrap();
+    let test_obj = asn1::DerObjectIdentifier::with_str(test).unwrap();
     let actual = test_obj.on(&stem_obj);
     assert_eq!(expected, actual);
 }

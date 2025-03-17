@@ -1,28 +1,28 @@
-use std::{
-    any::Any,
-    cell::{Cell, RefCell},
-    io::Read,
-    ops::{Sub, SubAssign},
-};
+use std::io;
+use std::cell;
+use std::ops::SubAssign;
 
-use crate::{util::io::streams::read_fully, Error, ErrorKind, Result};
+use anyhow::Context;
+
+use crate::util::io::streams;
+use crate::{BcError, Result};
 
 pub(crate) struct DefiniteLengthRead<'a> {
-    reader: &'a mut dyn Read,
+    reader: &'a mut dyn io::Read,
     limit: usize,
     length: usize,
     original_length: usize,
-    remaining: Cell<usize>,
+    remaining: cell::Cell<usize>,
 }
 
 impl DefiniteLengthRead<'_> {
-    pub(crate) fn new(reader: &mut dyn Read, length: usize, limit: usize) -> DefiniteLengthRead {
+    pub(crate) fn new(reader: &mut dyn io::Read, length: usize, limit: usize) -> DefiniteLengthRead {
         DefiniteLengthRead {
             reader,
             limit,
             length,
             original_length: length,
-            remaining: Cell::new(length),
+            remaining: cell::Cell::new(length),
         }
     }
 
@@ -35,33 +35,27 @@ impl DefiniteLengthRead<'_> {
             return Ok(Vec::new());
         }
 
-        if self.remaining.get() >= self.limit {
-            return Err(Error::with_message(
-                ErrorKind::IoError,
-                format!(
-                    "corrupted stream - out of bounds length found: {0} >= {1}",
-                    self.remaining.get(),
-                    self.limit
-                ),
-            ));
-        }
+        anyhow::ensure!(
+            self.remaining.get() < self.limit,
+            "corrupted stream - out of bounds length found: {0} >= {1}",
+            self.remaining.get(),
+            self.limit
+        );
 
         let mut bytes = vec![0u8; self.remaining.get()];
-        let readed_length = read_fully(self.reader, &mut bytes)
-            .map_err(|e| Error::with_io_error("error reading bytes".to_owned(), e))?;
+        let readed_length =
+            streams::read_fully(self.reader, &mut bytes).with_context(|| "error reading bytes")?;
 
         self.remaining.get_mut().sub_assign(readed_length);
 
-        if self.remaining.get() != 0 {
-            return Err(Error::with_message(
-                ErrorKind::EndOfReadError,
-                format!(
-                    "DEF length {0} object truncated by {1}",
-                    self.original_length,
-                    self.remaining.get()
-                ),
-            ));
-        }
+        anyhow::ensure!(
+            self.remaining.get() == 0,
+            BcError::eof_of_read(&format!(
+                "DEF length {0} object truncated by {1}",
+                self.original_length,
+                self.remaining.get()
+            ))
+        );
 
         // todo set_parent_eof_detect();
 

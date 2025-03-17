@@ -1,4 +1,4 @@
-use crate::asn1::DerIntegerImpl;
+use crate::asn1;
 
 /// The TbsCertificate object.
 /// ```text
@@ -16,6 +16,6 @@ use crate::asn1::DerIntegerImpl;
 /// }
 /// ```
 pub struct TbsCertificateStructure {
-    version: DerIntegerImpl,
-    serial_number: DerIntegerImpl,
+    version: asn1::DerInteger,
+    serial_number: asn1::DerInteger,
 }

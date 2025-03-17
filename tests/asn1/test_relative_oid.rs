@@ -1,6 +1,7 @@
 use std::io;
 
 use bc_rust::asn1;
+use bc_rust::asn1::asn1_object;
 use bc_rust::asn1::Asn1Encodable;
 use bc_rust::util::encoders::hex;
 
@@ -59,28 +60,28 @@ fn test_branch_check() {
 }
 
 fn recode_check(oid: &str, req: &Vec<u8>) {
-    let o: asn1::Asn1Object = asn1::Asn1RelativeOidImpl::with_str(oid).unwrap().into();
+    let o = asn1::Asn1RelativeOid::with_str(oid).unwrap();
     let mut cursor = io::Cursor::new(req);
-    let enc_o = asn1::Asn1Object::parse(&mut cursor).unwrap();
+    let enc_o = asn1_object::from_read(&mut cursor).unwrap();
 
-    assert_eq!(o, enc_o);
+    assert!(o.eq(enc_o.as_ref()));
 
     let bytes = o.get_der_encoded().unwrap();
     assert_eq!(req, bytes.as_slice());
 }
 
 fn check_valid(oid: &str) {
-    assert!(asn1::Asn1RelativeOidImpl::try_from_id(oid).is_some());
+    assert!(asn1::Asn1RelativeOid::try_from_id(oid).is_some());
 }
 
 fn check_invalid(oid: &str) {
-    assert!(asn1::Asn1RelativeOidImpl::try_from_id(oid).is_none());
-    assert!(asn1::Asn1RelativeOidImpl::with_str(oid).is_err());
+    assert!(asn1::Asn1RelativeOid::try_from_id(oid).is_none());
+    assert!(asn1::Asn1RelativeOid::with_str(oid).is_err());
 }
 
 fn branch_check(stem: &str, branch: &str) {
     let expected = format!("{}.{}", stem, branch);
-    let actual = asn1::Asn1RelativeOidImpl::with_str(stem)
+    let actual = asn1::Asn1RelativeOid::with_str(stem)
         .unwrap()
         .branch(branch)
         .unwrap()

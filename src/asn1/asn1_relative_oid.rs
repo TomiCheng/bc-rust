@@ -1,74 +1,67 @@
-use std::io::Write;
-use std::sync;
 use std::fmt;
 use std::io;
+use std::sync;
+use std::any;
 
-use super::asn1_object;
-use super::asn1_write;
-use super::asn1_tags;
 use super::asn1_encoding;
-use super::primitive_encoding::PrimitiveEncoding;
-use super::OidTokenizer;
+use super::asn1_object;
+use super::asn1_tags;
+use super::asn1_write;
+use super::primitive_encoding;
+use super::*;
 use crate::math::BigInteger;
-use crate::{Error, ErrorKind, Result};
+use crate::{BcError, Result};
 
-#[derive(Debug)]
-pub struct Asn1RelativeOidImpl {
+#[derive(Debug, Clone)]
+pub struct Asn1RelativeOid {
     identifier: sync::OnceLock<String>,
     contents: sync::Arc<Vec<u8>>,
 }
-impl Asn1RelativeOidImpl {
-    fn new(identifier: String, contents: Vec<u8>) -> Asn1RelativeOidImpl {
-        let result = Asn1RelativeOidImpl {
+impl Asn1RelativeOid {
+    fn new(identifier: String, contents: Vec<u8>) -> Asn1RelativeOid {
+        let result = Asn1RelativeOid {
             identifier: sync::OnceLock::new(),
             contents: sync::Arc::new(contents),
         };
         let _ = result.identifier.set(identifier);
         result
     }
-    pub fn with_str(identifier: &str) -> Result<Asn1RelativeOidImpl> {
+    pub fn with_str(identifier: &str) -> Result<Asn1RelativeOid> {
         check_identifier(identifier)?;
         let contents = parse_identifier(identifier)?;
         check_contents_length(contents.len())?;
-        Ok(Asn1RelativeOidImpl::new(identifier.to_string(), contents))
+        Ok(Asn1RelativeOid::new(identifier.to_string(), contents))
     }
-    pub fn with_vec(contents: Vec<u8>) -> Result<Asn1RelativeOidImpl> {
+    pub fn with_vec(contents: Vec<u8>) -> Result<Asn1RelativeOid> {
         check_contents_length(contents.len())?;
-
-        if !is_valid_contents(&contents) {
-            return Err(Error::with_message(
-                ErrorKind::InvalidInput,
-                "invalid relative OID contents".to_owned(),
-            ));
-        }
-
-        Ok(Asn1RelativeOidImpl {
+        anyhow::ensure!(
+            is_valid_contents(&contents),
+            BcError::invalid_argument("invalid relative OID contents", "contents")
+        );
+        Ok(Asn1RelativeOid {
             identifier: sync::OnceLock::new(),
             contents: sync::Arc::new(contents),
         })
-
     }
-
 
     pub fn id(&self) -> &str {
         self.identifier.get_or_init(|| self.get_id())
     }
 
     pub fn get_id(&self) -> String {
-        self.identifier.get_or_init(|| parse_contents(&self.contents)).to_string()
+        self.identifier
+            .get_or_init(|| parse_contents(&self.contents))
+            .to_string()
     }
 
-    pub fn try_from_id(identifier: &str) -> Option<Asn1RelativeOidImpl> {
+    pub fn try_from_id(identifier: &str) -> Option<Asn1RelativeOid> {
         if identifier.is_empty() {
             return None;
         }
         if identifier.len() <= MAX_IDENTIFIER_LENGTH && is_valid_identifier(identifier) {
             let contents = parse_identifier(identifier);
             if let Ok(c) = contents {
-                return Some(Asn1RelativeOidImpl::new(
-                    identifier.to_string(),
-                    c,
-                ));
+                return Some(Asn1RelativeOid::new(identifier.to_string(), c));
             }
         }
         None
@@ -78,7 +71,7 @@ impl Asn1RelativeOidImpl {
         &self,
         _encode_type: asn1_write::EncodingType,
     ) -> Box<dyn asn1_encoding::Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(
+        Box::new(primitive_encoding::PrimitiveEncoding::new(
             asn1_tags::UNIVERSAL,
             asn1_tags::RELATIVE_OID,
             self.contents.clone(),
@@ -102,7 +95,7 @@ impl Asn1RelativeOidImpl {
             contents.extend(branch_contents);
         }
         let root_id = self.id();
-        Ok(Asn1RelativeOidImpl::new(
+        Ok(Asn1RelativeOid::new(
             format!("{}.{}", root_id, branch_id),
             contents,
         ))
@@ -110,13 +103,12 @@ impl Asn1RelativeOidImpl {
 }
 
 // trait
-impl asn1_object::Asn1ObjectImpl for Asn1RelativeOidImpl {}
-impl fmt::Display for Asn1RelativeOidImpl {
+impl fmt::Display for Asn1RelativeOid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.id())
     }
 }
-impl super::Asn1Encodable for Asn1RelativeOidImpl {
+impl super::Asn1Encodable for Asn1RelativeOid {
     fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
         let encoding = self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
         asn1_object::get_encoded_with_encoding(encoding_str, encoding.as_ref())
@@ -132,18 +124,23 @@ impl super::Asn1Encodable for Asn1RelativeOidImpl {
         asn1_object::encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
     }
 }
-impl Into<super::Asn1Object> for Asn1RelativeOidImpl {
-    fn into(self) -> super::Asn1Object {
-        super::Asn1Object::Asn1RelativeOid(self)
+impl PartialEq<dyn Asn1Object> for Asn1RelativeOid {
+    fn eq(&self, other: &dyn Asn1Object) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<Asn1RelativeOid>() {
+            self.contents == other.contents
+        } else {
+            false
+        }
     }
 }
-impl PartialEq for Asn1RelativeOidImpl {
-    fn eq(&self, other: &Self) -> bool {
-        self.contents.as_ref() == other.contents.as_ref()
+impl Asn1Object for Asn1RelativeOid {
+    fn as_any(&self) -> sync::Arc<dyn any::Any> {
+        sync::Arc::new(self.clone())
     }
 }
 
-// fn 
+
+// fn
 pub(crate) fn is_valid_identifier(s: &str) -> bool {
     let mut digit_count = 0;
 
@@ -167,7 +164,7 @@ pub(crate) fn is_valid_identifier(s: &str) -> bool {
     true
 }
 
-pub(crate) fn write_field_with_i64(writer: &mut dyn Write, mut value: i64) -> Result<()> {
+pub(crate) fn write_field_with_i64(writer: &mut dyn io::Write, mut value: i64) -> Result<()> {
     let mut result = [0u8; 9];
     let mut pos = 8;
     result[pos] = (value & 0x7F) as u8;
@@ -183,7 +180,7 @@ pub(crate) fn write_field_with_i64(writer: &mut dyn Write, mut value: i64) -> Re
 }
 
 pub(crate) fn write_field_with_big_integer(
-    writer: &mut dyn Write,
+    writer: &mut dyn io::Write,
     value: &BigInteger,
 ) -> Result<()> {
     let byte_count = (value.bit_length() + 6) / 7;
@@ -206,18 +203,16 @@ const MAX_CONTENTS_LENGTH: usize = 4096;
 const MAX_IDENTIFIER_LENGTH: usize = MAX_CONTENTS_LENGTH * 4 + 1;
 
 pub(crate) fn check_identifier(identifier: &str) -> Result<()> {
-    if identifier.len() > MAX_IDENTIFIER_LENGTH {
-        return Err(Error::with_message(
-            ErrorKind::InvalidInput,
-            "exceeded relative OID contents length limit".to_owned(),
-        ));
-    }
-    if !is_valid_identifier(identifier) {
-        return Err(Error::with_message(
-            ErrorKind::InvalidInput,
-            format!("string {} noa a valid relative OID", identifier),
-        ));
-    }
+    anyhow::ensure!(
+        identifier.len() <= MAX_IDENTIFIER_LENGTH,
+        BcError::invalid_argument("exceeded relative OID contents length limit", "identifier")
+    );
+
+    anyhow::ensure!(
+        is_valid_identifier(identifier),
+        BcError::invalid_argument("string is not a valid relative OID", "identifier")
+    );
+
     Ok(())
 }
 
@@ -279,12 +274,10 @@ pub(crate) fn parse_contents(contents: &[u8]) -> String {
 }
 
 pub(crate) fn check_contents_length(length: usize) -> Result<()> {
-    if length > MAX_CONTENTS_LENGTH {
-        return Err(Error::with_message(
-            ErrorKind::InvalidInput,
-            "exceeded relative OID contents length limit".to_owned(),
-        ));
-    }
+    anyhow::ensure!(
+        length <= MAX_CONTENTS_LENGTH,
+        BcError::invalid_argument("exceeded relative OID contents length limit", "contents")
+    );
     Ok(())
 }
 
