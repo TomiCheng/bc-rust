@@ -1,12 +1,84 @@
-// use std::fmt::{Display, Formatter};
-// use std::io::{Read, Write};
-use std::io;
-use std::sync;
-use std::fmt;
-use std::any;
-
 use super::*;
 use crate::Result;
+use std::io;
+
+pub enum Asn1Object {
+    Boolean(Asn1Boolean),
+    Integer(Asn1Integer),
+    BitString(Asn1BitString),
+    OctetString(Asn1OctetString),
+    Null(Asn1Null),
+    ObjectIdentifier(Asn1ObjectIdentifier),
+    ObjectDescriptor(Asn1ObjectDescriptor),
+    External,
+    Real,
+    Enumerated(Asn1Enumerated),
+    EmbeddedPdv,
+    Utf8String,
+    RelativeOid(Asn1RelativeOid),
+    Time,
+    Sequence,
+    Set,
+    NumericString,
+    PrintableString,
+    T61String,
+    VideotexString,
+    Ia5String,
+    UtcTime(Asn1UtcTime),
+    GeneralizedTime(Asn1GeneralizedTime),
+    GraphicString,
+    VisibleString,
+    GeneralString,
+    UniversalString,
+    UnrestrictedString,
+    BmpString(Asn1BmpString),
+    Date,
+    TimeOfDay,
+    DateTime,
+    Duration,
+    ObjectIdentifierIri,
+    RelativeOidIri,
+}
+impl Asn1Object {
+    pub fn from_read(reader: &mut dyn io::Read) -> Result<Asn1Object> {
+        let mut asn1_reader = Asn1Read::new(reader, i32::MAX as usize);
+        asn1_reader.read_object()
+    }
+
+    pub fn is_null(&self) -> bool {
+        matches!(self, Asn1Object::Null(_))
+    }
+    pub fn is_boolean(&self) -> bool {
+        matches!(self, Asn1Object::Boolean(_))
+    }
+    pub fn is_integer(&self) -> bool {
+        matches!(self, Asn1Object::Integer(_))
+    }
+    pub fn is_object_identifier(&self) -> bool {
+        matches!(self, Asn1Object::ObjectIdentifier(_))
+    }
+}
+// impl From<Asn1Null> for Asn1Object {
+//     fn from(value: Asn1Null) -> Self {
+//         Asn1Object::Null(value)
+//     }
+// }
+// impl From<Asn1Boolean> for Asn1Object {
+//     fn from(value: Asn1Boolean) -> Self {
+//         Asn1Object::Boolean(value)
+//     }
+// }
+
+
+// use std::fmt::{Display, Formatter};
+// use std::io::{Read, Write};
+//use super::*;
+//use crate::asn1::asn1_encoding::Asn1Encoding;
+//use crate::asn1::asn1_write::EncodingType;
+//use std::any;
+//use std::fmt;
+
+//use std::sync;
 // use super::asn1_encoding::Asn1Encoding;
 // use super::Asn1Encodable;
 // //use super::Asn1Read;
@@ -22,18 +94,7 @@ use crate::Result;
 
 // pub(crate) trait Asn1ObjectImpl: Asn1Encodable + Display {}
 
-// #[derive(Debug)]
-// pub enum Asn1Object {
-//     DerBoolean(DerBooleanImpl),
-//     DerInteger(DerIntegerImpl),
-//     DerBitString(DerBitStringImpl),
-//     DerOctetString(DerOctetStringImpl),
-//     DerNull(DerNullImpl),
-//     DerObjectIdentifier(DerObjectIdentifierImpl),
-//     Asn1RelativeOid(super::Asn1RelativeOidImpl),
-//     DerSequence(DerSequenceImpl),
-//     Asn1GeneralizedTime(super::Asn1GeneralizedTimeImpl),
-// }
+
 
 // macro_rules! is_variant {
 //     ($name:ident, $variant:pat) => {
@@ -46,17 +107,33 @@ use crate::Result;
 //     };
 // }
 
-// macro_rules! as_variant {
-//     ($name:ident, $variant:path, $type:ty) => {
-//         pub fn $name(&self) -> &$type {
-//             match self {
-//                 $variant(impl_) => impl_,
-//                 _ => panic!("Not a match"),
-//             }
-//         }
-//     };
-// }
 
+macro_rules! cast_variant {
+     ($type: ty, $enum: ident) => {
+        impl TryInto<$type> for Asn1Object {
+            type Error = crate::Error;
+
+            fn try_into(self) -> std::result::Result<$type, Self::Error> {
+                match self {
+                    Asn1Object::$enum(value) => Ok(value),
+                    _ => Err(Self::Error::invalid_cast("cast asn1 object failed")),
+                }
+            }
+        }
+        impl From<$type> for Asn1Object {
+            fn from(value: $type) -> Self {
+                Asn1Object::$enum(value)
+            }
+        }
+     };
+}
+cast_variant!(Asn1Boolean, Boolean);
+cast_variant!(Asn1Integer, Integer);
+cast_variant!(Asn1Null, Null);
+cast_variant!(Asn1ObjectIdentifier, ObjectIdentifier);
+cast_variant!(Asn1BitString, BitString);
+cast_variant!(Asn1OctetString, OctetString);
+cast_variant!(Asn1RelativeOid, RelativeOid);
 // impl Asn1Object {
 //     pub fn new_der_boolean(value: DerBooleanImpl) -> Self {
 //         Asn1Object::DerBoolean(value)
@@ -127,7 +204,6 @@ use crate::Result;
 //         super::Asn1RelativeOidImpl
 //     );
 
-
 // impl Display for Asn1Object {
 //     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
 //         self.get_impl().fmt(f)
@@ -176,41 +252,42 @@ use crate::Result;
 //     }
 // }
 
-pub trait Asn1Object: Asn1Encodable + fmt::Debug {
-    fn as_any(&self) -> sync::Arc<dyn any::Any>;
-}
-
-
-/// Read a base ASN.1 object from a Read.
-/// # Arguments
-/// * `reader` - The Read to parse.
-/// # Returns
-/// The base ASN.1 object represented by the byte array.
-/// # Errors
-/// If there is a problem parsing the data.
-pub fn from_read(reader: &mut dyn io::Read) -> Result<sync::Arc<dyn Asn1Object>> {
-    let mut asn1_reader = Asn1Read::new(reader, i32::MAX as usize);
-    asn1_reader.read_object()
-}
-
-pub(crate) fn get_encoded_with_encoding(
-    encoding_str: &str,
-    encoding: &dyn asn1_encoding::Asn1Encoding,
-) -> Result<Vec<u8>> {
-    let length = encoding.get_length();
-    let mut result = Vec::with_capacity(length);
-    let mut asn1_writer = Asn1Write::create_with_encoding(&mut result, encoding_str);
-    encoding.encode(&mut asn1_writer)?;
-    Ok(result)
-}
-
-pub(crate) fn encode_to_with_encoding(
-    writer: &mut dyn io::Write,
-    encoding_str: &str,
-    asn1_encoding: &dyn asn1_encoding::Asn1Encoding,
-) -> Result<usize> {
-    let mut asn1_writer = Asn1Write::create_with_encoding(writer, encoding_str);
-    let mut result = 0;
-    result += asn1_encoding.encode(&mut asn1_writer)?;
-    Ok(result)
-}
+// pub(crate) trait Asn1ObjectInternal {
+//     fn get_encoding_with_type(&self, encode_type: EncodingType) -> Box<dyn Asn1Encoding>;
+// }
+//
+// pub trait Asn1Object: Asn1Encodable + fmt::Display {}
+//
+// /// Read a base ASN.1 object from a Read.
+// /// # Arguments
+// /// * `reader` - The Read to parse.
+// /// # Returns
+// /// The base ASN.1 object represented by the byte array.
+// /// # Errors
+// /// If there is a problem parsing the data.
+// pub fn from_read(reader: &mut dyn io::Read) -> Result<sync::Arc<dyn Asn1Object>> {
+//     let mut asn1_reader = Asn1Read::new(reader, i32::MAX as usize);
+//     asn1_reader.read_object()
+// }
+//
+// pub(crate) fn get_encoded_with_encoding(
+//     encoding_str: &str,
+//     encoding: &dyn asn1_encoding::Asn1Encoding,
+// ) -> Result<Vec<u8>> {
+//     let length = encoding.get_length();
+//     let mut result = Vec::with_capacity(length);
+//     let mut asn1_writer = Asn1Write::create_with_encoding(&mut result, encoding_str);
+//     encoding.encode(&mut asn1_writer)?;
+//     Ok(result)
+// }
+//
+// pub(crate) fn encode_to_with_encoding(
+//     writer: &mut dyn io::Write,
+//     encoding_str: &str,
+//     asn1_encoding: &dyn asn1_encoding::Asn1Encoding,
+// ) -> Result<usize> {
+//     let mut asn1_writer = Asn1Write::create_with_encoding(writer, encoding_str);
+//     let mut result = 0;
+//     result += asn1_encoding.encode(&mut asn1_writer)?;
+//     Ok(result)
+// }

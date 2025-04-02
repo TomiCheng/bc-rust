@@ -1,21 +1,22 @@
-use std::fmt;
-use std::io;
-use std::sync;
-use std::any;
-
+use anyhow::{bail, ensure};
+// use std::fmt;
+// use std::io;
+// use std::sync;
+// use std::any;
+// 
 use chrono::prelude::*;
-
-use super::*;
-use crate::{BcError, Result};
-
-#[derive(Debug, Clone)]
+ 
+// use super::*;
+use crate::{Error, Result};
+// 
+// #[derive(Debug, Clone)]
 /// GeneralizedTime ASN.1 type
 pub struct Asn1GeneralizedTime {
-    date_time: chrono::DateTime<chrono::Utc>,
+    date_time: DateTime<Utc>,
     time_string_canonical: bool,
     time_string: String,
 }
-
+// 
 impl Asn1GeneralizedTime {
     /// Create a new instance of Asn1GeneralizedTime from a DateTime<Tz>
     /// # Arguments
@@ -98,8 +99,8 @@ impl Asn1GeneralizedTime {
         })
     }
 
-    pub(crate) fn with_primitive(contents: &[u8]) -> Result<Self> {
-        let time_string = String::from_utf8(contents.to_vec())?;
+    pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
+        let time_string = String::from_utf8(contents)?;
         let date_time = from_str(&time_string)?;
         Ok(Asn1GeneralizedTime {
             date_time,
@@ -107,61 +108,65 @@ impl Asn1GeneralizedTime {
             time_string,
         })
     }
-
     pub fn date_time(&self) -> &DateTime<Utc> {
         &self.date_time
     }
-
-    pub(crate) fn get_contents(&self, encoding_type: asn1_write::EncodingType) -> Vec<u8> {
-        if encoding_type == asn1_write::EncodingType::Der && self.time_string_canonical {
-            return to_string_canonical(&self.date_time).as_bytes().to_vec();
-        }
-        self.time_string.as_bytes().to_vec()
-    }
-
-    fn get_encoding_with_type(
-        &self,
-        encode_type: asn1_write::EncodingType,
-    ) -> Box<dyn asn1_encoding::Asn1Encoding> {
-        Box::new(primitive_encoding::PrimitiveEncoding::new(
-            asn1_tags::UNIVERSAL,
-            asn1_tags::INTEGER,
-            sync::Arc::new(self.get_contents(encode_type)),
-        ))
-    }
+// 
+//     pub(crate) fn get_contents(&self, encoding_type: asn1_write::EncodingType) -> Vec<u8> {
+//         if encoding_type == asn1_write::EncodingType::Der && self.time_string_canonical {
+//             return to_string_canonical(&self.date_time).as_bytes().to_vec();
+//         }
+//         self.time_string.as_bytes().to_vec()
+//     }
+// 
+//     fn get_encoding_with_type(
+//         &self,
+//         encode_type: asn1_write::EncodingType,
+//     ) -> Box<dyn asn1_encoding::Asn1Encoding> {
+//         Box::new(primitive_encoding::PrimitiveEncoding::new(
+//             asn1_tags::UNIVERSAL,
+//             asn1_tags::INTEGER,
+//             sync::Arc::new(self.get_contents(encode_type)),
+//         ))
+//     }
+// }
+// 
+// impl Asn1Object for Asn1GeneralizedTime {}
+// impl Asn1Encodable for Asn1GeneralizedTime {
+//     fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
+//         let encoding = self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
+//         asn1_object::get_encoded_with_encoding(encoding_str, encoding.as_ref())
+//     }
+// 
+//     fn encode_to_with_encoding(
+//         &self,
+//         writer: &mut dyn io::Write,
+//         encoding_str: &str,
+//     ) -> Result<usize> {
+//         let asn1_encoding =
+//             self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
+//         asn1_object::encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
+//     }
+// }
+// impl Asn1Convertiable for Asn1GeneralizedTime {
+//     fn to_asn1_object(&self) -> sync::Arc<dyn Asn1Object> {
+//         sync::Arc::new(self.clone())
+//     }
+//     fn as_any(&self) -> sync::Arc<dyn any::Any> {
+//         sync::Arc::new(self.clone())
+//     }
+// }
+// impl fmt::Display for Asn1GeneralizedTime {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{}", self.date_time)
+//     }
 }
 
-impl Asn1Encodable for Asn1GeneralizedTime {
-    fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
-        let encoding = self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
-        asn1_object::get_encoded_with_encoding(encoding_str, encoding.as_ref())
-    }
-
-    fn encode_to_with_encoding(
-        &self,
-        writer: &mut dyn io::Write,
-        encoding_str: &str,
-    ) -> Result<usize> {
-        let asn1_encoding =
-            self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
-        asn1_object::encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
-    }
-}
-impl fmt::Display for Asn1GeneralizedTime {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.date_time)
-    }
-}
-impl Asn1Object for Asn1GeneralizedTime {
-    fn as_any(&self) -> sync::Arc<dyn any::Any> {
-        sync::Arc::new(self.clone())
-    }
-}
 
 fn from_str(s: &str) -> Result<DateTime<Utc>> {
-    anyhow::ensure!(
+    ensure!(
         s.len() >= 10,
-        BcError::invalid_argument("s len less 10", "s")
+        Error::invalid_argument("s len less 10", "s")
     );
 
     let v = s.replace(",", ".");
@@ -172,17 +177,17 @@ fn from_str(s: &str) -> Result<DateTime<Utc>> {
             13 => parse_utc(&v, "%Y%m%d%H%M%Z"),
             15 => parse_utc(&v, "%Y%m%d%H%M%S%Z"),
             17..=23 => parse_utc(&v, "%Y%m%d%H%M%S%.f%Z"),
-            _ => anyhow::bail!(BcError::invalid_argument("invalid length", "s")),
+            _ => bail!(Error::invalid_argument("invalid length", "s")),
         };
     }
 
-    return match index_of_sign(&v, 10.max(v.len() - 5)) {
+    match index_of_sign(&v, 10.max(v.len() - 5)) {
         None => match v.len() {
             10 => parse_local(&(v + "00"), "%Y%m%d%H%M"), // padding with minutes
             12 => parse_local(&v, "%Y%m%d%H%M"),
             14 => parse_local(&v, "%Y%m%d%H%M%S"),
             16..=22 => parse_local(&v, "%Y%m%d%H%M%S%.f"),
-            _ => anyhow::bail!(BcError::invalid_argument("invalid length", "s")),
+            _ => bail!(Error::invalid_argument("invalid length", "s")),
         },
         Some(index) if index == v.len() - 5 => match v.len() {
             15 => parse_time_zone(
@@ -192,7 +197,7 @@ fn from_str(s: &str) -> Result<DateTime<Utc>> {
             17 => parse_time_zone(&v, "%Y%m%d%H%M%z"),
             19 => parse_time_zone(&v, "%Y%m%d%H%M%S%z"),
             21..=27 => parse_time_zone(&v, "%Y%m%d%H%M%S%.f%z"),
-            _ => anyhow::bail!(BcError::invalid_argument("invalid length", "s")),
+            _ => bail!(Error::invalid_argument("invalid length", "s")),
         },
         Some(index) if index == v.len() - 3 => match v.len() {
             13 => parse_time_zone(
@@ -202,30 +207,30 @@ fn from_str(s: &str) -> Result<DateTime<Utc>> {
             15 => parse_time_zone(&v, "%Y%m%d%H%M%#z"),
             17 => parse_time_zone(&v, "%Y%m%d%H%M%S%#z"),
             19..=23 => parse_time_zone(&v, "%Y%m%d%H%M%S%.f%#z"),
-            _ => anyhow::bail!(BcError::invalid_argument("invalid length", "s")),
+            _ => bail!(Error::invalid_argument("invalid length", "s")),
         },
-        Some(index) => anyhow::bail!(BcError::invalid_argument(
+        Some(index) => bail!(Error::invalid_argument(
             &format!("invalid index: {index}"),
             "index"
         )),
-    };
+    }
 }
 
 fn parse_local(s: &str, fmt: &str) -> Result<DateTime<Utc>> {
-    let local_date_time = chrono::NaiveDateTime::parse_from_str(s, fmt)?;
-    let date_time = local_date_time.and_local_timezone(chrono::Local).unwrap();
+    let local_date_time = NaiveDateTime::parse_from_str(s, fmt)?;
+    let date_time = local_date_time.and_local_timezone(Local).unwrap();
     Ok(date_time.to_utc())
 }
 
 fn parse_utc(s: &str, fmt: &str) -> Result<DateTime<Utc>> {
-    let local_date_time = chrono::NaiveDateTime::parse_from_str(s, fmt)?;
-    let date_time = local_date_time.and_local_timezone(chrono::Utc).unwrap();
+    let local_date_time = NaiveDateTime::parse_from_str(s, fmt)?;
+    let date_time = local_date_time.and_local_timezone(Utc).unwrap();
     Ok(date_time)
 }
-
+ 
 fn parse_time_zone(s: &str, fmt: &str) -> Result<DateTime<Utc>> {
-    let local_date_time = chrono::DateTime::parse_from_str(s, fmt)?;
-    let date_time = local_date_time.with_timezone(&chrono::Utc);
+    let local_date_time = DateTime::parse_from_str(s, fmt)?;
+    let date_time = local_date_time.with_timezone(&Utc);
     Ok(date_time)
 }
 
@@ -243,4 +248,47 @@ fn index_of_sign(s: &str, start_index: usize) -> Option<usize> {
 fn to_string_canonical(date_time: &DateTime<Utc>) -> String {
     date_time.format("%Y%m%d%H%M%S%.6fZ").to_string()
     //date_time.format("%Y%m%d%H%M%S%6f").to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::asn1::Asn1GeneralizedTime;
+
+    #[test]
+    fn test_01() {
+        let inputs = [
+            "20020122122220",
+            "20020122122220Z",
+            "20020122122220-1000",
+            "20020122122220+00",
+            "20020122122220.1",
+            "20020122122220.1Z",
+            "20020122122220.1-1000",
+            "20020122122220.1+00",
+            "20020122122220.01",
+            "20020122122220.01Z",
+            "20020122122220.01-1000",
+            "20020122122220.01+00",
+            "20020122122220.001",
+            "20020122122220.001Z",
+            "20020122122220.001-1000",
+            "20020122122220.001+00",
+            "20020122122220.0001",
+            "20020122122220.0001Z",
+            "20020122122220.0001-1000",
+            "20020122122220.0001+00",
+            "20020122122220.0001+1000"
+        ];
+
+        for index in 0..inputs.len() {
+            let input = inputs[index];
+            assert!(Asn1GeneralizedTime::with_str(input).is_ok());
+        }
+    }
+
+    #[test]
+    fn encode_01() {
+        //let req = hex::to_decode_with_str("180d3230323230383039313231355a").unwrap();
+        //let asn1_object = asn1::Asn1Object::parse(&mut req.as_slice()).unwrap();
+    }
 }

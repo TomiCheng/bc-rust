@@ -4,23 +4,26 @@
 const BYTE_LENGTH: usize = 64;
 
 #[derive(Clone)]
-pub(crate) struct GeneralDigest<TDigiestImpl: InternalGeneralDigest + Clone> {
+pub(crate) struct GeneralDigest<TDigestImpl>
+where
+    TDigestImpl: InternalGeneralDigest + Clone,
+{
     x_buf: [u8; 4],
     x_buf_off: usize,
     byte_count: usize,
-    digest_impl: TDigiestImpl,
+    digest_impl: TDigestImpl,
 }
 
-impl<TDigiestImpl: InternalGeneralDigest + Clone> GeneralDigest<TDigiestImpl> {
-    pub(crate) fn new(digest_impl: TDigiestImpl) -> GeneralDigest<TDigiestImpl> {
+impl<TDigestImpl: InternalGeneralDigest + Clone> GeneralDigest<TDigestImpl> {
+    pub(crate) fn new(digest_impl: TDigestImpl) -> GeneralDigest<TDigestImpl> {
         GeneralDigest {
             x_buf: [0; 4],
             x_buf_off: 0,
             byte_count: 0,
-            digest_impl
+            digest_impl,
         }
     }
-    
+
     pub(crate) fn update(&mut self, input: u8) {
         self.x_buf[self.x_buf_off] = input;
         self.x_buf_off += 1;
@@ -37,7 +40,7 @@ impl<TDigiestImpl: InternalGeneralDigest + Clone> GeneralDigest<TDigiestImpl> {
         let mut i = 0;
         if self.x_buf_off > 0 {
             while i < length {
-                self.x_buf[self.x_buf_off] = input[i]; 
+                self.x_buf[self.x_buf_off] = input[i];
                 self.x_buf_off += 1;
                 i += 1;
                 if self.x_buf_off == 4 {
@@ -66,8 +69,8 @@ impl<TDigiestImpl: InternalGeneralDigest + Clone> GeneralDigest<TDigiestImpl> {
     }
 
     pub(crate) fn finish(&mut self) {
-        let bit_length = self.byte_count << 3; 
-        
+        let bit_length = self.byte_count << 3;
+
         // add the pad bytes.
         self.update(128);
 
@@ -89,14 +92,13 @@ impl<TDigiestImpl: InternalGeneralDigest + Clone> GeneralDigest<TDigiestImpl> {
         BYTE_LENGTH
     }
 
-    pub(crate) fn as_impl_mut(&mut self) -> &mut TDigiestImpl {
+    pub(crate) fn as_impl_mut(&mut self) -> &mut TDigestImpl {
         &mut self.digest_impl
     }
-} 
+}
 
 pub(crate) trait InternalGeneralDigest {
     fn process_word(&mut self, word: &[u8]);
     fn process_length(&mut self, bit_length: usize);
     fn process_block(&mut self);
 }
-

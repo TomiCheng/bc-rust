@@ -13,14 +13,14 @@ use super::{AlgorithmIdentifier, TbsCertificateStructure};
 pub struct X509CertificateStructure {
     tbs_certificate: TbsCertificateStructure,
     sign_alg_id: AlgorithmIdentifier,
-    sign: asn1::DerBitString,
+    sign: asn1::Asn1BitString,
 }
 
 impl X509CertificateStructure {
     pub fn new(
         tbs_certificate: TbsCertificateStructure,
         sign_alg_id: AlgorithmIdentifier,
-        sign: asn1::DerBitString,
+        sign: asn1::Asn1BitString,
     ) -> Self {
         X509CertificateStructure {
             tbs_certificate,
@@ -33,7 +33,7 @@ impl X509CertificateStructure {
         &self.sign_alg_id
     }
 
-    pub fn get_signature(&self) -> &asn1::DerBitString {
+    pub fn get_signature(&self) -> &asn1::Asn1BitString {
         &self.sign
     }
 }

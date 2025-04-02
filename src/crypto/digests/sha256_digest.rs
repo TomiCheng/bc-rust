@@ -4,10 +4,8 @@ use crate::util::pack::{be_to_u32, u32_to_be_bytes};
 use crate::util::Memoable;
 
 const DIGEST_LENGTH: usize = 32;
-/* SHA-256 Constants
- * (represent the first 32 bits of the fractional parts of the
- * cube roots of the first sixty-four prime numbers)
- */
+
+/// SHA-256 Constants (represent the first 32 bits of the fractional parts of the cube roots of the first sixty-four prime numbers)
 const K: [u32; 64] = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -19,7 +17,8 @@ const K: [u32; 64] = [
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ];
 
-/// Draft FIPS 180-2 implementation of SHA-256. **Note:** As this is based on a draft this implementation is subject to change.
+/// Draft FIPS 180-2 implementation of SHA-256. 
+/// **Note:** As this is based on a draft this implementation is subject to change.
 #[derive(Clone)]
 pub struct Sha256Digest {
     digest_impl: GeneralDigest<Sha256DigestImpl>,
@@ -178,49 +177,49 @@ impl InternalGeneralDigest for Sha256DigestImpl {
         let mut t = 0;
         for _ in 0..8 {
             // t = 8 * i
-            h = h.wrapping_add(suml_ch(e, f, g).wrapping_add(K[t]).wrapping_add(self.x[t]));
+            h = h.wrapping_add(sum_l_ch(e, f, g).wrapping_add(K[t]).wrapping_add(self.x[t]));
             d = d.wrapping_add(h);
             h = h.wrapping_add(sum_o_maj(a, b, c));
             t += 1;
 
             // t = 8 * i + 1
-            g = g.wrapping_add(suml_ch(d, e, f).wrapping_add(K[t]).wrapping_add(self.x[t]));
+            g = g.wrapping_add(sum_l_ch(d, e, f).wrapping_add(K[t]).wrapping_add(self.x[t]));
             c = c.wrapping_add(g);
             g = g.wrapping_add(sum_o_maj(h, a, b));
             t += 1;
 
             // t = 8 * i + 2
-            f = f.wrapping_add(suml_ch(c, d, e).wrapping_add(K[t]).wrapping_add(self.x[t]));
+            f = f.wrapping_add(sum_l_ch(c, d, e).wrapping_add(K[t]).wrapping_add(self.x[t]));
             b = b.wrapping_add(f);
             f = f.wrapping_add(sum_o_maj(g, h, a));
             t += 1;
 
             // t = 8 * i + 3
-            e = e.wrapping_add(suml_ch(b, c, d).wrapping_add(K[t]).wrapping_add(self.x[t]));
+            e = e.wrapping_add(sum_l_ch(b, c, d).wrapping_add(K[t]).wrapping_add(self.x[t]));
             a = a.wrapping_add(e);
             e = e.wrapping_add(sum_o_maj(f, g, h));
             t += 1;
 
             // t = 8 * i + 4
-            d = d.wrapping_add(suml_ch(a, b, c).wrapping_add(K[t]).wrapping_add(self.x[t]));
+            d = d.wrapping_add(sum_l_ch(a, b, c).wrapping_add(K[t]).wrapping_add(self.x[t]));
             h = h.wrapping_add(d);
             d = d.wrapping_add(sum_o_maj(e, f, g));
             t += 1;
 
             // t = 8 * i + 5
-            c = c.wrapping_add(suml_ch(h, a, b).wrapping_add(K[t]).wrapping_add(self.x[t]));
+            c = c.wrapping_add(sum_l_ch(h, a, b).wrapping_add(K[t]).wrapping_add(self.x[t]));
             g = g.wrapping_add(c);
             c = c.wrapping_add(sum_o_maj(d, e, f));
             t += 1;
 
             // t = 8 * i + 6
-            b = b.wrapping_add(suml_ch(g, h, a).wrapping_add(K[t]).wrapping_add(self.x[t]));
+            b = b.wrapping_add(sum_l_ch(g, h, a).wrapping_add(K[t]).wrapping_add(self.x[t]));
             f = f.wrapping_add(b);
             b = b.wrapping_add(sum_o_maj(c, d, e));
             t += 1;
 
             // t = 8 * i + 7
-            a = a.wrapping_add(suml_ch(f, g, h).wrapping_add(K[t]).wrapping_add(self.x[t]));
+            a = a.wrapping_add(sum_l_ch(f, g, h).wrapping_add(K[t]).wrapping_add(self.x[t]));
             e = e.wrapping_add(a);
             a = a.wrapping_add(sum_o_maj(b, c, d));
             t += 1;
@@ -244,7 +243,7 @@ fn sum_o_maj(x: u32, y: u32, z: u32) -> u32 {
     (x.rotate_right(2) ^ x.rotate_right(13) ^ x.rotate_right(22)).wrapping_add((x & y) | (z & (x ^ y)))
 }
 
-fn suml_ch(x: u32, y: u32, z: u32) -> u32 {
+fn sum_l_ch(x: u32, y: u32, z: u32) -> u32 {
     (x.rotate_right(6) ^ x.rotate_right(11) ^ x.rotate_right(25)).wrapping_add(z ^ (x & (y ^ z)))
 }
 

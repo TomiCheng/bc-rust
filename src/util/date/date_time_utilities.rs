@@ -1,6 +1,5 @@
-use chrono::{self, TimeZone, Timelike};
-
-use crate::{Result, BcError};
+use crate::{invalid_argument, Error, Result};
+use chrono::{TimeZone, Timelike};
 
 /// Return the number of milliseconds since the Unix epoch (1 Jan., 1970 UTC) for a given DateTime value.
 /// # Arguments
@@ -10,20 +9,15 @@ use crate::{Result, BcError};
 /// # Errors
 /// `date_time` value may not be before the epoch
 /// # Remarks
-/// The DateTime value will be converted to UTC (using `to_utc()` before conversion.
-pub fn date_time_to_unix_ms<Tz: chrono::TimeZone>(date_time: &chrono::DateTime<Tz>) -> Result<i64> {
+/// The DateTime value will be converted to UTC using `to_utc()` before conversion.
+pub fn date_time_to_unix_ms<Tz: TimeZone>(date_time: &chrono::DateTime<Tz>) -> Result<i64> {
     let utc = date_time.to_utc();
-
     let result = utc.timestamp_millis();
-
-    anyhow::ensure!(
-        result >= 0,
-        BcError::invalid_argument(
-            "date_time value may not be before the epoch",
-            "date_time"
-        )
+    invalid_argument!(
+        result < 0,
+        "date_time value may not be before the epoch",
+        "date_time"
     );
-
     Ok(result)
 }
 
@@ -37,10 +31,7 @@ pub fn date_time_to_unix_ms<Tz: chrono::TimeZone>(date_time: &chrono::DateTime<T
 pub fn unix_ms_to_date_time(unix_ms: i64) -> Result<chrono::DateTime<chrono::Utc>> {
     match chrono::Utc.timestamp_millis_opt(unix_ms) {
         chrono::MappedLocalTime::Single(result) => Ok(result),
-        _ => anyhow::bail!(BcError::invalid_argument(
-            "unix_ms out of range",
-            "unix_ms"
-        )),
+        _ => invalid_argument!("unix_ms out of range", "unix_ms"),
     }
 }
 
@@ -52,9 +43,9 @@ pub fn current_unix_ms() -> i64 {
 const TICKS_PER_MILLI_SECOND: u32 = 10000;
 
 /// Represents the number of ticks in 1 second.
-const TICKS_PER_SENCOND: u32 = 10000000;
+const TICKS_PER_SECOND: u32 = 10000000;
 
-pub fn with_precision_centisecond<Tz: chrono::TimeZone>(
+pub fn with_precision_centi_second<Tz: TimeZone>(
     date_time: &chrono::DateTime<Tz>,
 ) -> chrono::DateTime<Tz> {
     date_time
@@ -62,7 +53,7 @@ pub fn with_precision_centisecond<Tz: chrono::TimeZone>(
         .unwrap()
 }
 
-pub fn with_precision_decisecond<Tz: chrono::TimeZone>(
+pub fn with_precision_deci_second<Tz: TimeZone>(
     date_time: &chrono::DateTime<Tz>,
 ) -> chrono::DateTime<Tz> {
     date_time
@@ -70,7 +61,7 @@ pub fn with_precision_decisecond<Tz: chrono::TimeZone>(
         .unwrap()
 }
 
-pub fn with_precision_millisecond<Tz: chrono::TimeZone>(
+pub fn with_precision_millisecond<Tz: TimeZone>(
     date_time: &chrono::DateTime<Tz>,
 ) -> chrono::DateTime<Tz> {
     date_time
@@ -78,10 +69,10 @@ pub fn with_precision_millisecond<Tz: chrono::TimeZone>(
         .unwrap()
 }
 
-pub fn with_precision_second<Tz: chrono::TimeZone>(
+pub fn with_precision_second<Tz: TimeZone>(
     date_time: &chrono::DateTime<Tz>,
 ) -> chrono::DateTime<Tz> {
     date_time
-        .with_nanosecond(date_time.nanosecond() / TICKS_PER_SENCOND)
+        .with_nanosecond(date_time.nanosecond() / TICKS_PER_SECOND)
         .unwrap()
 }

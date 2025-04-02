@@ -34,7 +34,7 @@ const SI_BOX: [u8; 256] = [
     214, 38, 225, 105, 20, 99, 85, 33, 12, 125,
 ];
 /// vector used in calculating key schedule (powers of x in GF(256))
-const RCON: [u8; 30] = [
+const R_CON: [u8; 30] = [
     0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f,
     0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d, 0xfa, 0xef, 0xc5, 0x91,
 ];
@@ -73,7 +73,7 @@ const T0: [u32; 256] = [
     0x8f8c8c03, 0xf8a1a159, 0x80898909, 0x170d0d1a, 0xdabfbf65, 0x31e6e6d7, 0xc6424284, 0xb86868d0,
     0xc3414182, 0xb0999929, 0x772d2d5a, 0x110f0f1e, 0xcbb0b07b, 0xfc5454a8, 0xd6bbbb6d, 0x3a16162c,
 ];
-const TINV0: [u32; 256] = [
+const T_INV0: [u32; 256] = [
     0x50a7f451, 0x5365417e, 0xc3a4171a, 0x965e273a, 0xcb6bab3b, 0xf1459d1f, 0xab58faac, 0x9303e34b,
     0x55fa3020, 0xf66d76ad, 0x9176cc88, 0x254c02f5, 0xfcd7e54f, 0xd7cb2ac5, 0x80443526, 0x8fa362b5,
     0x495ab1de, 0x671bba25, 0x980eea45, 0xe1c0fe5d, 0x02752fc3, 0x12f04c81, 0xa397468d, 0xc6f9d36b,
@@ -115,10 +115,10 @@ const M3: u32 = 0x0000001b;
 const M4: u32 = 0xC0C0C0C0;
 const M5: u32 = 0x3f3f3f3f;
 
-fn ffmul_x(x: u32) -> u32 {
-    return ((x & M2) << 1) ^ (((x & M1) >> 7) * M3);
+fn ff_mul_x(x: u32) -> u32 {
+    ((x & M2) << 1) ^ (((x & M1) >> 7) * M3)
 }
-fn ffmul_x2(x: u32) -> u32 {
+fn ff_mul_x2(x: u32) -> u32 {
     let t0 = (x & M5).wrapping_shl(2);
     let mut t1 = x & M4;
     t1 ^= t1.wrapping_shr(1);
@@ -126,19 +126,19 @@ fn ffmul_x2(x: u32) -> u32 {
 }
 ///  The following defines provide alternative definitions of FFmulX that might
 ///  give improved performance if a fast 32-bit multiply is not available.
-fn inv_mcol(x: u32) -> u32 {
+fn inv_m_col(x: u32) -> u32 {
     let mut t0 = x;
     let mut t1 = t0 ^ t0.rotate_right(8);
-    t0 ^= ffmul_x(t1);
-    t1 ^= ffmul_x2(t0);
+    t0 ^= ff_mul_x(t1);
+    t1 ^= ff_mul_x2(t0);
     t0 ^= t1 ^ t1.rotate_right(16);
     t0
 }
 fn sub_word(x: u32) -> u32 {
     S_BOX[(x & 255) as usize] as u32
-        | (((S_BOX[((x >> 8) & 255) as usize]) as u32) << 8)
-        | (((S_BOX[((x >> 16) & 255) as usize]) as u32) << 16)
-        | (((S_BOX[((x >> 24) & 255) as usize]) as u32) << 24)
+        | ((S_BOX[((x >> 8) & 255) as usize] as u32) << 8)
+        | ((S_BOX[((x >> 16) & 255) as usize] as u32) << 16)
+        | ((S_BOX[((x >> 24) & 255) as usize] as u32) << 24)
 }
 
 macro_rules! xor {
@@ -156,22 +156,22 @@ macro_rules! xor_u8 {
 /// 
 /// For further details see: [http://csrc.nist.gov/encryption/aes/](http://csrc.nist.gov/encryption/aes/).
 ///
-/// This implementation is based on optimizations from Dr. Brian Gladman's paper and C code at
+/// This implementation is based on optimizations from Dr. Brian Goldman's paper and C code at
 /// [http://fp.gladman.plus.com/cryptography_technology/rijndael/](http://fp.gladman.plus.com/cryptography_technology/rijndael/)
 ///
 /// There are three levels of tradeoff of speed vs memory
 /// Because java has no preprocessor, they are written as three separate classes from which to choose
 ///
-/// The fastest uses 8Kbytes of static tables to precompute round calculations, 4 256 word tables for encryption
+/// The fastest uses 8K bytes of static tables to precompute round calculations, 4 256 word tables for encryption
 /// and 4 for decryption.
 ///
-/// The middle performance version uses only one 256 word table for each, for a total of 2Kbytes,
+/// The middle performance version uses only one 256 word table for each, for a total of 2K bytes,
 /// adding 12 rotate operations per round to compute the values contained in the other tables from
 /// the contents of the first.
 ///
 /// The slowest version uses no static tables at all and computes the values in each round.
 /// 
-/// This file contains the middle performance version with 2Kbytes of static tables for round precomputation.
+/// This file contains the middle performance version with 2K bytes of static tables for round precomputation.
 /// 
 pub struct AesEngine<'a> {
     for_encryption: bool,
@@ -238,7 +238,7 @@ impl<'a> AesEngine<'a> {
                 w[0][3] = t3;
 
                 for i in 1..=10 {
-                    let u = sub_word(t3.rotate_right(8)) ^ (RCON[i - 1] as u32);
+                    let u = sub_word(t3.rotate_right(8)) ^ (R_CON[i - 1] as u32);
                     t0 ^= u;  w[i][0] = t0;
                     t1 ^= t0; w[i][1] = t1;
                     t2 ^= t1; w[i][2] = t2;
@@ -260,9 +260,9 @@ impl<'a> AesEngine<'a> {
                 let mut t5 = read_le_u32(key_slice);
                 w[1][1] = t5;
 
-                let mut rcon0 = 1u32;
-                let mut u = sub_word(t5.rotate_right(8)) ^ rcon0;
-                rcon0 = rcon0 << 1;
+                let mut r_con0 = 1u32;
+                let mut u = sub_word(t5.rotate_right(8)) ^ r_con0;
+                r_con0 = r_con0 << 1;
                 t0 ^= u;
                 w[1][2] = t0;
                 t1 ^= t0;
@@ -277,8 +277,8 @@ impl<'a> AesEngine<'a> {
                 w[2][3] = t5;
 
                 for i in (3..12).step_by(3) {
-                    let mut u = sub_word(t5.rotate_right(8)) ^ rcon0;
-                    rcon0 = rcon0 << 1;
+                    let mut u = sub_word(t5.rotate_right(8)) ^ r_con0;
+                    r_con0 = r_con0 << 1;
                     t0 ^= u;
                     w[i][0] = t0;
                     t1 ^= t0;
@@ -291,8 +291,8 @@ impl<'a> AesEngine<'a> {
                     w[i + 1][0] = t4;
                     t5 ^= t4;
                     w[i + 1][1] = t5;
-                    u = sub_word(t5.rotate_right(8)) ^ rcon0;
-                    rcon0 = rcon0 << 1;
+                    u = sub_word(t5.rotate_right(8)) ^ r_con0;
+                    r_con0 = r_con0 << 1;
                     t0 ^= u;
                     w[i + 1][2] = t0;
                     t1 ^= t0;
@@ -306,7 +306,7 @@ impl<'a> AesEngine<'a> {
                     t5 ^= t4;
                     w[i + 2][3] = t5;
                 }
-                u = sub_word(t5.rotate_right(8)) ^ rcon0;
+                u = sub_word(t5.rotate_right(8)) ^ r_con0;
                 t0 ^= u;
                 w[12][0] = t0;
                 t1 ^= t0;
@@ -336,11 +336,11 @@ impl<'a> AesEngine<'a> {
                 w[1][3] = t7;
 
                 let mut u;
-                let mut rcon0 = 1u32;
+                let mut r_con0 = 1u32;
 
                 for i in (2..14).step_by(2) {
-                    u = sub_word(t7.rotate_right(8)) ^ rcon0;
-                    rcon0 <<= 1;
+                    u = sub_word(t7.rotate_right(8)) ^ r_con0;
+                    r_con0 <<= 1;
                     t0 ^= u;
                     w[i][0] = t0;
                     t1 ^= t0;
@@ -360,7 +360,7 @@ impl<'a> AesEngine<'a> {
                     w[i + 1][3] = t7;
                 }
 
-                u = sub_word(t7.rotate_right(8)) ^ rcon0;
+                u = sub_word(t7.rotate_right(8)) ^ r_con0;
                 t0 ^= u;
                 w[14][0] = t0;
                 t1 ^= t0;
@@ -376,7 +376,7 @@ impl<'a> AesEngine<'a> {
             for j in 1..self.rounds {
                 let w0 = &mut w[j];
                 for i in 0..4 {
-                    w0[i] = inv_mcol(w0[i]);
+                    w0[i] = inv_m_col(w0[i]);
                 }
             }
         }
@@ -463,26 +463,26 @@ impl<'a> AesEngine<'a> {
             kw = &wk[r];
             r = r - 1;
 
-            r0 = xor!(TINV0, t0, 0, 0) ^ xor!(TINV0, r3, 8, 24) ^ xor!(TINV0, t2, 16, 16) ^ xor!(TINV0, t1, 24, 8) ^ kw[0];
-            r1 = xor!(TINV0, t1, 0, 0) ^ xor!(TINV0, t0, 8, 24) ^ xor!(TINV0, r3, 16, 16) ^ xor!(TINV0, t2, 24, 8) ^ kw[1];
-            r2 = xor!(TINV0, t2, 0, 0) ^ xor!(TINV0, t1, 8, 24) ^ xor!(TINV0, t0, 16, 16) ^ xor!(TINV0, r3, 24, 8) ^ kw[2];
-            r3 = xor!(TINV0, r3, 0, 0) ^ xor!(TINV0, t2, 8, 24) ^ xor!(TINV0, t1, 16, 16) ^ xor!(TINV0, t0, 24, 8) ^ kw[3];
+            r0 = xor!(T_INV0, t0, 0, 0) ^ xor!(T_INV0, r3, 8, 24) ^ xor!(T_INV0, t2, 16, 16) ^ xor!(T_INV0, t1, 24, 8) ^ kw[0];
+            r1 = xor!(T_INV0, t1, 0, 0) ^ xor!(T_INV0, t0, 8, 24) ^ xor!(T_INV0, r3, 16, 16) ^ xor!(T_INV0, t2, 24, 8) ^ kw[1];
+            r2 = xor!(T_INV0, t2, 0, 0) ^ xor!(T_INV0, t1, 8, 24) ^ xor!(T_INV0, t0, 16, 16) ^ xor!(T_INV0, r3, 24, 8) ^ kw[2];
+            r3 = xor!(T_INV0, r3, 0, 0) ^ xor!(T_INV0, t2, 8, 24) ^ xor!(T_INV0, t1, 16, 16) ^ xor!(T_INV0, t0, 24, 8) ^ kw[3];
 
             kw = &wk[r];
             r = r - 1;
 
-            t0 = xor!(TINV0, r0, 0, 0) ^ xor!(TINV0, r3, 8, 24) ^ xor!(TINV0, r2, 16, 16) ^ xor!(TINV0, r1, 24, 8) ^ kw[0];
-            t1 = xor!(TINV0, r1, 0, 0) ^ xor!(TINV0, r0, 8, 24) ^ xor!(TINV0, r3, 16, 16) ^ xor!(TINV0, r2, 24, 8) ^ kw[1];
-            t2 = xor!(TINV0, r2, 0, 0) ^ xor!(TINV0, r1, 8, 24) ^ xor!(TINV0, r0, 16, 16) ^ xor!(TINV0, r3, 24, 8) ^ kw[2];
-            r3 = xor!(TINV0, r3, 0, 0) ^ xor!(TINV0, r2, 8, 24) ^ xor!(TINV0, r1, 16, 16) ^ xor!(TINV0, r0, 24, 8) ^ kw[3];
+            t0 = xor!(T_INV0, r0, 0, 0) ^ xor!(T_INV0, r3, 8, 24) ^ xor!(T_INV0, r2, 16, 16) ^ xor!(T_INV0, r1, 24, 8) ^ kw[0];
+            t1 = xor!(T_INV0, r1, 0, 0) ^ xor!(T_INV0, r0, 8, 24) ^ xor!(T_INV0, r3, 16, 16) ^ xor!(T_INV0, r2, 24, 8) ^ kw[1];
+            t2 = xor!(T_INV0, r2, 0, 0) ^ xor!(T_INV0, r1, 8, 24) ^ xor!(T_INV0, r0, 16, 16) ^ xor!(T_INV0, r3, 24, 8) ^ kw[2];
+            r3 = xor!(T_INV0, r3, 0, 0) ^ xor!(T_INV0, r2, 8, 24) ^ xor!(T_INV0, r1, 16, 16) ^ xor!(T_INV0, r0, 24, 8) ^ kw[3];
         }
 
         kw = &wk[1];
 
-        r0 = xor!(TINV0, t0, 0, 0) ^ xor!(TINV0, r3, 8, 24) ^ xor!(TINV0, t2, 16, 16) ^ xor!(TINV0, t1, 24, 8) ^ kw[0];
-        r1 = xor!(TINV0, t1, 0, 0) ^ xor!(TINV0, t0, 8, 24) ^ xor!(TINV0, r3, 16, 16) ^ xor!(TINV0, t2, 24, 8) ^ kw[1];
-        r2 = xor!(TINV0, t2, 0, 0) ^ xor!(TINV0, t1, 8, 24) ^ xor!(TINV0, t0, 16, 16) ^ xor!(TINV0, r3, 24, 8) ^ kw[2];
-        r3 = xor!(TINV0, r3, 0, 0) ^ xor!(TINV0, t2, 8, 24) ^ xor!(TINV0, t1, 16, 16) ^ xor!(TINV0, t0, 24, 8) ^ kw[3];
+        r0 = xor!(T_INV0, t0, 0, 0) ^ xor!(T_INV0, r3, 8, 24) ^ xor!(T_INV0, t2, 16, 16) ^ xor!(T_INV0, t1, 24, 8) ^ kw[0];
+        r1 = xor!(T_INV0, t1, 0, 0) ^ xor!(T_INV0, t0, 8, 24) ^ xor!(T_INV0, r3, 16, 16) ^ xor!(T_INV0, t2, 24, 8) ^ kw[1];
+        r2 = xor!(T_INV0, t2, 0, 0) ^ xor!(T_INV0, t1, 8, 24) ^ xor!(T_INV0, t0, 16, 16) ^ xor!(T_INV0, r3, 24, 8) ^ kw[2];
+        r3 = xor!(T_INV0, r3, 0, 0) ^ xor!(T_INV0, t2, 8, 24) ^ xor!(T_INV0, t1, 16, 16) ^ xor!(T_INV0, t0, 24, 8) ^ kw[3];
 
         // the final round's table is a simple function of Si so we don't use a whole other four tables for it
 

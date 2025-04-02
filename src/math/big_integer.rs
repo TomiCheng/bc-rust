@@ -1,15 +1,15 @@
+use crate::math::raw::internal_mod::{inverse_u32, inverse_u64};
+use crate::util::pack::{be_to_u32_buffer, be_to_u32_low, le_to_u32_low, u32_to_be_bytes};
+use crate::{Error, Result};
+use anyhow::{bail, ensure};
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::random::{DefaultRandomSource, RandomSource};
 use std::sync::{Arc, LazyLock, OnceLock};
 
-use crate::math::raw::internal_mod::{inverse_u32, inverse_u64};
-use crate::util::pack::{be_to_u32_buffer, be_to_u32_low, le_to_u32_low, u32_to_be_bytes};
-use crate::{BcError, Result};
-
-const IMASK: i64 = 0xFFFFFFFF;
-const UIMASK: u64 = 0xFFFFFFFF;
+const I_MASK: i64 = 0xFFFFFFFF;
+const U_I_MASK: u64 = 0xFFFFFFFF;
 
 const C_ZERO_MAGNITUDE: Vec<u32> = Vec::new();
 const C_BYTES_PRE_INT: usize = size_of::<u32>();
@@ -156,9 +156,12 @@ impl BigInteger {
     /// assert_eq!(result_radix10, result_radix16);
     /// ```
     pub fn with_string_radix(str: &str, radix: u32) -> Result<Self> {
-        anyhow::ensure!(
+        ensure!(
             !str.is_empty(),
-            BcError::invalid_argument("Zero length BigInteger", "str")
+            Error::InvalidInput {
+                msg: "Zero length BigInteger".to_string(),
+                parameter: "str".to_string(),
+            }
         );
 
         let chunk: u32;
@@ -186,7 +189,10 @@ impl BigInteger {
                 re = &(*RADIX_16E);
             }
             _ => {
-                anyhow::bail!(BcError::invalid_argument("Invalid radix", "radix"));
+                bail!(Error::InvalidInput {
+                    msg: "Invalid radix".to_string(),
+                    parameter: "radix".to_string(),
+                });
             }
         };
 
@@ -226,22 +232,22 @@ impl BigInteger {
                 let bi = BigInteger::with_u64(i);
                 match radix {
                     2 => {
-                        anyhow::ensure!(
+                        ensure!(
                             i < 2,
-                            BcError::invalid_argument(
-                                &format!("Bad character in radix 2 string: {}", s),
-                                "radix"
-                            )
+                            Error::InvalidInput {
+                                msg: format!("Bad character in radix 2 string: {}", s),
+                                parameter: "radix".to_string(),
+                            }
                         );
                         b = b.shift_left(1);
                     }
                     8 => {
-                        anyhow::ensure!(
+                        ensure!(
                             i < 8,
-                            BcError::invalid_argument(
-                                &format!("Bad character in radix 8 string: {}", s),
-                                "radix"
-                            )
+                            Error::InvalidInput {
+                                msg: format!("Bad character in radix 8 string: {}", s),
+                                parameter: "radix".to_string()
+                            }
                         );
                         b = b.shift_left(3);
                     }
@@ -309,9 +315,12 @@ impl BigInteger {
     /// # Errors
     /// Returns `Error` if the sign is invalid.
     pub fn with_sign_buffer_big_endian(sign: i32, buffer: &[u8], big_endian: bool) -> Result<Self> {
-        anyhow::ensure!(
-            sign == 0 || sign == 1 || sign == -1,
-            BcError::invalid_argument("Invalid sign value", "sign")
+        ensure!(
+            sign >= -1 && sign <= 1,
+            Error::InvalidInput {
+                msg: "Invalid sign value".to_string(),
+                parameter: "sign".to_string(),
+            }
         );
         if sign == 0 {
             return Ok((*ZERO).clone());
@@ -350,7 +359,7 @@ impl BigInteger {
         BigInteger::with_i32(-value).negate()
     }
     pub fn with_u32(value: u32) -> BigInteger {
-        return BigInteger::new(1, Arc::new(vec![value]));
+        BigInteger::new(1, Arc::new(vec![value]))
     }
     pub fn with_u64(value: u64) -> BigInteger {
         let msw = (value >> 32) as u32;
@@ -358,7 +367,7 @@ impl BigInteger {
         if msw == 0 {
             return BigInteger::with_u32(lsw);
         }
-        return BigInteger::new(1, Arc::new(vec![msw, lsw]));
+        BigInteger::new(1, Arc::new(vec![msw, lsw]))
     }
     pub fn with_i64(value: i64) -> BigInteger {
         if value >= 0 {
@@ -372,7 +381,7 @@ impl BigInteger {
             return BigInteger::with_u64(!value as u64).not();
         }
 
-        return BigInteger::with_i64(-value).negate();
+        BigInteger::with_i64(-value).negate()
     }
     pub fn with_random(size_in_bits: usize, random: &mut dyn RandomSource) -> BigInteger {
         if size_in_bits == 0 {
@@ -393,9 +402,12 @@ impl BigInteger {
         certainty: i32,
         random: &mut dyn RandomSource,
     ) -> Result<Self> {
-        anyhow::ensure!(
+        ensure!(
             size_in_bits >= 2,
-            BcError::invalid_argument("size_in_bits < 2", "size_in_bits")
+            Error::InvalidInput {
+                msg: "size_in_bits < 2".to_string(),
+                parameter: "size_in_bits".to_string(),
+            }
         );
         if size_in_bits == 2 {
             return if std::random::random::<u32>() % 2 == 0 {
@@ -451,17 +463,17 @@ impl BigInteger {
         if check_mag {
             let sub_slice = strip_prefix_value(magnitude.as_slice(), 0x0);
             if sub_slice.is_empty() {
-                return Self::new(0, Arc::new(C_ZERO_MAGNITUDE));
+                Self::new(0, Arc::new(C_ZERO_MAGNITUDE))
             } else {
-                return Self::new(sign, Arc::new(sub_slice.to_vec()));
+                Self::new(sign, Arc::new(sub_slice.to_vec()))
             }
         } else {
-            return Self::new(sign, magnitude);
+            Self::new(sign, magnitude)
         }
     }
     pub fn abs(&self) -> Self {
         if self.sign >= 0 {
-            return Self::new(self.sign, self.magnitude.clone());
+            Self::new(self.sign, self.magnitude.clone())
         } else {
             self.negate()
         }
@@ -474,7 +486,7 @@ impl BigInteger {
             return self.add_to_magnitude(&other.magnitude);
         }
         if other.sign == 0 {
-            return self.clone();
+            self.clone()
         } else if other.sign < 0 {
             return self.subtract(&other.negate());
         } else {
@@ -528,12 +540,12 @@ impl BigInteger {
         if compare == 0 {
             return (*ZERO).clone();
         }
-        let (bigun, lilun) = if compare < 0 {
+        let (bi, li) = if compare < 0 {
             (other, self)
         } else {
             (self, other)
         };
-        let magnitude = do_sub_big_lil(bigun.magnitude.as_slice(), lilun.magnitude.as_slice());
+        let magnitude = do_sub_big_lil(bi.magnitude.as_slice(), li.magnitude.as_slice());
         BigInteger::with_check_mag(self.sign * compare, Arc::new(magnitude), true)
     }
     pub fn and(&self, other: &BigInteger) -> BigInteger {
@@ -646,7 +658,7 @@ impl BigInteger {
     pub fn get_bit_count(&self) -> &usize {
         self.bits.get_or_init(|| {
             if self.sign < 0 {
-                return *(self.not().get_bit_count());
+                *(self.not().get_bit_count())
             } else {
                 let mut sum = 0usize;
                 for i in 0..self.magnitude.len() {
@@ -675,7 +687,7 @@ impl BigInteger {
                 true,
             );
         }
-        return self.add_to_magnitude(&(*ONE).magnitude.as_slice());
+        self.add_to_magnitude(&(*ONE).magnitude.as_slice())
     }
     pub fn bit_length(&self) -> &usize {
         self.bit_length.get_or_init(|| {
@@ -687,9 +699,12 @@ impl BigInteger {
         })
     }
     pub fn divide(&self, other: &BigInteger) -> Result<BigInteger> {
-        anyhow::ensure!(
+        ensure!(
             other.sign != 0,
-            BcError::invalid_argument("divide by zero", "other")
+            Error::InvalidInput {
+                msg: "divide by zero".to_string(),
+                parameter: "other".to_string(),
+            }
         );
         if self.sign == 0 {
             return Ok((*ZERO).clone());
@@ -722,11 +737,11 @@ impl BigInteger {
             return self.shift_left(-n);
         }
         if n as usize >= *self.bit_length() {
-            if self.sign < 0 {
-                return (*ONE).negate();
+            return if self.sign < 0 {
+                (*ONE).negate()
             } else {
-                return (*ZERO).clone();
-            }
+                (*ZERO).clone()
+            };
         }
         let result_length = (self.bit_length() - (n as usize) + 31) >> 5;
         let mut res = vec![0u32; result_length];
@@ -753,7 +768,7 @@ impl BigInteger {
             panic!("divide by zero");
         }
         if self.sign == 0 {
-            return ((*ZERO).clone(), (*ZERO).clone());
+            ((*ZERO).clone(), (*ZERO).clone())
         } else if other.quick_pow2_check() {
             let e = other.abs().bit_length() - 1;
             let quotient = self.abs().shift_right(e as i32);
@@ -806,13 +821,16 @@ impl BigInteger {
             u = v;
             v = r;
         }
-        return Ok(u);
+        Ok(u)
     }
 
     pub fn r#mod(&self, modulus: &BigInteger) -> Result<BigInteger> {
-        anyhow::ensure!(
+        ensure!(
             modulus.sign != 0,
-            BcError::invalid_argument("divide by zero", "modulus")
+            Error::InvalidInput {
+                msg: "divide by zero".to_string(),
+                parameter: "modulus".to_string(),
+            }
         );
         let biggie = self.remainder(modulus)?;
         if biggie.sign >= 0 {
@@ -823,9 +841,12 @@ impl BigInteger {
     }
 
     pub fn remainder(&self, division: &BigInteger) -> Result<BigInteger> {
-        anyhow::ensure!(
+        ensure!(
             division.sign != 0,
-            BcError::invalid_argument("divide by zero", "division")
+            Error::InvalidInput {
+                msg: "divide by zero".to_string(),
+                parameter: "division".to_string(),
+            }
         );
         if self.sign == 0 {
             return Ok((*ZERO).clone());
@@ -900,9 +921,9 @@ impl BigInteger {
             return 0;
         }
         let n = self.magnitude.len();
-        let mut v = (self.magnitude[n - 1] as i64) & IMASK;
+        let mut v = (self.magnitude[n - 1] as i64) & I_MASK;
         if n > 1 {
-            v |= ((self.magnitude[n - 2] as i64) & IMASK) << 32;
+            v |= ((self.magnitude[n - 2] as i64) & I_MASK) << 32;
         }
         if self.sign < 0 {
             v.wrapping_neg()
@@ -929,7 +950,10 @@ impl BigInteger {
             10 => {}
             16 => {}
             _ => {
-                anyhow::bail!(BcError::invalid_argument("Invalid radix", "radix"));
+                bail!(Error::InvalidInput {
+                    msg: "Invalid radix".to_string(),
+                    parameter: "radix".to_string(),
+                });
             }
         }
 
@@ -992,7 +1016,7 @@ impl BigInteger {
                     append_zero_extended_string(&mut sb, &format!("{:x}", self.magnitude[pos]), 8);
                 }
             }
-            // TODO This could work for other radices if there is an alternative to Convert.ToString method
+            // TODO This could work for other dices if there is an alternative to Convert.ToString method
             10 => {
                 let q = self.abs();
                 if *q.bit_length() < 64 {
@@ -1022,9 +1046,9 @@ impl BigInteger {
             return 0;
         }
         let n = self.magnitude.len();
-        let mut v = self.magnitude[n - 1] as i64 & IMASK;
+        let mut v = self.magnitude[n - 1] as i64 & I_MASK;
         if n > 1 {
-            v |= (self.magnitude[n - 2] as i64 & IMASK) << 32;
+            v |= (self.magnitude[n - 2] as i64 & I_MASK) << 32;
         }
         if self.sign < 0 {
             -v
@@ -1091,7 +1115,7 @@ impl BigInteger {
             return false;
         }
         let word = self.magnitude[self.magnitude.len() - 1 - word_num];
-        return ((word >> (n % 32)) & 1) != 0;
+        ((word >> (n % 32)) & 1) != 0
     }
 
     fn check_probable_prime(
@@ -1104,7 +1128,7 @@ impl BigInteger {
         debug_assert!(self > &(*TWO));
         debug_assert!(self.test_bit(0));
 
-        // Try to reduce the penalty for really small numbers
+        // Try to reduce the penalty for tiny numbers
         let num_lists = std::cmp::min(self.bit_length() - 1, PRIME_LISTS.len());
         for i in 0..num_lists {
             let test = self.remainder_with_u32(*(&(*PRIME_PRODUCTS)[i]));
@@ -1123,7 +1147,7 @@ impl BigInteger {
         // }
 
         // TODO Is it worth trying to create a hybrid of these two?
-        return self.rabin_miller_test_with_randomly_selected(certainty, random, randomly_selected);
+        self.rabin_miller_test_with_randomly_selected(certainty, random, randomly_selected)
 
         // // self.solovay_strassen_test(certainty, random);
         // let rb_test = self.rabin_miller_test(certainty, random);
@@ -1135,7 +1159,7 @@ impl BigInteger {
     }
 
     pub fn rabin_miller_test(&self, certainty: i32, random: &mut dyn RandomSource) -> Result<bool> {
-        return self.rabin_miller_test_with_randomly_selected(certainty, random, false);
+        self.rabin_miller_test_with_randomly_selected(certainty, random, false)
     }
 
     pub(crate) fn rabin_miller_test_with_randomly_selected(
@@ -1173,7 +1197,7 @@ impl BigInteger {
         let n = self.clone();
         let s = n.get_lowest_set_bit_mask_first(u32::MAX << 1);
         debug_assert!(s >= 1);
-        let r = n.shift_right(s as i32);
+        let r = n.shift_right(s);
 
         // NOTE: Avoid conversion to/from Montgomery form and check for R/-R as result instead
 
@@ -1223,7 +1247,7 @@ impl BigInteger {
                 break;
             }
         }
-        return Ok(true);
+        Ok(true)
     }
 
     fn get_lowest_set_bit_mask_first(&self, first_word_mask_x: u32) -> i32 {
@@ -1239,11 +1263,11 @@ impl BigInteger {
         }
 
         offset += word.trailing_zeros() as i32;
-        return offset;
+        offset
     }
 
     fn mod_pow_monty(
-        y_accm: &mut [u32],
+        y_acc_m: &mut [u32],
         b: &BigInteger,
         e: &BigInteger,
         m: &BigInteger,
@@ -1259,7 +1283,7 @@ impl BigInteger {
         if convert {
             b1 = b1.shift_left(pow_r as i32).remainder(m)?;
         }
-        debug_assert!(y_accm.len() == n + 1);
+        debug_assert!(y_acc_m.len() == n + 1);
 
         let mut z_val = b1.magnitude.to_vec();
         debug_assert!(z_val.len() <= n);
@@ -1287,7 +1311,7 @@ impl BigInteger {
 
         let mut z_squared = z_val.clone(); // todo!()
         square_monty(
-            y_accm,
+            y_acc_m,
             &mut z_squared,
             &m.magnitude,
             m_dash,
@@ -1297,7 +1321,7 @@ impl BigInteger {
         for i in 1..num_powers {
             odd_powers[i] = odd_powers[i - 1].clone();
             multiply_monty(
-                y_accm,
+                y_acc_m,
                 &mut odd_powers[i],
                 &z_squared,
                 &m.magnitude,
@@ -1310,15 +1334,15 @@ impl BigInteger {
         debug_assert!(window_list.len() > 1);
 
         let mut window = window_list[0];
-        let mut mult = window & 0xFF;
+        let mut mul_t = window & 0xFF;
         let mut last_zeros = window >> 8;
 
         let mut y_val: Vec<u32>;
-        if mult == 1 {
+        if mul_t == 1 {
             y_val = z_squared;
             last_zeros = last_zeros.wrapping_sub(1);
         } else {
-            y_val = odd_powers[(mult >> 1) as usize].clone();
+            y_val = odd_powers[(mul_t >> 1) as usize].clone();
         }
         let mut window_pos = 1;
         while {
@@ -1327,11 +1351,11 @@ impl BigInteger {
             window
         } != u32::MAX
         {
-            mult = window & 0xFF;
-            let bits = last_zeros as i32 + bit_len(mult) as i32;
+            mul_t = window & 0xFF;
+            let bits = last_zeros as i32 + bit_len(mul_t) as i32;
             for _ in 0..bits {
                 square_monty(
-                    y_accm,
+                    y_acc_m,
                     &mut y_val,
                     &m.magnitude,
                     m_dash,
@@ -1340,9 +1364,9 @@ impl BigInteger {
             }
 
             multiply_monty(
-                y_accm,
+                y_acc_m,
                 &mut y_val,
-                &odd_powers[(mult >> 1) as usize],
+                &odd_powers[(mul_t >> 1) as usize],
                 &m.magnitude,
                 m_dash,
                 small_monty_modulus,
@@ -1353,7 +1377,7 @@ impl BigInteger {
 
         for _ in 0..last_zeros {
             square_monty(
-                y_accm,
+                y_acc_m,
                 &mut y_val,
                 &m.magnitude,
                 m_dash,
@@ -1414,9 +1438,9 @@ impl BigInteger {
         }
         // TODO Handle negative values and zero
         if self.sign > 0 && n < (*self.bit_length() - 1) {
-            return self.flip_existing_bit(n);
+            self.flip_existing_bit(n)
         } else {
-            return self.or(&(*ONE).shift_left(n as i32));
+            self.or(&(*ONE).shift_left(n as i32))
         }
     }
 
@@ -1489,7 +1513,7 @@ impl BigInteger {
             return self.flip_existing_bit(n);
         }
         let n1 = &(*ONE).shift_left(n as i32);
-        return self.xor(n1);
+        self.xor(n1)
     }
 
     pub fn xor(&self, value: &BigInteger) -> BigInteger {
@@ -1562,9 +1586,11 @@ impl BigInteger {
         }
         if self.quick_pow2_check() {
             let pow_of_2 = exp as u64 * (self.bit_length() - 1) as u64;
-            anyhow::ensure!(
+            ensure!(
                 pow_of_2 <= i32::MAX as u64,
-                BcError::arithmetic_error("Result too large")
+                Error::ArithmeticError {
+                    msg: "Result too large".to_string()
+                }
             );
             return Ok((*ONE).shift_left(pow_of_2 as i32));
         }
@@ -1681,9 +1707,11 @@ impl BigInteger {
     }
 
     pub fn next_probable_prime(&self) -> Result<BigInteger> {
-        anyhow::ensure!(
+        ensure!(
             self.sign >= 0,
-            BcError::arithmetic_error("Negative numbers cannot be prime")
+            Error::ArithmeticError {
+                msg: "Negative numbers cannot be prime".to_string()
+            }
         );
         if self < &(*TWO) {
             return Ok((*TWO).clone());
@@ -1726,9 +1754,11 @@ impl BigInteger {
     }
 
     pub fn mod_pow(&self, e: &BigInteger, m: &BigInteger) -> Result<BigInteger> {
-        anyhow::ensure!(
+        ensure!(
             m.sign > 0,
-            BcError::arithmetic_error("Modulus must be positive")
+            Error::ArithmeticError {
+                msg: "Modulus must be positive".to_string()
+            }
         );
         if m == &(*ONE) {
             return Ok((*ZERO).clone());
@@ -1790,15 +1820,15 @@ impl BigInteger {
         debug_assert!(window_list.len() > 1);
 
         let mut window = window_list[0];
-        let mut mult = window & 0xFF;
+        let mut mul_t = window & 0xFF;
         let mut last_zeros = window >> 8;
 
         let mut y: BigInteger;
-        if mult == 1 {
+        if mul_t == 1 {
             y = b2.clone();
             last_zeros -= 1;
         } else {
-            y = odd_powers[(mult >> 1) as usize].clone();
+            y = odd_powers[(mul_t >> 1) as usize].clone();
         }
 
         let mut window_pos = 1;
@@ -1808,13 +1838,13 @@ impl BigInteger {
             window
         } != u32::MAX
         {
-            mult = window & 0xFF;
-            let bits = last_zeros + bit_len(mult);
+            mul_t = window & 0xFF;
+            let bits = last_zeros + bit_len(mul_t);
             for _ in 0..bits {
                 y = Self::reduce_barrett(&y.square(), m, &mr, &yu);
             }
             y = Self::reduce_barrett(
-                &(y.multiply(&odd_powers[(mult >> 1) as usize])),
+                &(y.multiply(&odd_powers[(mul_t >> 1) as usize])),
                 m,
                 &mr,
                 &yu,
@@ -1888,22 +1918,27 @@ impl BigInteger {
     }
 
     pub fn mod_inverse(&self, modulus: &BigInteger) -> Result<BigInteger> {
-        anyhow::ensure!(
+        ensure!(
             modulus.sign > 0,
-            BcError::arithmetic_error("Modulus must be positive")
+            Error::ArithmeticError {
+                msg: "Modulus must be positive".to_string()
+            }
         );
-    
+
         if modulus.quick_pow2_check() {
             return Ok(self.mod_inverse_pow2(modulus)?);
         }
 
         let d = self.remainder(modulus)?;
         let (gcd, mut x) = ext_euclid(&d, modulus);
-        anyhow::ensure!(
+
+        ensure!(
             gcd == (*ONE),
-            BcError::arithmetic_error("Numbers not relatively prime")
+            Error::ArithmeticError {
+                msg: "Numbers not relatively prime".to_string()
+            }
         );
-        
+
         if x.sign < 0 {
             x = x.add(modulus);
         }
@@ -1914,18 +1949,20 @@ impl BigInteger {
         debug_assert!(m.sign > 0);
         debug_assert!(*m.get_bit_count() == 1);
 
-        anyhow::ensure!(
+        ensure!(
             self.test_bit(0),
-            BcError::arithmetic_error("Numbers not relatively prime")
+            Error::ArithmeticError {
+                msg: "Numbers not relatively prime".to_string()
+            }
         );
-        
+
         let pow = *m.bit_length() << 1;
         let mut inv64 = inverse_u64(self.get_i64_value() as u64) as i64;
         if pow < 64 {
             inv64 &= (1 << pow) - 1;
         }
 
-        let mut x = BigInteger::with_i64(inv64 as i64);
+        let mut x = BigInteger::with_i64(inv64);
 
         if pow > 64 {
             let d = self.remainder(m)?;
@@ -1975,8 +2012,8 @@ impl BigInteger {
 }
 impl PartialEq for BigInteger {
     fn eq(&self, other: &Self) -> bool {
-        return self.sign == other.sign
-            && is_equal_magnitude(self.magnitude.as_slice(), other.magnitude.as_slice());
+        self.sign == other.sign
+            && is_equal_magnitude(self.magnitude.as_slice(), other.magnitude.as_slice())
     }
 }
 
@@ -2041,11 +2078,11 @@ fn init_le(buffer: &[u8]) -> (Vec<u32>, i32) {
     if (buffer[buffer.len() - 1] as i8) >= 0 {
         let magnitude = make_magnitude_le(buffer);
         let sign = if magnitude.is_empty() { 0 } else { 1 };
-        return (magnitude, sign);
+        (magnitude, sign)
     } else {
         let magnitude = make_magnitude_le_negative(buffer);
         let sign = -1;
-        return (magnitude, sign);
+        (magnitude, sign)
     }
 }
 
@@ -2149,7 +2186,7 @@ fn make_magnitude_le(buffer: &[u8]) -> Vec<u32> {
         magnitude[i] =
             u32::from_le_bytes(sub_slice[pos..(pos + C_BYTES_PRE_INT)].try_into().unwrap());
     }
-    return magnitude;
+    magnitude
 }
 
 fn make_magnitude_le_negative(buffer: &[u8]) -> Vec<u32> {
@@ -2212,7 +2249,7 @@ fn compare_no_leading_zeros(x: &[u32], y: &[u32]) -> i32 {
         x_index += 1;
         y_index += 1;
     }
-    return 0;
+    0
 }
 
 fn do_sub_big_lil(big: &[u32], lil: &[u32]) -> Vec<u32> {
@@ -2235,12 +2272,12 @@ fn subtract(x: &mut [u32], y: &[u32]) {
             it -= 1;
             it as usize
         }] as i64
-            & IMASK)
+            & I_MASK)
             - (y[{
                 iv -= 1;
                 iv as usize
             }] as i64
-                & IMASK)
+                & I_MASK)
             + borrow as i64;
         x[it as usize] = m as u32;
         borrow = (m >> 63) as i32;
@@ -2260,36 +2297,36 @@ fn subtract(x: &mut [u32], y: &[u32]) {
 }
 
 fn calc_bit_length(sign: i32, magnitude: &[u32]) -> usize {
-    let mut indx = 0usize;
+    let mut index = 0usize;
     loop {
-        if indx >= magnitude.len() {
+        if index >= magnitude.len() {
             return 0;
         }
-        if magnitude[indx] != 0 {
+        if magnitude[index] != 0 {
             break;
         }
-        indx += 1;
+        index += 1;
     }
 
-    // bit length for everything after the first int
-    let mut bit_length = 32 * ((magnitude.len() - indx) - 1);
+    // a bit of length for everything after the first int
+    let mut bit_length = 32 * ((magnitude.len() - index) - 1);
 
-    // and determine bitlength of first int
-    let first_mag = magnitude[indx];
+    // and determine a bit length of first int
+    let first_mag = magnitude[index];
     bit_length += bit_len(first_mag) as usize;
 
     // Check for negative powers of two
     if sign < 0 && ((first_mag & (-(first_mag as i64)) as u32) == first_mag) {
         loop {
             if {
-                indx += 1;
-                indx
+                index += 1;
+                index
             } >= magnitude.len()
             {
                 bit_length -= 1;
                 break;
             }
-            if magnitude[indx] == 0 {
+            if magnitude[index] == 0 {
                 // nothing
             } else {
                 break;
@@ -2328,7 +2365,7 @@ fn divide(x: &mut [u32], y: &[u32]) -> Vec<u32> {
 
     debug_assert!(y_start < y.len());
 
-    let mut xy_cmp = compare_no_leading_zeros(&x[x_start as usize..], &y[y_start as usize..]);
+    let mut xy_cmp = compare_no_leading_zeros(&x[x_start..], &y[y_start..]);
     let mut count: Vec<u32>;
 
     if xy_cmp > 0 {
@@ -2336,33 +2373,33 @@ fn divide(x: &mut [u32], y: &[u32]) -> Vec<u32> {
         let mut x_bit_length = calc_bit_length(1, &x[x_start..]);
         let mut shift = x_bit_length as isize - y_bit_length as isize;
 
-        let mut icount: Vec<u32>;
+        let mut i_count: Vec<u32>;
         let mut i_count_start = 0;
 
         let mut c: Vec<u32>;
         let mut c_start = 0;
         let mut c_bit_length = y_bit_length;
         if shift > 0 {
-            icount = vec![0u32; (shift as usize >> 5) + 1];
-            icount[0] = 1u32 << (shift as u32 % 32);
+            i_count = vec![0u32; (shift as usize >> 5) + 1];
+            i_count[0] = 1u32 << (shift as u32 % 32);
 
             c = shift_left(y, shift as usize);
             c_bit_length += shift as usize;
         } else {
-            icount = vec![1u32];
+            i_count = vec![1u32];
             let len = y.len() - y_start;
 
             c = vec![0u32; len];
-            c.copy_from_slice(&y[y_start as usize..]);
+            c.copy_from_slice(&y[y_start..]);
         }
-        count = vec![0u32; icount.len()];
+        count = vec![0u32; i_count.len()];
         loop {
             if c_bit_length < x_bit_length
-                || compare_no_leading_zeros(&x[x_start as usize..], &c[c_start..]) >= 0
+                || compare_no_leading_zeros(&x[x_start..], &c[c_start..]) >= 0
             {
-                subtract(&mut x[x_start as usize..], &c[c_start..]);
-                add_magnitudes(&mut count, &icount);
-                while x[x_start as usize] == 0 {
+                subtract(&mut x[x_start..], &c[c_start..]);
+                add_magnitudes(&mut count, &i_count);
+                while x[x_start] == 0 {
                     x_start += 1;
                     if x_start == x.len() {
                         return count;
@@ -2384,7 +2421,7 @@ fn divide(x: &mut [u32], y: &[u32]) -> Vec<u32> {
             shift = c_bit_length as isize - x_bit_length as isize;
             if shift == 1 {
                 let first_c = c[c_start] >> 1;
-                let first_x = x[x_start as usize];
+                let first_x = x[x_start];
                 if first_c > first_x {
                     shift += 1;
                 }
@@ -2392,18 +2429,18 @@ fn divide(x: &mut [u32], y: &[u32]) -> Vec<u32> {
             if shift < 2 {
                 shift_right_one_in_place(&mut c[c_start..]);
                 c_bit_length -= 1;
-                shift_right_one_in_place(&mut icount[i_count_start..])
+                shift_right_one_in_place(&mut i_count[i_count_start..])
             } else {
                 shift_right_in_place(&mut c[c_start..], shift);
                 c_bit_length -= shift as usize;
-                shift_right_in_place(&mut icount[i_count_start..], shift);
+                shift_right_in_place(&mut i_count[i_count_start..], shift);
             }
 
             while c[c_start] == 0 {
                 c_start += 1;
             }
 
-            while icount[i_count_start] == 0 {
+            while i_count[i_count_start] == 0 {
                 i_count_start += 1;
             }
         }
@@ -2412,7 +2449,7 @@ fn divide(x: &mut [u32], y: &[u32]) -> Vec<u32> {
     }
     if xy_cmp == 0 {
         add_magnitudes(count.as_mut_slice(), &(*ONE).magnitude);
-        for i in &mut x[x_start as usize..] {
+        for i in &mut x[x_start..] {
             *i = 0;
         }
     }
@@ -2459,10 +2496,10 @@ fn shift_right_one_in_place(mag: &mut [u32]) {
     let mut i = mag.len();
     let mut m = mag[i - 1];
 
-    while ({
+    while {
         i -= 1;
         i
-    } > 0)
+    } > 0
     {
         let next = mag[i - 1];
         mag[i] = (m >> 1) | (next << 31);
@@ -2623,7 +2660,7 @@ fn square(w: &mut [u32], x: &[u32]) {
                 w_base -= 1;
                 w_base as usize
             }] as u64
-                & UIMASK)
+                & U_I_MASK)
                 + (((prod as u32) << 1) as u64);
             w[w_base as usize] = c as u32;
             c = (c >> 32) + (prod >> 31);
@@ -2706,8 +2743,8 @@ fn get_window_list(mag: &[u32], extra_bits: usize) -> Vec<u32> {
     let mut bit_pos = 33 - leading_bits;
     v = v.wrapping_shl(bit_pos);
 
-    let mut mult = 1;
-    let mult_limit = 1 << extra_bits;
+    let mut mul_t = 1;
+    let mul_t_limit = 1 << extra_bits;
     let mut zeros = 0;
 
     let mut i = 0;
@@ -2715,12 +2752,12 @@ fn get_window_list(mag: &[u32], extra_bits: usize) -> Vec<u32> {
         while bit_pos < 32 {
             bit_pos += 1;
 
-            if mult < mult_limit {
-                mult = (mult << 1) | (v >> 31);
+            if mul_t < mul_t_limit {
+                mul_t = (mul_t << 1) | (v >> 31);
             } else if (v as i32) < 0 {
-                result[result_pos] = create_window_entry(mult, zeros);
+                result[result_pos] = create_window_entry(mul_t, zeros);
                 result_pos += 1;
-                mult = 1;
+                mul_t = 1;
                 zeros = 0;
             } else {
                 zeros += 1;
@@ -2731,7 +2768,7 @@ fn get_window_list(mag: &[u32], extra_bits: usize) -> Vec<u32> {
 
         i += 1;
         if i == mag.len() {
-            result[result_pos] = create_window_entry(mult, zeros);
+            result[result_pos] = create_window_entry(mul_t, zeros);
             result_pos += 1;
             break;
         }
@@ -2744,12 +2781,12 @@ fn get_window_list(mag: &[u32], extra_bits: usize) -> Vec<u32> {
     result
 }
 
-fn create_window_entry(mut mult: u32, mut zeros: u32) -> u32 {
-    debug_assert!(mult > 0);
-    let tz = mult.trailing_zeros();
-    mult >>= tz;
+fn create_window_entry(mut mul_t: u32, mut zeros: u32) -> u32 {
+    debug_assert!(mul_t > 0);
+    let tz = mul_t.trailing_zeros();
+    mul_t >>= tz;
     zeros += tz;
-    mult | (zeros << 8)
+    mul_t | (zeros << 8)
 }
 
 /// m_dash = -m ^ (-1) mod b
@@ -2776,7 +2813,7 @@ fn square_monty(a: &mut [u32], x: &mut [u32], m: &[u32], m_dash: u32, small_mont
             let prod1 = x0 * x[j as usize] as u64;
             prod2 = t.wrapping_mul(m[j as usize] as u64);
 
-            carry += (prod2 & UIMASK) + ((prod1 as u32) << 1) as u64;
+            carry += (prod2 & U_I_MASK) + ((prod1 as u32) << 1) as u64;
             a[(j + 2) as usize] = carry as u32;
             carry = (carry >> 32) + (prod1 >> 31) + (prod2 >> 32);
         }
@@ -2805,7 +2842,7 @@ fn square_monty(a: &mut [u32], x: &mut [u32], m: &[u32], m_dash: u32, small_mont
             let prod1 = xi * xi;
             let prod2 = t.wrapping_mul(m[i as usize] as u64);
 
-            carry += (prod1 & UIMASK) + (prod2 as u32) as u64 + a[(i + 1) as usize] as u64;
+            carry += (prod1 & U_I_MASK) + (prod2 as u32) as u64 + a[(i + 1) as usize] as u64;
             a[(i + 2) as usize] = carry as u32;
             carry = (carry >> 32) + (prod1 >> 32) + (prod2 >> 32);
         }
@@ -2814,7 +2851,7 @@ fn square_monty(a: &mut [u32], x: &mut [u32], m: &[u32], m_dash: u32, small_mont
             let prod1 = xi * x[j as usize] as u64;
             let prod2 = t * m[j as usize] as u64;
 
-            carry += (prod2 & UIMASK) + ((prod1 as u32) << 1) as u64 + a[(j + 1) as usize] as u64;
+            carry += (prod2 & U_I_MASK) + ((prod1 as u32) << 1) as u64 + a[(j + 1) as usize] as u64;
             a[(j + 2) as usize] = carry as u32;
             carry = (carry >> 32) + (prod1 >> 31) + (prod2 >> 32);
         }
@@ -2895,10 +2932,10 @@ fn multiply_monty(
         carry = (carry >> 32) + (prod2 >> 32);
 
         for j in (0..=(n - 2)).rev() {
-            let prod1 = xi as u64 * y[j] as u64;
+            let prod1 = xi * y[j] as u64;
             prod2 = t.wrapping_mul(m[j] as u64);
 
-            carry += (prod1 & UIMASK) + (prod2 as u32) as u64;
+            carry += (prod1 & U_I_MASK) + (prod2 as u32) as u64;
             a[j + 2] = carry as u32;
             carry = (carry >> 32) + (prod1 >> 32) + (prod2 >> 32);
         }
@@ -2911,7 +2948,7 @@ fn multiply_monty(
         let a0 = a[n];
         let xi = x[i] as u64;
         let mut prod1 = xi * y0 as u64;
-        let mut carry = (prod1 & UIMASK) + a0 as u64;
+        let mut carry = (prod1 & U_I_MASK) + a0 as u64;
         let t = (carry as u32).wrapping_mul(m_dash) as u64;
 
         let mut prod2 = t.wrapping_mul(m[n - 1] as u64);
@@ -2920,10 +2957,10 @@ fn multiply_monty(
         carry = (carry >> 32) + (prod1 >> 32) + (prod2 >> 32);
 
         for j in (0..=(n - 2)).rev() {
-            prod1 = xi as u64 * y[j] as u64;
+            prod1 = xi * y[j] as u64;
             prod2 = t.wrapping_mul(m[j] as u64);
 
-            carry += (prod1 & UIMASK) + (prod2 as u32) as u64 + a[j + 1] as u64;
+            carry += (prod1 & U_I_MASK) + (prod2 as u32) as u64 + a[j + 1] as u64;
             a[j + 2] = carry as u32;
             carry = (carry >> 32) + (prod1 >> 32) + (prod2 >> 32);
         }
@@ -2942,7 +2979,7 @@ fn multiply_monty(
 
 /// mDash = -m^(-1) mod b
 fn montgomery_reduce(x: &mut [u32], m: &[u32], m_dash: u32) {
-    // NOTE: Not a general purpose reduction (which would allow x up to twice the bitlength of m)
+    // NOTE: Not a general purpose reduction (which would allow x up to twice the bit length of m)
     debug_assert!(x.len() == m.len());
 
     let n = m.len();
@@ -2983,13 +3020,13 @@ fn multiply(x: &mut [u32], y: &[u32], z: &[u32]) {
 
     loop {
         i -= 1;
-        let a = z[i] as i64 & IMASK;
+        let a = z[i] as i64 & I_MASK;
         let mut val = 0i64;
 
         if a != 0 {
             for j in (0..y.len()).rev() {
-                val += a.wrapping_mul(y[j] as i64 & IMASK)
-                    + (x[(x_base + j as isize) as usize] as i64 & IMASK);
+                val += a.wrapping_mul(y[j] as i64 & I_MASK)
+                    + (x[(x_base + j as isize) as usize] as i64 & I_MASK);
                 x[(x_base + j as isize) as usize] = val as u32;
                 val = ((val as u64) >> 32) as i64;
             }

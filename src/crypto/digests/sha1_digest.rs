@@ -11,7 +11,7 @@ const DIGEST_LENGTH: usize = 20;
 
 /// implementation of SHA-1 as outlined in "Handbook of Applied Cryptography", pages 346 - 349.  
 /// 
-/// It is interesting to ponder why the, apart from the extra IV, the other difference here from MD5
+/// It is interesting to ponder why the apart from the extra IV, the other difference here from MD5
 /// is the "endianness" of the word processing!
 #[derive(Clone)]
 pub struct Sha1Digest {
