@@ -1,17 +1,40 @@
+use std::hash::{Hash, Hasher};
 use crate::{Error, Result};
 use anyhow::ensure;
-use crate::asn1::Asn1Object;
 
-// use std::hash::{Hash, Hasher};
-// use std::fmt;
-// use crate::{invalid_argument, Error, Result};
-//
+#[derive(Debug, Clone)]
 pub struct Asn1BitString {
-    //     pad_bits: u8,
     contents: Vec<u8>,
 }
-//
+
 impl Asn1BitString {
+    pub fn with_u32(value: u32) -> Self {
+        let mut named_bits = value;
+        if named_bits == 0 {
+            return Asn1BitString { contents: vec![0] };
+        }
+
+        let bits = 32 - u32::leading_zeros(value);
+        let bytes = ((bits + 7) / 8) as usize;
+        debug_assert!(0 < bytes && bytes <= 4);
+        let mut data = vec![0u8; 1 + bytes];
+        for i in 1..bytes {
+            data[i] = named_bits as u8;
+            named_bits >>= 8;
+        }
+
+        debug_assert!((named_bits & 0xFF) != 0);
+        data[bytes] = named_bits as u8;
+
+        let mut pad_bits = 0;
+        while (named_bits & (1 << pad_bits)) == 0 {
+            pad_bits += 1;
+        }
+
+        debug_assert!(pad_bits < 8);
+        data[0] = pad_bits;
+        Asn1BitString { contents: data }
+    }
     pub fn create_primitive(contents: Vec<u8>) -> Result<Self> {
         let length = contents.len();
         ensure!(
@@ -38,9 +61,35 @@ impl Asn1BitString {
                 // TODO: DlBitString
             }
         }
-        Ok(Asn1BitString {
-            contents
-        })
+        Ok(Asn1BitString { contents })
+    }
+    pub fn to_vec(&self) -> Vec<u8> {
+        if self.contents.len() == 1 {
+            return vec![];
+        }
+        let pad_bits = self.contents[0];
+        let mut result = self.contents[1..].to_vec();
+        // DER requires pad bits be zero
+        let last_index = result.len() - 1;
+        result[last_index] &= 0xFF << pad_bits;
+        result
+    }
+    pub fn to_u32(&self) -> u32 {
+        let mut value = 0;
+        let end = (self.contents.len() - 1).min(5);
+        for i in 1..end {
+            let byte = self.contents[i];
+            value |= (byte as u32) << ((i - 1) * 8);
+        }
+        if 1 <= end && end < 5 {
+            let pad_bits = self.contents[0];
+            let last_byte = self.contents[end] & (0xFF << pad_bits);
+            value |= (last_byte as u32) << ((end - 1) * 8);
+        }
+        value
+    }
+    pub fn pad_bits(&self) -> u8 {
+        self.contents[0]
     }
 }
 
@@ -74,9 +123,7 @@ impl Asn1BitString {
 //             pad_bits,
 //         })
 //     }
-//     pub fn pad_bits(&self) -> u8 {
-//         self.pad_bits
-//     }
+
 //     pub fn contents(&self) -> &Vec<u8> {
 //         &self.contents
 //     }
@@ -87,69 +134,64 @@ impl Asn1BitString {
 //         self.pad_bits() == 0
 //     }
 // }
-//
-// impl Default for Asn1BitString {
-//     fn default() -> Self {
-//         Asn1BitString {
-//             contents: vec![],
-//             pad_bits: 0,
+
+impl Default for Asn1BitString {
+    fn default() -> Self {
+        Asn1BitString {
+            contents: vec![0u8],
+        }
+    }
+}
+
+impl PartialEq for Asn1BitString {
+    fn eq(&self, other: &Self) -> bool {
+        if self.contents.len() != other.contents.len() {
+            return false;
+        }
+        if self.contents.len() == 1 {
+            return true;
+        }
+        let last = self.contents.len() - 1;
+        for i in 0..last {
+            if self.contents[i] != other.contents[i] {
+                return false;
+            }
+        }
+        let pad_bits = self.contents[0];
+        let left_last_byte = self.contents[last] & (0xFF << pad_bits);
+        let right_last_byte = other.contents[last] & (0xFF << pad_bits);
+        if left_last_byte != right_last_byte {
+            return false;
+        }
+        true
+    }
+}
+
+impl Hash for Asn1BitString {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        if self.contents.len() < 2 {
+            return;
+        }
+        state.write(&self.contents[0..(self.contents.len() - 1)]);
+        let pad_bits = self.contents[0];
+        let last_byte = self.contents[self.contents.len() - 1] & (0xFF << pad_bits);
+        state.write_u8(last_byte);
+    }
+}
+
+// impl fmt::Display for Asn1BitString {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         let buffer = self
+//             .get_der_encoded()
+//             .expect("DerBitStringImpl::get_der_encoded failed");
+//         write!(f, "#")?;
+//         for byte in buffer {
+//             write!(f, "{:02x}", byte)?;
 //         }
+//         Ok(())
 //     }
 // }
-//
-// impl PartialEq for Asn1BitString {
-//     fn eq(&self, other: &Self) -> bool {
-//         if self.contents.len() != other.contents.len() {
-//             return false;
-//         }
-//         if self.contents.len() == 0 {
-//             return true;
-//         }
-//         for i in 0..self.contents.len() {
-//             if i == self.contents.len() - 1 {
-//                 let left = self.contents[i] & (0xFF << self.pad_bits);
-//                 let right = other.contents[i] & (0xFF << other.pad_bits);
-//                 if left != right {
-//                     return false;
-//                 }
-//             } else {
-//                 if self.contents[i] != other.contents[i] {
-//                     return false;
-//                 }
-//             }
-//         }
-//         true
-//     }
-// }
-//
-// impl Hash for Asn1BitString {
-//     fn hash<H: Hasher>(&self, state: &mut H) {
-//         if self.contents.len() == 0 {
-//             return;
-//         }
-//         let last = self.contents.len() - 1;
-//         let last_der = self.contents[last] & (0xFF << self.pad_bits);
-//         state.write_u8(self.pad_bits);
-//         for i in 0..last {
-//             state.write_u8(self.contents[i]);
-//         }
-//         state.write_u8(last_der);
-//     }
-// }
-//
-// // impl fmt::Display for Asn1BitString {
-// //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-// //         let buffer = self
-// //             .get_der_encoded()
-// //             .expect("DerBitStringImpl::get_der_encoded failed");
-// //         write!(f, "#")?;
-// //         for byte in buffer {
-// //             write!(f, "{:02x}", byte)?;
-// //         }
-// //         Ok(())
-// //     }
-// // }
-//
+
 // //     pub fn with_named_bits(named_bits: u32) -> Self {
 // //         let mut named_bits = named_bits;
 // //         if named_bits == 0 {
@@ -210,17 +252,7 @@ impl Asn1BitString {
 // //         self.contents.clone()
 // //     }
 // //
-// //     pub fn get_bytes(&self) -> Vec<u8> {
-// //         if self.contents.len() == 1 {
-// //             return vec![];
-// //         }
-// //         let pad_bits = self.contents[0];
-// //         let mut result = self.contents[1..].to_vec();
-// //         // DER requires pad bits be zero
-// //         let last_index = result.len() - 1;
-// //         result[last_index] &= 0xFF << pad_bits;
-// //         result
-// //     }
+
 // //
 // //     // pub(crate) fn with_primitive(contents: &[u8]) -> Result<sync::Arc<dyn Asn1Object>> {
 // //     //     let length = contents.len();

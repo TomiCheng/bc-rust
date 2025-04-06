@@ -11,6 +11,7 @@ use std::io::Write;
 
 pub(crate) const SIGN_EXT_SIGNED: i32 = -1;
 
+#[derive(Clone, Debug)]
 pub struct Asn1Integer {
     buffer: Vec<u8>,
     start: usize,

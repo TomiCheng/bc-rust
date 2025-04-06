@@ -8,7 +8,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::io::Write;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Asn1Boolean {
     value: u8,
 }

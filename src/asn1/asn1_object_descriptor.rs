@@ -1,4 +1,6 @@
 use crate::Result;
+
+#[derive(Debug, Clone)]
 pub struct Asn1ObjectDescriptor {}
 
 impl Asn1ObjectDescriptor {

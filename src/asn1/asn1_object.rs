@@ -2,6 +2,7 @@ use super::*;
 use crate::Result;
 use std::io;
 
+#[derive(Clone)]
 pub enum Asn1Object {
     Boolean(Asn1Boolean),
     Integer(Asn1Integer),
@@ -17,7 +18,7 @@ pub enum Asn1Object {
     Utf8String,
     RelativeOid(Asn1RelativeOid),
     Time,
-    Sequence,
+    Sequence(Asn1Sequence),
     Set,
     NumericString,
     PrintableString,
@@ -134,6 +135,10 @@ cast_variant!(Asn1ObjectIdentifier, ObjectIdentifier);
 cast_variant!(Asn1BitString, BitString);
 cast_variant!(Asn1OctetString, OctetString);
 cast_variant!(Asn1RelativeOid, RelativeOid);
+cast_variant!(Asn1UtcTime, UtcTime);
+cast_variant!(Asn1GeneralizedTime, GeneralizedTime);
+cast_variant!(Asn1Sequence, Sequence);
+
 // impl Asn1Object {
 //     pub fn new_der_boolean(value: DerBooleanImpl) -> Self {
 //         Asn1Object::DerBoolean(value)

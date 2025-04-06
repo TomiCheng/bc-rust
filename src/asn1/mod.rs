@@ -1,6 +1,7 @@
 mod asn1_bit_string;
 mod asn1_bmp_string;
 mod asn1_boolean;
+mod asn1_convertible;
 mod asn1_encodable;
 mod asn1_encoding;
 mod asn1_enumerated;
@@ -13,17 +14,21 @@ mod asn1_object_identifier;
 mod asn1_octet_string;
 mod asn1_read;
 mod asn1_relative_oid;
+mod asn1_sequence;
 mod asn1_tags;
 mod asn1_utc_time;
 mod asn1_write;
 mod definite_length_read;
 mod oid_tokenizer;
 mod primitive_encoding;
-//
+// sub modules
+pub mod x509;
+// re-export
 
 pub use asn1_bit_string::Asn1BitString;
 pub use asn1_bmp_string::Asn1BmpString;
 pub use asn1_boolean::Asn1Boolean;
+pub use asn1_convertible::Asn1Convertible;
 pub use asn1_encodable::Asn1Encodable;
 pub use asn1_enumerated::Asn1Enumerated;
 pub use asn1_generalized_time::Asn1GeneralizedTime;
@@ -35,5 +40,6 @@ pub use asn1_object_identifier::Asn1ObjectIdentifier;
 pub use asn1_octet_string::Asn1OctetString;
 pub use asn1_read::Asn1Read;
 pub use asn1_relative_oid::Asn1RelativeOid;
+pub use asn1_sequence::Asn1Sequence;
 pub use asn1_utc_time::Asn1UtcTime;
 pub use asn1_write::Asn1Write;

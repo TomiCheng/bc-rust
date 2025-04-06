@@ -1,4 +1,6 @@
 use crate::Result;
+
+#[derive(Clone, Debug)]
 pub struct Asn1OctetString {
 }
 impl Asn1OctetString {

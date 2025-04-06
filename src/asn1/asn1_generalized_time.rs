@@ -1,16 +1,17 @@
+use std::fmt;
+use std::hash::Hash;
+use std::io::Write;
 use anyhow::{bail, ensure};
-// use std::fmt;
-// use std::io;
-// use std::sync;
-// use std::any;
-// 
 use chrono::prelude::*;
- 
-// use super::*;
 use crate::{Error, Result};
-// 
-// #[derive(Debug, Clone)]
+use crate::asn1::asn1_write::{get_encoding_type, EncodingType};
+use crate::asn1::{Asn1Encodable, Asn1Write};
+use crate::asn1::asn1_encoding::Asn1Encoding;
+use crate::asn1::asn1_tags::{GENERALIZED_TIME, UNIVERSAL};
+use crate::asn1::primitive_encoding::PrimitiveEncoding;
+
 /// GeneralizedTime ASN.1 type
+#[derive(Debug, Clone)]
 pub struct Asn1GeneralizedTime {
     date_time: DateTime<Utc>,
     time_string_canonical: bool,
@@ -111,57 +112,51 @@ impl Asn1GeneralizedTime {
     pub fn date_time(&self) -> &DateTime<Utc> {
         &self.date_time
     }
-// 
-//     pub(crate) fn get_contents(&self, encoding_type: asn1_write::EncodingType) -> Vec<u8> {
-//         if encoding_type == asn1_write::EncodingType::Der && self.time_string_canonical {
-//             return to_string_canonical(&self.date_time).as_bytes().to_vec();
-//         }
-//         self.time_string.as_bytes().to_vec()
-//     }
-// 
-//     fn get_encoding_with_type(
-//         &self,
-//         encode_type: asn1_write::EncodingType,
-//     ) -> Box<dyn asn1_encoding::Asn1Encoding> {
-//         Box::new(primitive_encoding::PrimitiveEncoding::new(
-//             asn1_tags::UNIVERSAL,
-//             asn1_tags::INTEGER,
-//             sync::Arc::new(self.get_contents(encode_type)),
-//         ))
-//     }
-// }
-// 
-// impl Asn1Object for Asn1GeneralizedTime {}
-// impl Asn1Encodable for Asn1GeneralizedTime {
-//     fn get_encoded_with_encoding(&self, encoding_str: &str) -> Result<Vec<u8>> {
-//         let encoding = self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
-//         asn1_object::get_encoded_with_encoding(encoding_str, encoding.as_ref())
-//     }
-// 
-//     fn encode_to_with_encoding(
-//         &self,
-//         writer: &mut dyn io::Write,
-//         encoding_str: &str,
-//     ) -> Result<usize> {
-//         let asn1_encoding =
-//             self.get_encoding_with_type(asn1_write::get_encoding_type(encoding_str));
-//         asn1_object::encode_to_with_encoding(writer, encoding_str, asn1_encoding.as_ref())
-//     }
-// }
-// impl Asn1Convertiable for Asn1GeneralizedTime {
-//     fn to_asn1_object(&self) -> sync::Arc<dyn Asn1Object> {
-//         sync::Arc::new(self.clone())
-//     }
-//     fn as_any(&self) -> sync::Arc<dyn any::Any> {
-//         sync::Arc::new(self.clone())
-//     }
-// }
-// impl fmt::Display for Asn1GeneralizedTime {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{}", self.date_time)
-//     }
+    pub fn to_date_time(&self) -> DateTime<Utc> {
+        self.date_time
+    }
+
+    pub(crate) fn get_contents(&self, encoding_type: EncodingType) -> Vec<u8> {
+        if encoding_type == EncodingType::Der && self.time_string_canonical {
+            return to_string_canonical(&self.date_time).as_bytes().to_vec();
+        }
+        self.time_string.as_bytes().to_vec()
+    }
+    fn get_encoding_with_type(&self, encode_type: EncodingType) -> impl Asn1Encoding {
+        PrimitiveEncoding::new(UNIVERSAL, GENERALIZED_TIME, self.get_contents(encode_type))
+    }
 }
 
+impl PartialEq for Asn1GeneralizedTime {
+    fn eq(&self, other: &Self) -> bool {
+        self.date_time == other.date_time
+    }
+}
+
+impl Hash for Asn1GeneralizedTime {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.date_time.hash(state);
+    }
+}
+
+impl fmt::Display for Asn1GeneralizedTime {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.time_string_canonical {
+            write!(f, "{}", self.time_string)
+        } else {
+            write!(f, "{}", to_string_canonical(&self.date_time))
+        }
+    }
+}
+
+impl Asn1Encodable for Asn1GeneralizedTime {
+    fn encode_to_with_encoding(&self, writer: &mut dyn Write, encoding_str: &str) -> Result<usize> {
+        let encode_type = get_encoding_type(encoding_str);
+        let encoding = self.get_encoding_with_type(encode_type);
+        let mut asn1_writer = Asn1Write::create_with_encoding(writer, encoding_str);
+        encoding.encode(&mut asn1_writer)
+    }
+}
 
 fn from_str(s: &str) -> Result<DateTime<Utc>> {
     ensure!(

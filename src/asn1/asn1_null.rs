@@ -8,7 +8,7 @@ use std::fmt;
 use std::io::Write;
 
 /// A Null object.
-#[derive(Debug, PartialEq, Hash)]
+#[derive(Debug, PartialEq, Hash, Clone)]
 pub struct Asn1Null;
 
 impl Asn1Null {

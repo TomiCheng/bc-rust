@@ -10,7 +10,7 @@ use std::fmt;
 use std::io::Write;
 use std::sync::OnceLock;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Asn1ObjectIdentifier {
     identifier: OnceLock<String>,
     contents: Vec<u8>,
