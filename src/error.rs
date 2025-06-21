@@ -14,6 +14,8 @@ pub enum ErrorKind {
     Overflow,
     ParsingIntError,
     ArithmeticError,
+    InvalidCast,
+    MemoableReset,
 }
 
 impl BcError {

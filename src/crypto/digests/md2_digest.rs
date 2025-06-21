@@ -1,5 +1,6 @@
 use crate::crypto::digests::Digest;
-use crate::util::CloneableState;
+use crate::util::Memoable;
+use crate::Result;
 
 const DIGEST_LENGTH: usize = 16;
 const BYTE_LENGTH: usize = 16;
@@ -101,7 +102,7 @@ impl Digest for Md2Digest {
     }
 }
 
-impl CloneableState for Md2Digest {
+impl Memoable for Md2Digest {
     fn copy(&self) -> Self {
         Md2Digest {
             x: self.x,
@@ -113,13 +114,14 @@ impl CloneableState for Md2Digest {
         }
     }
 
-    fn restore(&mut self, other: &Self) {
+    fn restore(&mut self, other: &Self) -> Result<()> {
         self.x = other.x;
         self.m = other.m;
         self.c = other.c;
         self.x_offset = other.x_offset;
         self.m_offset = other.m_offset;
         self.c_offset = other.c_offset;
+        Ok(())
     }
 }
 /// 256-byte random permutation constructed from the digits of PI

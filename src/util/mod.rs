@@ -1,5 +1,5 @@
 pub(crate) mod pack;
 pub mod encoders;
-mod cloneable_state;
+mod memoable;
 
-pub use cloneable_state::CloneableState;
+pub use memoable::Memoable;

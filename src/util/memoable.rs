@@ -1,4 +1,7 @@
-pub trait CloneableState {
+use crate::Result;
+
+/// Utility module: defines the trait for objects whose state can be backed up (memoized).
+pub trait Memoable {
     /// Produce a copy of this object with its configuration and in its current state.
     ///
     /// # Remarks
@@ -15,7 +18,10 @@ pub trait CloneableState {
     ///
     /// # Arguments
     ///
-    /// * `other` - an object originally {@link #copy() copied} from an object of the same type as this instance.
+    /// * `other` - an object originally [`Memoable::copy`] from an object of the same type as this instance.
     ///
-    fn restore(&mut self, other: &Self);
+    /// # Errors
+    /// * `InvalidCast` - if the provided object is not of the correct type.
+    /// * `MemoableReset` - if the `other` parameter is in some other way invalid.
+    fn restore(&mut self, other: &Self) -> Result<()>;
 }

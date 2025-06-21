@@ -35,3 +35,7 @@ pub(crate) fn u32_to_be_bytes(n: u32, bs: &mut [u8]) {
     bs[2] = (n >> 8) as u8;
     bs[3] = n as u8;
 }
+
+pub(crate) fn be_to_u32(bs: &[u8]) -> u32 {
+    u32::from_be_bytes(bs.try_into().unwrap())
+}
