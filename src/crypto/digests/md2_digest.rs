@@ -1,4 +1,4 @@
-use crate::crypto::digests::Digest;
+use crate::crypto::Digest;
 use crate::util::Memoable;
 use crate::Result;
 

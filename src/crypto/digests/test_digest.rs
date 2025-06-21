@@ -1,6 +1,6 @@
 
 use std::random::RandomSource;
-use crate::crypto::digests::Digest;
+use crate::crypto::Digest;
 use crate::util::Memoable;
 use crate::util::encoders::hex::to_decode_with_str;
 use crate::security::digest_utilities::do_final;

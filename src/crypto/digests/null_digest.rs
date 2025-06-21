@@ -1,4 +1,4 @@
-use crate::crypto::digests::Digest;
+use crate::crypto::Digest;
 
 #[derive(Clone)]
 pub struct NullDigest {

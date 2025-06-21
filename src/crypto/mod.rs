@@ -1,3 +1,4 @@
 pub mod digests;
+mod digest;
 
-pub use digests::Digest;
+pub use digest::Digest;
