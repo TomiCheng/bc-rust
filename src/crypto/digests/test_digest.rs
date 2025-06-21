@@ -1,11 +1,11 @@
 
 use std::random::RandomSource;
 use crate::crypto::digests::Digest;
-use crate::util::CloneableState;
+use crate::util::Memoable;
 use crate::util::encoders::hex::to_decode_with_str;
 use crate::security::digest_utilities::do_final;
 
-pub(crate) fn test_digest<T: Digest + CloneableState + Clone>(mut digest: T, messages: &[&str], results: &[&str]) {
+pub(crate) fn test_digest<T: Digest + Memoable>(mut digest: T, messages: &[&str], results: &[&str]) {
     let mut res_buf = vec![0u8; digest.get_digest_size()];
     for i in 0..messages.len() - 1 {
          let msg = to_vec(messages[i]);
@@ -21,7 +21,7 @@ pub(crate) fn test_digest<T: Digest + CloneableState + Clone>(mut digest: T, mes
     digest.block_update(&last_v[0..last_v.len() / 2]);
     
     // clone the digest
-    let mut d = digest.clone();
+    let mut d = digest.copy();
     
     digest.block_update(&last_v[(last_v.len() / 2)..]);
     digest.do_final(&mut res_buf);
@@ -44,7 +44,7 @@ pub(crate) fn test_digest<T: Digest + CloneableState + Clone>(mut digest: T, mes
     
     assert_eq!(res_buf, last_digest, "{}: failing memo vector test", digest.algorithm_name());
     
-    digest.restore(&copy1);
+    digest.restore(&copy1).unwrap();
     digest.block_update(&last_v[(last_v.len() / 2)..]);
     digest.do_final(&mut res_buf);
     
