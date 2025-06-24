@@ -35,7 +35,12 @@ pub(crate) fn u32_to_be_bytes(n: u32, bs: &mut [u8]) {
     bs[2] = (n >> 8) as u8;
     bs[3] = n as u8;
 }
-
+pub(crate) fn u64_to_le(n: u64, bs: &mut [u8]) {
+    bs[0..size_of::<u64>()].copy_from_slice(&n.to_le_bytes())
+}
 pub(crate) fn be_to_u32(bs: &[u8]) -> u32 {
     u32::from_be_bytes(bs.try_into().unwrap())
+}
+pub(crate) fn le_to_u64(bs: &[u8]) -> u64 {
+    u64::from_le_bytes(bs.try_into().unwrap())
 }

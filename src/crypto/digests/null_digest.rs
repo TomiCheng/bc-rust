@@ -1,4 +1,5 @@
 use crate::crypto::Digest;
+use crate::Result;
 
 #[derive(Clone)]
 pub struct NullDigest {
@@ -18,19 +19,21 @@ impl Digest for NullDigest {
         self.buffer.len()
     }
 
-    fn update(&mut self, input: u8) {
+    fn update(&mut self, input: u8) -> Result<()> {
         self.buffer.push(input);
+        Ok(())
     }
 
-    fn block_update(&mut self, input: &[u8]) {
+    fn block_update(&mut self, input: &[u8]) -> Result<()> {
         self.buffer.extend_from_slice(input);
+        Ok(())
     }
 
-    fn do_final(&mut self, output: &mut [u8]) -> usize {
+    fn do_final(&mut self, output: &mut [u8]) -> Result<usize> {
         let len = self.buffer.len().min(output.len());
         output[..len].copy_from_slice(&self.buffer[..len]);
         self.reset();
-        len
+        Ok(len)
     }
 
     fn reset(&mut self) {

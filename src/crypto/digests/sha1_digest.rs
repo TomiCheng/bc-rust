@@ -2,6 +2,7 @@ use crate::crypto::Digest;
 use crate::crypto::digests::general_digest::{DigestImpl, GeneralDigest};
 use crate::util::Memoable;
 use crate::util::pack::{be_to_u32, u32_to_be_bytes};
+use crate::Result;
 
 const DIGEST_LENGTH: usize = 20;
 
@@ -212,7 +213,7 @@ impl Memoable for Sha1DigestImpl {
         }
     }
 
-    fn restore(&mut self, other: &Self) -> crate::Result<()> {
+    fn restore(&mut self, other: &Self) -> Result<()> {
         self.x.copy_from_slice(&other.x);
         self.x_offset = other.x_offset;
         self.h1 = other.h1;
@@ -248,19 +249,21 @@ impl Digest for Sha1Digest {
         self.digest_impl.get_byte_length()
     }
 
-    fn update(&mut self, input: u8) {
+    fn update(&mut self, input: u8) -> Result<()> {
         self.digest_impl.update(input);
+        Ok(())
     }
 
-    fn block_update(&mut self, input: &[u8]) {
+    fn block_update(&mut self, input: &[u8]) -> Result<()> {
         self.digest_impl.block_update(input);
+        Ok(())
     }
 
-    fn do_final(&mut self, output: &mut [u8]) -> usize {
+    fn do_final(&mut self, output: &mut [u8]) -> Result<usize> {
         self.digest_impl.finish();
         let size = self.digest_impl.as_impl_mut().do_final(output);
         Digest::reset(self);
-        size
+        Ok(size)
     }
 
     fn reset(&mut self) {
@@ -275,7 +278,7 @@ impl Memoable for Sha1Digest {
         }
     }
 
-    fn restore(&mut self, other: &Self) -> crate::Result<()> {
+    fn restore(&mut self, other: &Self) -> Result<()> {
         self.digest_impl.restore(&other.digest_impl)
     }
 }

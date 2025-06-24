@@ -10,36 +10,43 @@ pub struct BcError {
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
+    ArgumentOutOfRange,
     InvalidInput,
     Overflow,
     ParsingIntError,
     ArithmeticError,
     InvalidCast,
     MemoableReset,
+    OutputLength,
+}
+
+macro_rules! define_error_fn {
+    ($(($fn_name:ident, $kind:expr)),* $(,)?) => {
+        $(
+            pub fn $fn_name<E>(error: E) -> Self
+            where
+                E: Into<Box<dyn Error + Send + Sync>>,
+            {
+                BcError {
+                    error: error.into(),
+                    kind: $kind,
+                }
+            }
+        )*
+    };
 }
 
 impl BcError {
-    pub fn with_invalid_argument<E>(error: E) -> Self
-        where E: Into<Box<dyn Error + Send + Sync>> {
-        BcError {
-            error: error.into(),
-            kind: ErrorKind::InvalidInput,
-        }
-    }
-    pub fn with_overflow<E>(error: E) -> Self
-        where E: Into<Box<dyn Error + Send + Sync>> {
-        BcError {
-            error: error.into(),
-            kind: ErrorKind::Overflow,
-        }
-    }
-    pub fn with_arithmetic_error<E>(error: E) -> Self
-        where E: Into<Box<dyn Error + Send + Sync>> {
-        BcError {
-            error: error.into(),
-            kind: ErrorKind::ArithmeticError,
-        }
-    }
+    define_error_fn!(
+        (with_invalid_argument, ErrorKind::InvalidInput),
+        (with_overflow, ErrorKind::Overflow),
+        (with_arithmetic_error, ErrorKind::ArithmeticError),
+        (with_invalid_operation, ErrorKind::InvalidInput),
+        (with_argument_out_of_range, ErrorKind::ArgumentOutOfRange),
+        (with_output_length, ErrorKind::OutputLength),
+        (with_invalid_cast, ErrorKind::InvalidCast),
+        (with_memoable_reset, ErrorKind::MemoableReset),
+    );
 }
 
 impl Debug for BcError {

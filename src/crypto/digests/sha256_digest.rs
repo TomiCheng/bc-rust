@@ -242,19 +242,21 @@ impl Digest for Sha256Digest {
         self.digest_impl.get_byte_length()
     }
 
-    fn update(&mut self, input: u8) {
+    fn update(&mut self, input: u8) -> Result<()> {
         self.digest_impl.update(input);
+        Ok(())
     }
 
-    fn block_update(&mut self, input: &[u8]) {
+    fn block_update(&mut self, input: &[u8]) -> Result<()> {
         self.digest_impl.block_update(input);
+        Ok(())
     }
 
-    fn do_final(&mut self, output: &mut [u8]) -> usize {
+    fn do_final(&mut self, output: &mut [u8]) -> Result<usize> {
         self.digest_impl.finish();
         let size = self.digest_impl.as_impl_mut().do_final(output);
         Digest::reset(self);
-        size
+        Ok(size)
     }
 
     fn reset(&mut self) {

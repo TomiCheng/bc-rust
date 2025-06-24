@@ -1,4 +1,6 @@
 
+use crate::Result;
+
 /// Base trait for a message digest.
 pub trait Digest {
     /// The algorithm name.
@@ -17,12 +19,12 @@ pub trait Digest {
     ///
     /// # Arguments
     /// * `input` - The input byte to be entered.
-    fn update(&mut self, input: u8);
+    fn update(&mut self, input: u8) -> Result<()>;
     /// Update the message digest with a span of bytes.
     ///
     /// # Arguments
     /// * `input` - The span containing the data.
-    fn block_update(&mut self, input: &[u8]);
+    fn block_update(&mut self, input: &[u8]) -> Result<()>;
     /// Close the digest, producing the final digest value.
     ///
     /// # Arguments
@@ -33,7 +35,7 @@ pub trait Digest {
     ///
     /// # Note
     /// This call leaves the digest reset.
-    fn do_final(&mut self, output: &mut [u8]) -> usize;
+    fn do_final(&mut self, output: &mut [u8]) -> Result<usize>;
     /// Reset the digest back to its initial state.
     fn reset(&mut self);
 }

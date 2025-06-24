@@ -40,7 +40,7 @@ impl Digest for Md2Digest {
         BYTE_LENGTH
     }
 
-    fn update(&mut self, input: u8) {
+    fn update(&mut self, input: u8) -> Result<()> {
         self.m[self.m_offset] = input;
         self.m_offset += 1;
         
@@ -49,15 +49,16 @@ impl Digest for Md2Digest {
             process_block(&mut self.x, &self.m);
             self.m_offset = 0;
         }
+        Ok(())
     }
 
-    fn block_update(&mut self, input: &[u8]) {
+    fn block_update(&mut self, input: &[u8]) -> Result<()> {
 
         let mut slice = input;
 
         // fill the current word
         while self.m_offset != 0 && slice.len() > 0 {
-            self.update(slice[0]);
+            self.update(slice[0])?;
             slice = &slice[1..];
         }
 
@@ -71,12 +72,14 @@ impl Digest for Md2Digest {
 
         // load in the remainder
         while slice.len() > 0 {
-            self.update(slice[0]);
+            self.update(slice[0])?;
             slice = &slice[1..];
         }
+        
+        Ok(())
     }
 
-    fn do_final(&mut self, output: &mut [u8]) -> usize {
+    fn do_final(&mut self, output: &mut [u8]) -> Result<usize> {
         // add padding
         let padding_byte = (self.m.len() - self.m_offset) as u8;
         for i in self.m_offset..self.m.len() {
@@ -89,7 +92,7 @@ impl Digest for Md2Digest {
 
         output.copy_from_slice(&self.x[self.x_offset..(self.x_offset + DIGEST_LENGTH)]);
         self.reset();
-        DIGEST_LENGTH
+        Ok(DIGEST_LENGTH)
     }
 
     fn reset(&mut self) {
