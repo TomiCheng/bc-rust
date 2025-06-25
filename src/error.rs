@@ -8,6 +8,7 @@ pub struct BcError {
     kind: ErrorKind,
 }
 
+
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
     ArgumentOutOfRange,
@@ -18,6 +19,9 @@ pub enum ErrorKind {
     InvalidCast,
     MemoableReset,
     OutputLength,
+    IoError,
+    InvalidFormat,
+    EndOfStream,
 }
 
 macro_rules! define_error_fn {
@@ -46,6 +50,9 @@ impl BcError {
         (with_output_length, ErrorKind::OutputLength),
         (with_invalid_cast, ErrorKind::InvalidCast),
         (with_memoable_reset, ErrorKind::MemoableReset),
+        (with_io_error, ErrorKind::IoError),
+        (with_invalid_format, ErrorKind::InvalidFormat),
+        (with_end_of_stream, ErrorKind::EndOfStream),
     );
 }
 
@@ -60,6 +67,15 @@ impl From<ParseIntError> for BcError {
         BcError {
             error: Box::new(error),
             kind: ErrorKind::ParsingIntError,
+        }
+    }
+}
+
+impl From<std::io::Error> for BcError {
+    fn from(error: std::io::Error) -> Self {
+        BcError {
+            error: Box::new(error),
+            kind: ErrorKind::IoError,
         }
     }
 }
