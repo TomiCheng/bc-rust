@@ -1,4 +1,8 @@
 pub struct Asn1BitString {
-    //data: Vec<u8>,
-    //pad_bits: u8,
+    contents: Vec<u8>,
+    pad_bits: u8,
+}
+
+impl Asn1BitString {
+    
 }

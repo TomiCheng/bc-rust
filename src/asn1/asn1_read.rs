@@ -1,5 +1,5 @@
 use std::io::Read;
-use crate::asn1::{asn1_tags, Asn1Boolean, Asn1Object};
+use crate::asn1::{asn1_tags, Asn1Boolean, Asn1Integer, Asn1Object};
 use crate::{BcError, Result};
 use crate::asn1::asn1_tags::FLAGS;
 use crate::asn1::definite_length_read::DefiniteLengthRead;
@@ -113,6 +113,7 @@ impl<'a> Asn1Read<'a> {
         let bytes = reader.read_fully()?;
         match tag_no {
             asn1_tags::BOOLEAN => Ok(Asn1Object::Boolean(Asn1Boolean::create_primitive(bytes)?)),
+            asn1_tags::INTEGER => Ok(Asn1Object::Integer(Asn1Integer::create_primitive(bytes)?)),
             // TODO
             _ => Err(BcError::with_invalid_format(format!("Unsupported primitive tag: {}", tag_no))),
         }
