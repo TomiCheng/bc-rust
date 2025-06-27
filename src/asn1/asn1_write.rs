@@ -67,6 +67,10 @@ impl<'a> Asn1Write<'a> {
         let length = self.writer.write(bytes)?;
         Ok(length)
     }
+    pub(crate) fn write_u8(&mut self, data: u8) -> Result<usize> {
+        let length = self.writer.write(&[data])?;
+        Ok(length)
+    }
 }
 
 #[cfg(test)]

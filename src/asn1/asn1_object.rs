@@ -1,5 +1,5 @@
-use std::io::Read;
-use crate::asn1::{Asn1BitString, Asn1ObjectIdentifier, Asn1OctetString, Asn1Boolean, Asn1Integer, Asn1Null, Asn1ObjectDescriptor, Asn1Enumerated, Asn1External, Asn1Utf8String, Asn1Set, EncodingType, Asn1Read};
+use std::io::{Read, Write};
+use crate::asn1::{Asn1BitString, Asn1ObjectIdentifier, Asn1OctetString, Asn1Boolean, Asn1Integer, Asn1Null, Asn1ObjectDescriptor, Asn1Enumerated, Asn1External, Asn1Utf8String, Asn1Set, EncodingType, Asn1Read, Asn1Encodable, Asn1Write};
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::Result;
 
@@ -13,8 +13,31 @@ pub enum Asn1Object {
     ObjectDescriptor(Asn1ObjectDescriptor),
     External(Asn1External),
     Enumerated(Asn1Enumerated),
+    // not support EMBEDDED_PDV
     Utf8String(Asn1Utf8String),
-    Set(Asn1Set), 
+    RelativeOid,
+    Time,
+    Sequence,
+    Set(Asn1Set),
+    NumericString,
+    PrintableString,
+    T61String,
+    VideotexString,
+    Ia5String,
+    UtcTime,
+    GeneralizedTime,
+    GraphicString,
+    VisibleString,
+    GeneralString,
+    UniversalString,
+    UnrestrictedString,
+    BmpString,
+    Date,
+    TimeOfDay,
+    DateTime,
+    Duration,
+    ObjectIdentifierIri,
+    RelativeOidIri,
 }
 
 impl Asn1Object {
@@ -23,6 +46,9 @@ impl Asn1Object {
     }
     pub fn is_integer(&self) -> bool {
         matches!(self, Asn1Object::Integer(_))
+    }
+    pub fn is_bit_string(&self) -> bool {
+        matches!(self, Asn1Object::BitString(_))
     }
     pub fn as_boolean(&self) -> Option<&Asn1Boolean> {
         match self {
@@ -36,11 +62,17 @@ impl Asn1Object {
             _ => None,
         }
     }
+    pub fn as_bit_string(&self) -> Option<&Asn1BitString> {
+        match self {
+            Asn1Object::BitString(obj) => Some(obj),
+            _ => None,
+        }
+    }
     pub(crate) fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
         match self {
             Asn1Object::Boolean(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Integer(obj) => obj.get_encoding(encoding_type),
-            //Asn1Object::BitString(obj) => Box::new(obj.get_encoding(encoding_type)),
+            Asn1Object::BitString(obj) => obj.get_encoding(encoding_type),
             //Asn1Object::OctetString(obj) => Box::new(obj.get_encoding(encoding_type)),
             //Asn1Object::Null(obj) => Box::new(obj.get_encoding(encoding_type)),
             //Asn1Object::ObjectIdentifier(obj) => Box::new(obj.get_encoding(encoding_type)),
@@ -57,5 +89,17 @@ impl Asn1Object {
     pub fn from_read(reader: &mut dyn Read) -> Result<Self> {
         let mut asn1_reader = Asn1Read::new(reader, i32::MAX as usize);
         asn1_reader.read_object()
+    }
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let mut reader = bytes;
+        Self::from_read(&mut reader)
+    }
+}
+
+impl Asn1Encodable for Asn1Object {
+    fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
+        let mut asn1_writer = Asn1Write::new(writer, encoding_type);
+        let asn1_encoding = self.get_encoding(encoding_type);
+        asn1_encoding.encode(&mut asn1_writer)
     }
 }

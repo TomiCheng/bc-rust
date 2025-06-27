@@ -18,7 +18,8 @@ mod primitive_encoding;
 mod asn1_encodable;
 mod asn1_read;
 mod definite_length_read;
-mod x509;
+pub mod x509;
+mod primitive_encoding_suffixed;
 
 pub use encoding_type::EncodingType;
 pub use asn1_object::Asn1Object;
