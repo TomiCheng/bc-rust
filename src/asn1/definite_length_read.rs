@@ -1,3 +1,4 @@
+use std::io;
 use std::io::Read;
 use crate::BcError;
 use crate::util::io::streams::read_fully;
@@ -33,6 +34,18 @@ impl<'a> DefiniteLengthRead<'a> {
         }
         Ok(bytes)
     }
+    pub(crate) fn remaining(&self) -> usize {
+        self.remaining
+    }
 
-    
+}
+impl<'a> Read for DefiniteLengthRead<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.remaining == 0 {
+            return Ok(0);
+        }
+        let length = self.reader.read(buf)?;
+        self.remaining -= length;
+        Ok(length)
+    }
 }

@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use std::io::Write;
 use crate::math::BigInteger;
 use crate::{BcError, Result};
-use crate::asn1::{Asn1Encodable, Asn1Write, EncodingType};
+use crate::asn1::{Asn1Encodable, Asn1Object, Asn1TaggedObject, Asn1Write, EncodingType};
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{INTEGER, UNIVERSAL};
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
@@ -22,6 +22,9 @@ impl Asn1Integer {
         }
         Ok(Asn1Integer { value: BigInteger::with_buffer(buffer) })
     }
+    pub fn with_tagged(tagged_object: &Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
+        todo!();
+    }
     pub fn with_buffer_allow_unsafe(buffer: &[u8]) -> Result<Self> {
         if buffer.is_empty() {
             return Err(BcError::with_invalid_argument("buffer len is zero"));
@@ -37,6 +40,13 @@ impl Asn1Integer {
         Ok(Asn1Integer {
             value: BigInteger::with_buffer(&buffer)
         })
+    }
+    pub(crate) fn from_asn1_object(asn1_object: &Asn1Object) -> Result<Self> {
+        if let Asn1Object::Integer(integer) = asn1_object {
+            Ok(integer.clone())
+        } else {
+            Err(BcError::with_invalid_argument("not an integer object"))
+        }
     }
     /// Apply the correct validation for an INTEGER primitive following the BER rules.
     ///
@@ -58,6 +68,7 @@ impl Asn1Integer {
     fn get_content(&self, _: EncodingType) -> Vec<u8> {
         self.value.to_vec()
     }
+    
 }
 
 impl From<BigInteger> for Asn1Integer {

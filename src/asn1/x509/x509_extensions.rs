@@ -1,0 +1,1 @@
+pub struct X509Extensions {}

@@ -115,7 +115,7 @@ mod tests {
         let buffer = vec![0x01, 0x01, 0xFF];
         let mut slice = buffer.as_slice();
         let mut asn1_read = Asn1Read::new(&mut slice,3);
-        let asn1_object = asn1_read.read_object().unwrap();
+        let asn1_object = asn1_read.read_object().unwrap().unwrap();
 
         assert!(asn1_object.is_boolean());
         

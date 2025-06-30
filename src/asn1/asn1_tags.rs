@@ -35,6 +35,7 @@ pub const OBJECT_IDENTIFIER_IRI: u8 = 0x23;
 pub const RELATIVE_OID_IRI: u8 = 0x24;
 
 pub const UNIVERSAL: u8 = 0x00;
+pub const CONSTRUCTED: u8 = 0x20;
 pub const APPLICATION: u8 = 0x40;
 pub const CONTEXT_SPECIFIC: u8 = 0x80;
 pub const PRIVATE: u8 = 0xC0;

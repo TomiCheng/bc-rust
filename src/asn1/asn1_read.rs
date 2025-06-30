@@ -1,7 +1,7 @@
 use std::io::Read;
-use crate::asn1::{asn1_tags, Asn1BitString, Asn1Boolean, Asn1Integer, Asn1Object};
+use crate::asn1::{asn1_tags, Asn1BitString, Asn1Boolean, Asn1EncodableVector, Asn1Ia5String, Asn1Integer, Asn1Null, Asn1Object, Asn1ObjectIdentifier, Asn1PrintableString, Asn1Sequence, Asn1Set, Asn1TaggedObject, Asn1UtcTime};
 use crate::{BcError, Result};
-use crate::asn1::asn1_tags::FLAGS;
+use crate::asn1::asn1_tags::{FLAGS, PRIVATE};
 use crate::asn1::definite_length_read::DefiniteLengthRead;
 
 pub struct Asn1Read<'a> {
@@ -14,13 +14,20 @@ impl<'a> Asn1Read<'a> {
         Asn1Read { reader, limit }
     }
 
-    pub fn read_object(&mut self) -> Result<Asn1Object> {
-        let tag_header = self.read_u8()?;
+    pub fn read_object(&mut self) -> Result<Option<Asn1Object>> {
+        let tag_header = self.read_u8();
+        
+        if let Err(error) = tag_header {
+            
+            return Ok(None);
+        }
+        let tag_header = tag_header?;
         let tag_no = self.read_tag_number(tag_header)?;
         let length = self.read_length(false)?;
         if let Some(length) = length {
             // definite-length
-            return self.build_object(tag_header, tag_no, length);
+            let object = self.build_object(tag_header, tag_no, length)?;
+            return Ok(Some(object));
         }
         todo!()
     }
@@ -106,17 +113,64 @@ impl<'a> Asn1Read<'a> {
         if (tag_header & FLAGS) == 0 {
             return Self::create_primitive_der_object(tag_no as u8, &mut def_reader);
         }
-        todo!();
+
+        let tag_class = tag_header & PRIVATE;
+        if tag_class != 0 {
+            let is_constructed = tag_header & asn1_tags::CONSTRUCTED != 0;
+            return Self::read_tagged_object_dl(tag_class, tag_no, is_constructed, &mut def_reader);
+        }
+        match tag_no as u8 {
+            asn1_tags::SEQUENCE => Ok(Asn1Object::from(Asn1Sequence::from_vector(Self::read_vector_from_definite_length_read(&mut def_reader)?)?)),
+            asn1_tags::SET => Ok(Asn1Object::from(Asn1Set::from_vector(Self::read_vector_from_definite_length_read(&mut def_reader)?)?)),
+            _ => Err(BcError::with_io_error(format!("unknown tag 0x{:X} encountered", tag_no)),)
+        }
     }
     
     fn create_primitive_der_object(tag_no: u8, reader: &mut DefiniteLengthRead) -> Result<Asn1Object> {
+        match tag_no {
+            asn1_tags::OBJECT_IDENTIFIER => {
+                let bytes = reader.read_fully()?;
+                return Ok(Asn1Object::ObjectIdentifier(Asn1ObjectIdentifier::create_primitive(bytes)?));
+            }
+            _ => {}
+        }
         let bytes = reader.read_fully()?;
         match tag_no {
             asn1_tags::BOOLEAN => Ok(Asn1Object::Boolean(Asn1Boolean::create_primitive(bytes)?)),
             asn1_tags::INTEGER => Ok(Asn1Object::Integer(Asn1Integer::create_primitive(bytes)?)),
             asn1_tags::BIT_STRING => Ok(Asn1Object::BitString(Asn1BitString::create_primitive(bytes)?)),
+            asn1_tags::NULL => Ok(Asn1Object::Null(Asn1Null::create_primitive(bytes)?)),
+            asn1_tags::PRINTABLE_STRING => Ok(Asn1Object::PrintableString(Asn1PrintableString::create_primitive(bytes)?)),
+            asn1_tags::IA5_STRING => Ok(Asn1Object::Ia5String(Asn1Ia5String::create_primitive(bytes)?)),
+            asn1_tags::UTC_TIME => Ok(Asn1Object::UtcTime(Asn1UtcTime::create_primitive(bytes)?)),
             // TODO
-            _ => Err(BcError::with_invalid_format(format!("Unsupported primitive tag: {}", tag_no))),
+            _ => Err(BcError::with_invalid_format(format!("Unsupported primitive tag: 0x{:X}", tag_no))),
         }
     }
+    fn read_vector_from_definite_length_read(def_in: &mut DefiniteLengthRead) -> Result<Asn1EncodableVector> {
+        let remaining = def_in.remaining();
+        if remaining == 0 {
+            return Ok(Asn1EncodableVector::with_capacity(0));
+        }
+        let mut sub_reader = Asn1Read::new(def_in, remaining);
+        sub_reader.read_vector()
+    }
+    fn read_vector(&mut self) -> Result<Asn1EncodableVector> {
+        let mut vector = Asn1EncodableVector::new();
+        while let Some(o) = self.read_object()? {
+            vector.add(o);
+        }
+        Ok(vector)
+    }
+    pub(crate) fn read_tagged_object_dl(tag_class: u8, tag_no: u32, is_constructed: bool, def_reader: &mut DefiniteLengthRead) -> Result<Asn1Object> {
+        if is_constructed {
+            let contents_octets = def_reader.read_fully()?;
+            return Ok(Asn1Object::from(Asn1TaggedObject::create_primitive(tag_class, tag_no as u8, &contents_octets)?));
+        }
+        
+        let contents_elements = Self::read_vector_from_definite_length_read(def_reader)?;  
+        
+        todo!()
+    }
 }
+

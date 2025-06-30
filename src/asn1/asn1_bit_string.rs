@@ -1,6 +1,6 @@
 use std::io::Write;
 use crate::{BcError, Result};
-use crate::asn1::{Asn1Encodable, Asn1Write, EncodingType};
+use crate::asn1::{Asn1Convertible, Asn1Encodable, Asn1Object, Asn1Sequence, Asn1Write, EncodingType};
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{BIT_STRING, UNIVERSAL};
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
@@ -10,6 +10,12 @@ use crate::asn1::primitive_encoding_suffixed::PrimitiveEncodingSuffixed;
 pub struct Asn1BitString {
     contents: Vec<u8>,
     pad_bits: u8,
+}
+
+impl Asn1BitString {
+    pub(crate) fn from_asn1_object(p0: &Asn1Object) -> Result<Asn1BitString> {
+        todo!()
+    }
 }
 
 impl Asn1BitString {
@@ -104,12 +110,16 @@ impl Asn1BitString {
         &self.contents
     }
 }
-
 impl Asn1Encodable for Asn1BitString {
     fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
         let mut asn1_writer = Asn1Write::new(writer, encoding_type);
         let length = self.get_encoding(encoding_type).encode(&mut asn1_writer)?;
         Ok(length)
+    }
+}
+impl Asn1Convertible for Asn1BitString {
+    fn to_asn1_object(&self) -> Result<Asn1Object> {
+        Ok(Asn1Object::from(self.clone()))
     }
 }
 

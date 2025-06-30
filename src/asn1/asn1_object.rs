@@ -1,8 +1,9 @@
 use std::io::{Read, Write};
-use crate::asn1::{Asn1BitString, Asn1ObjectIdentifier, Asn1OctetString, Asn1Boolean, Asn1Integer, Asn1Null, Asn1ObjectDescriptor, Asn1Enumerated, Asn1External, Asn1Utf8String, Asn1Set, EncodingType, Asn1Read, Asn1Encodable, Asn1Write};
+use crate::asn1::{Asn1BitString, Asn1ObjectIdentifier, Asn1OctetString, Asn1Boolean, Asn1Integer, Asn1Null, Asn1ObjectDescriptor, Asn1Enumerated, Asn1External, Asn1Utf8String, Asn1Set, EncodingType, Asn1Read, Asn1Encodable, Asn1Write, Asn1TaggedObject, Asn1Sequence, Asn1PrintableString, Asn1Ia5String, Asn1UtcTime};
 use crate::asn1::asn1_encoding::Asn1Encoding;
-use crate::Result;
+use crate::{Result};
 
+#[derive(Clone, Debug)]
 pub enum Asn1Object {
     Boolean(Asn1Boolean),
     Integer(Asn1Integer),
@@ -17,14 +18,14 @@ pub enum Asn1Object {
     Utf8String(Asn1Utf8String),
     RelativeOid,
     Time,
-    Sequence,
+    Sequence(Asn1Sequence),
     Set(Asn1Set),
     NumericString,
-    PrintableString,
+    PrintableString(Asn1PrintableString),
     T61String,
     VideotexString,
-    Ia5String,
-    UtcTime,
+    Ia5String(Asn1Ia5String),
+    UtcTime(Asn1UtcTime),
     GeneralizedTime,
     GraphicString,
     VisibleString,
@@ -38,6 +39,7 @@ pub enum Asn1Object {
     Duration,
     ObjectIdentifierIri,
     RelativeOidIri,
+    Tagged(Box<Asn1TaggedObject>),
 }
 
 impl Asn1Object {
@@ -49,6 +51,9 @@ impl Asn1Object {
     }
     pub fn is_bit_string(&self) -> bool {
         matches!(self, Asn1Object::BitString(_))
+    }
+    pub fn is_sequence(&self) -> bool {
+        matches!(self, Asn1Object::Sequence(_))
     }
     pub fn as_boolean(&self) -> Option<&Asn1Boolean> {
         match self {
@@ -65,6 +70,24 @@ impl Asn1Object {
     pub fn as_bit_string(&self) -> Option<&Asn1BitString> {
         match self {
             Asn1Object::BitString(obj) => Some(obj),
+            _ => None,
+        }
+    }
+    pub fn as_sequence(&self) -> Option<&Asn1Sequence> {
+        match self {
+            Asn1Object::Sequence(obj) => Some(obj),
+            _ => None,
+        }
+    }
+    pub fn as_tagged(&self) -> Option<&Asn1TaggedObject> {
+        match self {
+            Asn1Object::Tagged(obj) => Some(obj),
+            _ => None,
+        }
+    }
+    pub fn as_object_identifier(&self) -> Option<&Asn1ObjectIdentifier> {
+        match self {
+            Asn1Object::ObjectIdentifier(obj) => Some(obj),
             _ => None,
         }
     }
@@ -88,7 +111,12 @@ impl Asn1Object {
     }
     pub fn from_read(reader: &mut dyn Read) -> Result<Self> {
         let mut asn1_reader = Asn1Read::new(reader, i32::MAX as usize);
-        asn1_reader.read_object()
+        let result = asn1_reader.read_object()?;
+        if let Some(object) = result {
+            Ok(object)
+        } else {
+            Err(crate::BcError::with_invalid_format("No ASN.1 object found"))
+        }
     }
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let mut reader = bytes;
@@ -101,5 +129,36 @@ impl Asn1Encodable for Asn1Object {
         let mut asn1_writer = Asn1Write::new(writer, encoding_type);
         let asn1_encoding = self.get_encoding(encoding_type);
         asn1_encoding.encode(&mut asn1_writer)
+    }
+}
+
+impl From<Asn1Boolean> for Asn1Object {
+    fn from(value: Asn1Boolean) -> Self {
+        Asn1Object::Boolean(value)
+    }
+}
+impl From<Asn1BitString> for Asn1Object {
+    fn from(value: Asn1BitString) -> Self {
+        Asn1Object::BitString(value)
+    }
+}
+impl From<Asn1OctetString> for Asn1Object {
+    fn from(value: Asn1OctetString) -> Self {
+        Asn1Object::OctetString(value)
+    }
+}
+impl From<Asn1Sequence> for Asn1Object {
+    fn from(value: Asn1Sequence) -> Self {
+        Asn1Object::Sequence(value)
+    }
+}
+impl From<Asn1Set> for Asn1Object {
+    fn from(value: Asn1Set) -> Self {
+        Asn1Object::Set(value)
+    }
+}
+impl From<Asn1TaggedObject> for Asn1Object {
+    fn from(value: Asn1TaggedObject) -> Self {
+        Asn1Object::Tagged(Box::new(value))
     }
 }
