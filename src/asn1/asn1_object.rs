@@ -1,7 +1,11 @@
 use std::io::{Read, Write};
-use crate::asn1::{Asn1BitString, Asn1ObjectIdentifier, Asn1OctetString, Asn1Boolean, Asn1Integer, Asn1Null, Asn1ObjectDescriptor, Asn1Enumerated, Asn1External, Asn1Utf8String, Asn1Set, EncodingType, Asn1Read, Asn1Encodable, Asn1Write, Asn1TaggedObject, Asn1Sequence, Asn1PrintableString, Asn1Ia5String, Asn1UtcTime};
+use crate::asn1::{Asn1BitString, Asn1ObjectIdentifier, Asn1OctetString, Asn1Boolean, Asn1Integer};
+use crate::asn1::{Asn1Null, Asn1ObjectDescriptor, Asn1Enumerated, Asn1External, Asn1Utf8String,};
+use crate::asn1::{Asn1Set, EncodingType, Asn1Read, Asn1Encodable, Asn1Write, Asn1TaggedObject,};
+use crate::asn1::{Asn1Sequence, Asn1PrintableString, Asn1Ia5String, Asn1UtcTime, Asn1GeneralizedTime};
 use crate::asn1::asn1_encoding::Asn1Encoding;
-use crate::{Result};
+use crate::{BcError, Result};
+use crate::asn1::asn1_relative_oid::Asn1RelativeOid;
 
 #[derive(Clone, Debug)]
 pub enum Asn1Object {
@@ -16,7 +20,7 @@ pub enum Asn1Object {
     Enumerated(Asn1Enumerated),
     // not support EMBEDDED_PDV
     Utf8String(Asn1Utf8String),
-    RelativeOid,
+    RelativeOid(Asn1RelativeOid),
     Time,
     Sequence(Asn1Sequence),
     Set(Asn1Set),
@@ -26,7 +30,7 @@ pub enum Asn1Object {
     VideotexString,
     Ia5String(Asn1Ia5String),
     UtcTime(Asn1UtcTime),
-    GeneralizedTime,
+    GeneralizedTime(Asn1GeneralizedTime),
     GraphicString,
     VisibleString,
     GeneralString,
@@ -55,6 +59,12 @@ impl Asn1Object {
     pub fn is_sequence(&self) -> bool {
         matches!(self, Asn1Object::Sequence(_))
     }
+    pub fn is_object_identifier(&self) -> bool {
+        matches!(self, Asn1Object::ObjectIdentifier(_))
+    }
+    pub fn is_relative_oid(&self) -> bool {
+        matches!(self, Asn1Object::RelativeOid(_))
+    }
     pub fn as_boolean(&self) -> Option<&Asn1Boolean> {
         match self {
             Asn1Object::Boolean(obj) => Some(obj),
@@ -82,6 +92,12 @@ impl Asn1Object {
     pub fn as_tagged(&self) -> Option<&Asn1TaggedObject> {
         match self {
             Asn1Object::Tagged(obj) => Some(obj),
+            _ => None,
+        }
+    }
+    pub fn as_set(&self) -> Option<&Asn1Set> {
+        match self {
+            Asn1Object::Set(obj) => Some(obj),
             _ => None,
         }
     }
@@ -160,5 +176,22 @@ impl From<Asn1Set> for Asn1Object {
 impl From<Asn1TaggedObject> for Asn1Object {
     fn from(value: Asn1TaggedObject) -> Self {
         Asn1Object::Tagged(value)
+    }
+}
+impl From<Asn1RelativeOid> for Asn1Object {
+    fn from(value: Asn1RelativeOid) -> Self {
+        Asn1Object::RelativeOid(value)
+    }
+}
+
+impl TryFrom<Asn1Object> for Asn1RelativeOid {
+    type Error = BcError;
+
+    fn try_from(value: Asn1Object) -> Result<Self> {
+        if let Asn1Object::RelativeOid(oid) = value {
+            Ok(oid)
+        } else {
+            Err(BcError::with_invalid_cast("Expected Asn1Object::RelativeOid"))
+        }
     }
 }

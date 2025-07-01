@@ -1,7 +1,7 @@
 use std::process::id;
 use crate::asn1::Asn1Object;
 use crate::{BcError, Result};
-use crate::asn1::asn1_relative_oid::Asn1RelativeOid;
+use crate::asn1::asn1_relative_oid::{is_valid_identifier, Asn1RelativeOid};
 
 #[derive(Clone, Debug)]
 pub struct Asn1ObjectIdentifier {
@@ -55,10 +55,10 @@ impl Asn1ObjectIdentifier {
         if first < Some('0') || first > Some('2') {
             return false;
         }
-        let d = identifier.chars().skip(2);
-        if !Asn1RelativeOid::is_valid_identifier(d) {
-            return false;
-        }
+        // let d = identifier.chars().skip(2);
+        // if !is_valid_identifier(d) {
+        //     return false;
+        // }
         
         if first == Some('2') {
             return true;

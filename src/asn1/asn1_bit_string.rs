@@ -1,6 +1,6 @@
 use std::io::Write;
 use crate::{BcError, Result};
-use crate::asn1::{Asn1Convertible, Asn1Encodable, Asn1Object, Asn1Sequence, Asn1Write, EncodingType};
+use crate::asn1::{Asn1Convertible, Asn1Encodable, Asn1Object, Asn1Write, EncodingType};
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{BIT_STRING, UNIVERSAL};
 use crate::asn1::primitive_encoding::PrimitiveEncoding;

@@ -6,6 +6,8 @@ mod x509_name;
 mod validity;
 mod subject_public_key_info;
 mod x509_extensions;
+mod time;
+mod x509_extension;
 //pub use key_usage::KeyUsage;
 
 pub use tbs_certificate_structure::TbsCertificateStructure;
@@ -15,3 +17,4 @@ pub use x509_name::X509Name;
 pub use validity::Validity;
 pub use subject_public_key_info::SubjectPublicKeyInfo;
 pub use x509_extensions::X509Extensions;
+pub use time::Time;

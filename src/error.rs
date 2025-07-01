@@ -2,6 +2,8 @@
 use std::error::Error;
 use std::fmt::{Debug, Formatter};
 use std::num::ParseIntError;
+use std::string::{FromUtf8Error};
+use chrono::ParseError;
 
 pub struct BcError {
     error: Box<dyn Error + Send + Sync>,
@@ -22,6 +24,8 @@ pub enum ErrorKind {
     IoError,
     InvalidFormat,
     EndOfStream,
+    FromUtf8Error,
+    ParseStringError,
 }
 
 macro_rules! define_error_fn {
@@ -76,6 +80,24 @@ impl From<std::io::Error> for BcError {
         BcError {
             error: Box::new(error),
             kind: ErrorKind::IoError,
+        }
+    }
+}
+
+impl From<FromUtf8Error> for BcError {
+    fn from(error: FromUtf8Error) -> Self {
+        BcError {
+            error: Box::new(error),
+            kind: ErrorKind::FromUtf8Error,
+        }
+    }
+}
+
+impl From<ParseError> for BcError {
+    fn from(error: ParseError) -> Self {
+        BcError {
+            error: Box::new(error),
+            kind: ErrorKind::ParseStringError,
         }
     }
 }
