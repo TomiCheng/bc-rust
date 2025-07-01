@@ -148,50 +148,52 @@ impl Asn1Encodable for Asn1Object {
     }
 }
 
-impl From<Asn1Boolean> for Asn1Object {
-    fn from(value: Asn1Boolean) -> Self {
-        Asn1Object::Boolean(value)
-    }
-}
-impl From<Asn1BitString> for Asn1Object {
-    fn from(value: Asn1BitString) -> Self {
-        Asn1Object::BitString(value)
-    }
-}
-impl From<Asn1OctetString> for Asn1Object {
-    fn from(value: Asn1OctetString) -> Self {
-        Asn1Object::OctetString(value)
-    }
-}
-impl From<Asn1Sequence> for Asn1Object {
-    fn from(value: Asn1Sequence) -> Self {
-        Asn1Object::Sequence(value)
-    }
-}
-impl From<Asn1Set> for Asn1Object {
-    fn from(value: Asn1Set) -> Self {
-        Asn1Object::Set(value)
-    }
-}
-impl From<Asn1TaggedObject> for Asn1Object {
-    fn from(value: Asn1TaggedObject) -> Self {
-        Asn1Object::Tagged(value)
-    }
-}
-impl From<Asn1RelativeOid> for Asn1Object {
-    fn from(value: Asn1RelativeOid) -> Self {
-        Asn1Object::RelativeOid(value)
-    }
+macro_rules! impl_from_for_asn1object {
+    ($($t:ty => $v:ident),*) => {
+        $(
+            impl From<$t> for Asn1Object {
+                fn from(value: $t) -> Self {
+                    Asn1Object::$v(value)
+                }
+            }
+        )*
+    };
 }
 
-impl TryFrom<Asn1Object> for Asn1RelativeOid {
-    type Error = BcError;
+impl_from_for_asn1object! {
+    Asn1Boolean => Boolean,
+    Asn1BitString => BitString,
+    Asn1OctetString => OctetString,
+    Asn1Sequence => Sequence,
+    Asn1ObjectIdentifier => ObjectIdentifier,
+    Asn1Set => Set,
+    Asn1TaggedObject => Tagged,
+    Asn1RelativeOid => RelativeOid
+}
+macro_rules! impl_tryfrom_asn1object {
+    ($($t:ty => $v:ident),*) => {
+        $(
+            impl TryFrom<Asn1Object> for $t {
+                type Error = BcError;
+                fn try_from(value: Asn1Object) -> Result<Self> {
+                    if let Asn1Object::$v(obj) = value {
+                        Ok(obj)
+                    } else {
+                        Err(BcError::with_invalid_cast(concat!("Expected Asn1Object::", stringify!($v))))
+                    }
+                }
+            }
+        )*
+    };
+}
 
-    fn try_from(value: Asn1Object) -> Result<Self> {
-        if let Asn1Object::RelativeOid(oid) = value {
-            Ok(oid)
-        } else {
-            Err(BcError::with_invalid_cast("Expected Asn1Object::RelativeOid"))
-        }
-    }
+impl_tryfrom_asn1object! {
+    Asn1RelativeOid => RelativeOid,
+    Asn1Boolean => Boolean,
+    Asn1BitString => BitString,
+    Asn1OctetString => OctetString,
+    Asn1Sequence => Sequence,
+    Asn1ObjectIdentifier => ObjectIdentifier,
+    Asn1Set => Set,
+    Asn1TaggedObject => Tagged
 }

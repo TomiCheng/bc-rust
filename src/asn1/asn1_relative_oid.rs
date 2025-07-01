@@ -1,17 +1,18 @@
-use std::cell::OnceCell;
-use std::io::Write;
-use crate::math::BigInteger;
-use crate::{BcError, Result};
-use crate::asn1::{Asn1Encodable, Asn1Write, EncodingType};
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{RELATIVE_OID, UNIVERSAL};
 use crate::asn1::oid_tokenizer::OidTokenizer;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
+use crate::asn1::{Asn1Encodable, Asn1Write, EncodingType};
+use crate::math::BigInteger;
+use crate::{BcError, Result};
+use std::cell::OnceCell;
+use std::fmt;
+use std::io::Write;
 
 #[derive(Debug, Clone)]
 pub struct Asn1RelativeOid {
     contents: Vec<u8>,
-    identifier: OnceCell<String>
+    identifier: OnceCell<String>,
 }
 
 impl Asn1RelativeOid {
@@ -26,7 +27,7 @@ impl Asn1RelativeOid {
         let contents = parse_identifier(identifier)?;
         check_contents_length(contents.len())?;
         let identifier = identifier.to_string();
-        Ok(Asn1RelativeOid::new(contents,OnceCell::from(identifier)))
+        Ok(Asn1RelativeOid::new(contents, OnceCell::from(identifier)))
     }
     pub fn try_parse_id(identifier: &str) -> Option<Self> {
         if identifier.is_empty() {
@@ -35,7 +36,10 @@ impl Asn1RelativeOid {
         if identifier.len() <= MAX_IDENTIFIER_LENGTH && is_valid_identifier(identifier) {
             let contents = parse_identifier(identifier);
             if let Ok(c) = contents {
-                return Some(Asn1RelativeOid::new(c, OnceCell::from(identifier.to_string())));
+                return Some(Asn1RelativeOid::new(
+                    c,
+                    OnceCell::from(identifier.to_string()),
+                ));
             }
         }
         None
@@ -57,7 +61,10 @@ impl Asn1RelativeOid {
             contents.extend(branch_contents);
         }
         let root_id = self.id();
-        Ok(Asn1RelativeOid::new(contents, OnceCell::from(format!("{}.{}", root_id, branch_id))))
+        Ok(Asn1RelativeOid::new(
+            contents,
+            OnceCell::from(format!("{}.{}", root_id, branch_id)),
+        ))
     }
     pub fn id(&self) -> &str {
         self.identifier.get_or_init(|| self.get_id())
@@ -87,10 +94,14 @@ impl Asn1Encodable for Asn1RelativeOid {
         Ok(length)
     }
 }
+impl fmt::Display for Asn1RelativeOid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.id())
+    }
+}
 const MAX_CONTENTS_LENGTH: usize = 4096;
 const MAX_IDENTIFIER_LENGTH: usize = MAX_CONTENTS_LENGTH * 4 + 1;
 pub(crate) fn check_identifier(identifier: &str) -> Result<()> {
-
     if identifier.len() > MAX_IDENTIFIER_LENGTH {
         return Err(BcError::with_invalid_argument(
             "exceeded relative OID contents length limit",
@@ -153,7 +164,10 @@ pub(crate) fn write_field_with_i64(writer: &mut dyn Write, mut value: i64) -> Re
     writer.write(&result[pos..])?;
     Ok(())
 }
-pub(crate) fn write_field_with_big_integer(writer: &mut dyn Write,value: &BigInteger) -> Result<()> {
+pub(crate) fn write_field_with_big_integer(
+    writer: &mut dyn Write,
+    value: &BigInteger,
+) -> Result<()> {
     let byte_count = (value.bit_length() + 6) / 7;
     if byte_count == 0 {
         writer.write(&[0])?;
@@ -177,7 +191,7 @@ pub(crate) fn check_contents_length(length: usize) -> Result<()> {
     }
     Ok(())
 }
-const I64_LIMIT: i64 = (i64::MAX >> 7)  - 0x7F;
+const I64_LIMIT: i64 = (i64::MAX >> 7) - 0x7F;
 pub(crate) fn parse_contents(contents: &[u8]) -> String {
     let mut result = String::new();
     let mut value = 0;
@@ -226,7 +240,7 @@ mod tests {
     use crate::asn1::{Asn1Encodable, Asn1Object, Asn1RelativeOid};
     use crate::util::encoders::hex::to_decode_with_str;
     use std::io;
-    
+
     #[test]
     fn record_check_1() {
         let req = to_decode_with_str("0D03813403").unwrap();
@@ -237,7 +251,7 @@ mod tests {
         let req = to_decode_with_str("0D082A36FFFFFFDD6311").unwrap();
         recode_check("42.54.34359733987.17", &req);
     }
-    
+
     #[test]
     fn test_check_valid() {
         check_valid("0");
@@ -247,14 +261,16 @@ mod tests {
         check_valid("1.0.2");
         check_valid("1.0.20");
         check_valid("1.0.200");
-        check_valid("1.1.127.32512.8323072.2130706432.545460846592.139637976727552.35747322042253312.9151314442816847872");
+        check_valid(
+            "1.1.127.32512.8323072.2130706432.545460846592.139637976727552.35747322042253312.9151314442816847872",
+        );
         check_valid("1.2.123.12345678901.1.1.1");
         check_valid("2.25.196556539987194312349856245628873852187.1");
         check_valid("3.1");
         check_valid("37.196556539987194312349856245628873852187.100");
         check_valid("192.168.1.1");
     }
-    
+
     #[test]
     fn test_check_invalid() {
         check_invalid("00");
@@ -275,34 +291,34 @@ mod tests {
         check_invalid("1.2.3.4.A.5");
         check_invalid("1,2");
     }
-    
+
     #[test]
     fn test_branch_check() {
         branch_check("1.1", "2.2");
     }
-    
+
     fn recode_check(oid: &str, req: &Vec<u8>) {
         let o = Asn1RelativeOid::with_str(oid).unwrap();
         let mut cursor = io::Cursor::new(req);
         let enc_o = Asn1Object::from_read(&mut cursor).unwrap();
-    
+
         assert!(enc_o.is_relative_oid());
         let asn1_relative_oid: Asn1RelativeOid = enc_o.try_into().unwrap();
         assert_eq!(o, asn1_relative_oid);
-    
+
         let bytes = o.get_der_encoded().unwrap();
         assert_eq!(req, bytes.as_slice());
     }
-    
+
     fn check_valid(oid: &str) {
         assert!(Asn1RelativeOid::try_parse_id(oid).is_some());
     }
-    
+
     fn check_invalid(oid: &str) {
         assert!(Asn1RelativeOid::try_parse_id(oid).is_none());
         assert!(Asn1RelativeOid::with_str(oid).is_err());
     }
-    
+
     fn branch_check(stem: &str, branch: &str) {
         let expected = format!("{}.{}", stem, branch);
         let actual = Asn1RelativeOid::with_str(stem)
