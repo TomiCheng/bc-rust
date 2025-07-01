@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use crate::Result;
 
 #[derive(Clone, Debug)]
 pub struct Asn1OctetString {
@@ -13,6 +14,9 @@ impl Asn1OctetString {
         Self {
             contents: contents.to_vec(),
         }
+    }
+    pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
+        Ok(Self { contents })
     }
 }
 

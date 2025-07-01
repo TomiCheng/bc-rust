@@ -39,7 +39,7 @@ pub enum Asn1Object {
     Duration,
     ObjectIdentifierIri,
     RelativeOidIri,
-    Tagged(Box<Asn1TaggedObject>),
+    Tagged(Asn1TaggedObject),
 }
 
 impl Asn1Object {
@@ -159,6 +159,6 @@ impl From<Asn1Set> for Asn1Object {
 }
 impl From<Asn1TaggedObject> for Asn1Object {
     fn from(value: Asn1TaggedObject) -> Self {
-        Asn1Object::Tagged(Box::new(value))
+        Asn1Object::Tagged(value)
     }
 }

@@ -2,9 +2,10 @@ use std::fmt::{Display, Formatter};
 use std::io::Write;
 use crate::math::BigInteger;
 use crate::{BcError, Result};
-use crate::asn1::{Asn1Encodable, Asn1Object, Asn1TaggedObject, Asn1Write, EncodingType};
+use crate::asn1::{asn1_tags, Asn1Encodable, Asn1Object, Asn1Sequence, Asn1TaggedObject, Asn1Write, EncodingType};
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{INTEGER, UNIVERSAL};
+use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
 
 #[derive(Debug, Clone, PartialEq, Hash)]
@@ -68,7 +69,7 @@ impl Asn1Integer {
     fn get_content(&self, _: EncodingType) -> Vec<u8> {
         self.value.to_vec()
     }
-    
+
 }
 
 impl From<BigInteger> for Asn1Integer {
@@ -94,6 +95,26 @@ impl Asn1Encodable for Asn1Integer {
         let mut asn1_writer = Asn1Write::new(writer, encoding_type);
         let length = self.get_encoding(encoding_type).encode(&mut asn1_writer)?;
         Ok(length)
+    }
+}
+
+pub(crate) struct Asn1IntegerMetadata;
+impl Asn1IntegerMetadata {
+    pub(crate) fn new() -> Self {
+        Asn1IntegerMetadata
+    }
+}
+impl Asn1UniversalType<Asn1Integer> for Asn1IntegerMetadata {
+    fn checked_cast(&self, asn1_object: &Asn1Object) -> Result<Asn1Integer> {
+        if let Some(value) = asn1_object.as_integer() {
+            Ok(value.clone())
+        } else {
+            Err(crate::BcError::with_invalid_operation("Expected an ASN.1 Integer object"))
+        }
+    }
+
+    fn implicit_constructed(&self, sequence: Asn1Sequence) -> Result<Asn1Integer> {
+        todo!();
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::asn1::{Asn1BitString, Asn1Convertible, Asn1EncodableVector, Asn1Integer, Asn1Object, Asn1Sequence};
 use crate::asn1::x509::{AlgorithmIdentifier, SubjectPublicKeyInfo, Validity, X509Extensions, X509Name};
 use crate::{BcError, Result};
+use crate::asn1::asn1_integer::Asn1IntegerMetadata;
 use crate::asn1::asn1_utilities::read_optional_context_tagged;
 
 /// The TbsCertificate object.
@@ -65,16 +66,37 @@ impl TbsCertificateStructure {
                 return Err(BcError::with_invalid_argument(format!("Bad sequence size: {}", sequence.len())));
             }
 
-            let mut index = 0;
-            //let (version, index) = read_optional_context_tagged(&sequence, 0, 0, true, Asn1Integer::with_tagged)?;
+            let (version, mut index) = read_optional_context_tagged(&sequence, 0, 0, true, Asn1IntegerMetadata::new())?;
+            let version = version.unwrap_or_else(|| Asn1Integer::with_i64(0));
+            let mut is_v1 = false;
+            let mut is_v2 = false;
+            if version.as_ref().as_u32() == 0 {
+                is_v1 = true;
+            } else if version.as_ref().as_u32() == 1 {
+                is_v2 = true;
+            } else if version.as_ref().as_u32() > 2 {
+                return Err(BcError::with_invalid_argument(format!("version number not recognised: {}", version)));
+            }
 
 
-            index += 1;
             let serial_number = Asn1Integer::from_asn1_object(&sequence[index])?;
             index += 1;
             let signature = AlgorithmIdentifier::from_asn1_object(&sequence[index])?;
             index += 1;
             let issuer = X509Name::from_asn1_object(&sequence[index])?;
+            index += 1;
+            let validity = Validity::from_asn1_object(&sequence[index])?;
+            index += 1;
+            let subject = X509Name::from_asn1_object(&sequence[index])?;
+            index += 1;
+            let subject_public_key_info = SubjectPublicKeyInfo::from_asn1_object(&sequence[index])?;
+            
+            if !is_v1 {
+                if !is_v2 {
+                    
+                }
+            }
+            
             todo!();
             //let version =
 

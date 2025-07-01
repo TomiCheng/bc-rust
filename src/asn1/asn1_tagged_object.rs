@@ -1,16 +1,15 @@
-use crate::asn1::{asn1_tags, Asn1Object, Asn1OctetString};
+use crate::asn1::{asn1_tags, Asn1EncodableVector, Asn1Object, Asn1OctetString, Asn1Sequence};
 use crate::asn1::asn1_tags::{PRIVATE, UNIVERSAL};
 use crate::{BcError, Result};
-
+use crate::asn1::asn1_universal_type::Asn1UniversalType;
 
 #[derive(Clone, Debug)]
 pub struct Asn1TaggedObject {
     explicitness: u8,
     tag_class: u8,
     tag_no: u8,
-    object: Asn1Object,
+    object: Box<Asn1Object>,
 }
-
 impl Asn1TaggedObject {
     const DECLARED_EXPLICIT: u8 = 1;
     const DECLARED_IMPLICIT: u8 = 2;
@@ -24,7 +23,7 @@ impl Asn1TaggedObject {
             explicitness,
             tag_class,
             tag_no,
-            object,
+            object: Box::new(object),
         })
     }
     pub(crate) fn with_context_specific(explicitness: bool, tag_no: u8, object: Asn1Object) -> Result<Self> {
@@ -33,6 +32,16 @@ impl Asn1TaggedObject {
     pub(crate) fn create_primitive(tag_class: u8, tag_no: u8, contents_octets: &[u8]) -> Result<Self> {
         Asn1TaggedObject::new(Self::PARSED_IMPLICIT, tag_class, tag_no, 
                               Asn1Object::from(Asn1OctetString::with_contents(contents_octets)))
+    }
+    pub(crate) fn crate_constructed_dl(tag_class: u8, tag_no: u8, vector: Asn1EncodableVector) -> Result<Asn1Object> {
+        let maybe_explicit = vector.len() == 1;
+        if maybe_explicit {
+            Ok(Asn1Object::from(Asn1TaggedObject::new(Self::PARSED_EXPLICIT, tag_class, tag_no, vector[0].clone())?))
+        }  else {
+            let sequence = Asn1Object::from(Asn1Sequence::from_vector(vector)?);
+            Ok(Asn1Object::from(Asn1TaggedObject::new(Self::PARSED_IMPLICIT, tag_class, tag_no, sequence)?))
+        }
+        
     }
     pub fn has_tag(&self, tag_class: u8, tag_no: u8) -> bool {
         self.tag_class == tag_class && self.tag_no == tag_no
@@ -49,19 +58,28 @@ impl Asn1TaggedObject {
     pub fn get_base_object(&self) -> &Asn1Object {
         &self.object
     }
-    pub fn get_base_universal(&self) -> Asn1Object {
-        match self.explicitness {
-            ///PARSED_EXPLICIT =>  {},
-            //PARSED_IMPLICIT => {
-                // if let Some(sequence) = self.object.as_sequence() {
-                //     
-                // } else {
-                //     
-                // }
-            //},
-            _ => {
-                self.object.clone()
+    pub(crate) fn get_base_universal<TMetadata, TResult>(&self, declared_explicit: bool,  metadata: &TMetadata) -> Result<TResult> 
+    where TMetadata: Asn1UniversalType<TResult> {
+        if declared_explicit {
+            if !self.is_explicit() {
+                return Err(BcError::with_invalid_operation("object implicit - explicit expected."));
             }
+            
+            return metadata.checked_cast(self.get_base_object());
         }
+        
+        if self.explicitness == Self::DECLARED_EXPLICIT {
+            return Err(BcError::with_invalid_operation("object explicit - implicit expected."));
+        }
+        
+        match self.explicitness {
+            Self::PARSED_EXPLICIT => metadata.implicit_constructed(self.rebuild_constructed()),
+            Self::PARSED_IMPLICIT => todo!(),
+            _ => metadata.checked_cast(self.get_base_object())
+        }
+    }
+    
+    fn rebuild_constructed(&self) -> Asn1Sequence {
+        Asn1Sequence::new(vec![(*self.object).clone()])
     }
 }
