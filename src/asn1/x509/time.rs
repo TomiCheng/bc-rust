@@ -1,6 +1,6 @@
 use std::fmt;
 use chrono::{DateTime, Datelike, TimeZone, Utc};
-use crate::asn1::{Asn1GeneralizedTime, Asn1UtcTime};
+use crate::asn1::{Asn1GeneralizedTime, Asn1Object, Asn1UtcTime};
 use crate::Result;
 pub enum Time {
     GeneralizedTime(Asn1GeneralizedTime),
@@ -18,10 +18,10 @@ impl Time {
             Ok(Time::UtcTime(Asn1UtcTime::with_date_time(utc, 2049)?))
         }
     }
-    pub fn with_asn1_generalized_time(generalized_time: Asn1GeneralizedTime) -> Self {
+    pub fn from_asn1_generalized_time(generalized_time: Asn1GeneralizedTime) -> Self {
         Time::GeneralizedTime(generalized_time)
     }
-    pub fn with_asn1_utc_time(utc_time: Asn1UtcTime) -> Result<Self> {
+    pub fn from_asn1_utc_time(utc_time: Asn1UtcTime) -> Result<Self> {
         utc_time.to_date_time(2049)?;
         Ok(Time::UtcTime(utc_time))
     }
@@ -30,6 +30,19 @@ impl Time {
         match self {
             Time::UtcTime(utc_time) => utc_time.to_date_time(2049),
             Time::GeneralizedTime(generalized_time) => Ok(generalized_time.to_date_time()),
+        }
+    }
+    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
+        match asn1_object {  
+            Asn1Object::UtcTime(utc_time) => {
+                Time::from_asn1_utc_time(utc_time)
+            }
+            Asn1Object::GeneralizedTime(generalized_time) => {
+                Ok(Time::from_asn1_generalized_time(generalized_time))
+            }
+            _ => {
+                Err(crate::BcError::with_invalid_format("Invalid time format"))    
+            }
         }
     }
 }

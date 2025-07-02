@@ -5,18 +5,19 @@ use crate::asn1::primitive_encoding::PrimitiveEncoding;
 use crate::asn1::{Asn1Encodable, Asn1Object, Asn1Write, EncodingType, asn1_relative_oid};
 use crate::math::BigInteger;
 use crate::{BcError, Result};
-use std::cell::OnceCell;
 use std::fmt;
+use std::hash::Hash;
 use std::io::Write;
+use std::sync::OnceLock;
 
 #[derive(Clone, Debug)]
 pub struct Asn1ObjectIdentifier {
     contents: Vec<u8>,
-    identifier: OnceCell<String>,
+    identifier: OnceLock<String>,
 }
 
 impl Asn1ObjectIdentifier {
-    pub fn new(contents: Vec<u8>, identifier: OnceCell<String>) -> Self {
+    pub fn new(contents: Vec<u8>, identifier: OnceLock<String>) -> Self {
         Asn1ObjectIdentifier {
             contents,
             identifier,
@@ -28,7 +29,7 @@ impl Asn1ObjectIdentifier {
         check_contents_length(contents.len())?;
         Ok(Asn1ObjectIdentifier::new(
             contents,
-            OnceCell::from(identifier.to_string()),
+            OnceLock::from(identifier.to_string()),
         ))
     }
     pub fn try_parse(identifier: &str) -> Option<Self> {
@@ -40,7 +41,7 @@ impl Asn1ObjectIdentifier {
             if let Ok(c) = contents {
                 return Some(Asn1ObjectIdentifier::new(
                     c,
-                    OnceCell::from(identifier.to_string()),
+                    OnceLock::from(identifier.to_string()),
                 ));
             }
         }
@@ -48,9 +49,9 @@ impl Asn1ObjectIdentifier {
     }
     pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
         check_contents_length(contents.len())?;
-        Ok(Asn1ObjectIdentifier::new(contents, OnceCell::new()))
+        Ok(Asn1ObjectIdentifier::new(contents, OnceLock::new()))
     }
-    pub(crate) fn from_asn1_object(asn1_object: &Asn1Object) -> Result<Self> {
+    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
         if let Some(object_identifier) = asn1_object.as_object_identifier() {
             Ok(object_identifier.clone())
         } else {
@@ -81,7 +82,7 @@ impl Asn1ObjectIdentifier {
         }
         let root_id = self.id();
         let result = Asn1ObjectIdentifier {
-            identifier: OnceCell::new(),
+            identifier: OnceLock::new(),
             contents,
         };
         result
@@ -110,6 +111,16 @@ impl PartialEq for Asn1ObjectIdentifier {
         &self.contents == &other.contents
     }
 }
+impl Eq for Asn1ObjectIdentifier {
+    
+}
+impl Hash for Asn1ObjectIdentifier {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.contents.hash(state);
+    }
+}
+
+
 impl Asn1Encodable for Asn1ObjectIdentifier {
     fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
         let mut asn1_writer = Asn1Write::new(writer, encoding_type);

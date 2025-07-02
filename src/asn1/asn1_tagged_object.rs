@@ -65,7 +65,7 @@ impl Asn1TaggedObject {
                 return Err(BcError::with_invalid_operation("object implicit - explicit expected."));
             }
             
-            return metadata.checked_cast(self.get_base_object());
+            return metadata.checked_cast(self.get_base_object().clone());
         }
         
         if self.explicitness == Self::DECLARED_EXPLICIT {
@@ -75,7 +75,7 @@ impl Asn1TaggedObject {
         match self.explicitness {
             Self::PARSED_EXPLICIT => metadata.implicit_constructed(self.rebuild_constructed()),
             Self::PARSED_IMPLICIT => todo!(),
-            _ => metadata.checked_cast(self.get_base_object())
+            _ => metadata.checked_cast(self.get_base_object().clone())
         }
     }
     

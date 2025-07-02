@@ -7,13 +7,13 @@ pub struct AlgorithmIdentifier {
 }
 
 impl AlgorithmIdentifier {
-    pub(crate) fn from_asn1_object(asn1_object: &Asn1Object) -> Result<Self> {
+    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
         if let Some(sequence) = asn1_object.as_sequence() {
             if sequence.len() < 1 || sequence.len() > 2 {
                 return Err(crate::BcError::with_invalid_argument(format!("Bad sequence size: {}", sequence.len())));
             }
 
-            let algorithm = Asn1ObjectIdentifier::from_asn1_object(&sequence[0])?;
+            let algorithm = Asn1ObjectIdentifier::from_asn1_object(sequence[0].clone())?;
             let parameters = if sequence.len() == 2 {
                 Some(sequence[1].clone())
             } else {

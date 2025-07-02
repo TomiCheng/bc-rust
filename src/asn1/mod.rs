@@ -32,6 +32,7 @@ mod asn1_relative_oid;
 mod asn1_universal_type;
 mod asn1_generalized_time;
 mod oid_tokenizer;
+mod asn1_string;
 
 pub use encoding_type::EncodingType;
 pub use asn1_object::Asn1Object;
@@ -58,3 +59,4 @@ pub use asn1_utc_time::Asn1UtcTime;
 pub use asn1_convertible::Asn1Convertible;
 pub use asn1_generalized_time::Asn1GeneralizedTime;
 pub use asn1_relative_oid::Asn1RelativeOid;
+pub use asn1_string::Asn1String;

@@ -1,7 +1,8 @@
 use std::io::Write;
 use crate::{BcError, Result};
-use crate::asn1::{Asn1Convertible, Asn1Encodable, Asn1Object, Asn1Write, EncodingType};
+use crate::asn1::{Asn1Convertible, Asn1Encodable, Asn1Object, Asn1TaggedObject, Asn1Write, EncodingType};
 use crate::asn1::asn1_encoding::Asn1Encoding;
+use crate::asn1::asn1_integer::Asn1IntegerMetadata;
 use crate::asn1::asn1_tags::{BIT_STRING, UNIVERSAL};
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
 use crate::asn1::primitive_encoding_suffixed::PrimitiveEncodingSuffixed;
@@ -13,8 +14,17 @@ pub struct Asn1BitString {
 }
 
 impl Asn1BitString {
-    pub(crate) fn from_asn1_object(p0: &Asn1Object) -> Result<Asn1BitString> {
-        todo!()
+    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Asn1BitString> {
+        if let Asn1Object::BitString(bit_string) = asn1_object {
+            Ok(bit_string)
+        } else {
+            Err(BcError::with_invalid_argument("Expected Asn1Object::BitString"))
+        }
+    }
+    pub fn get_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
+        //let metadata = Asn1IntegerMetadata::new();
+        //metadata.get_tagged(tagged_object, declared_explicit)
+        todo!();
     }
 }
 
@@ -162,7 +172,7 @@ mod tests {
         check_encoding(&test, &test4);
     }
     fn check_encoding(der_data: &Vec<u8>, dl_data: &Vec<u8>) {
-        let asn1_object = Asn1Object::from_bytes(dl_data).unwrap();
+        let asn1_object = Asn1Object::with_bytes(dl_data).unwrap();
         
         assert_ne!(der_data, &asn1_object.get_encoded(Ber).unwrap());
         

@@ -1,8 +1,7 @@
-use crate::asn1::{Asn1BitString, Asn1Convertible, Asn1EncodableVector, Asn1Integer, Asn1Object, Asn1Sequence};
+use crate::asn1::asn1_utilities::read_optional_context_iter;
 use crate::asn1::x509::{AlgorithmIdentifier, SubjectPublicKeyInfo, Validity, X509Extensions, X509Name};
+use crate::asn1::{Asn1BitString, Asn1Convertible, Asn1EncodableVector, Asn1Integer, Asn1Object, Asn1Sequence};
 use crate::{BcError, Result};
-use crate::asn1::asn1_integer::Asn1IntegerMetadata;
-use crate::asn1::asn1_utilities::read_optional_context_tagged;
 
 /// The TbsCertificate object.
 /// ```text
@@ -19,7 +18,7 @@ use crate::asn1::asn1_utilities::read_optional_context_tagged;
 ///     extensions [3] Extensions OPTIONAL
 /// }
 /// ```
-/// Note: issuerUniqueID and subjectUniqueID are both deprecated by the IETF. This class 
+/// Note: issuerUniqueID and subjectUniqueID are both deprecated by the IETF. This class
 /// will parse them, but you really shouldn't be creating new ones.
 pub struct TbsCertificateStructure {
     version: Asn1Integer,
@@ -31,7 +30,7 @@ pub struct TbsCertificateStructure {
     subject_public_key_info: SubjectPublicKeyInfo,
     issuer_unique_id: Option<Asn1BitString>,
     subject_unique_id: Option<Asn1BitString>,
-    extensions: X509Extensions,
+    extensions: Option<X509Extensions>,
 }
 
 impl TbsCertificateStructure {
@@ -45,7 +44,7 @@ impl TbsCertificateStructure {
         subject_public_key_info: SubjectPublicKeyInfo,
         issuer_unique_id: Option<Asn1BitString>,
         subject_unique_id: Option<Asn1BitString>,
-        extensions: X509Extensions,
+        extensions: Option<X509Extensions>,
     ) -> Self {
         TbsCertificateStructure {
             version,
@@ -60,14 +59,16 @@ impl TbsCertificateStructure {
             extensions,
         }
     }
-    pub(crate) fn from_asn1_object(asn1_object: &Asn1Object) -> Result<Self> {
-        if let Some(sequence) = asn1_object.as_sequence() {
+    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
+        if asn1_object.is_sequence() {
+            let sequence: Asn1Sequence = asn1_object.try_into()?;
             if sequence.len() < 6 || sequence.len() > 10 {
                 return Err(BcError::with_invalid_argument(format!("Bad sequence size: {}", sequence.len())));
             }
 
-            let (version, mut index) = read_optional_context_tagged(&sequence, 0, 0, true, Asn1IntegerMetadata::new())?;
-            let version = version.unwrap_or_else(|| Asn1Integer::with_i64(0));
+            let vector: Vec<Asn1Object> = sequence.into();
+            let mut iter = vector.into_iter().peekable();
+            let version = read_optional_context_iter(&mut iter, 0, true, Asn1Integer::get_tagged)?.unwrap_or(Asn1Integer::with_i64(0));
             let mut is_v1 = false;
             let mut is_v2 = false;
             if version.as_ref().as_u32() == 0 {
@@ -78,70 +79,35 @@ impl TbsCertificateStructure {
                 return Err(BcError::with_invalid_argument(format!("version number not recognised: {}", version)));
             }
 
+            let serial_number = Asn1Integer::from_asn1_object(iter.next().unwrap())?;
+            let signature = AlgorithmIdentifier::from_asn1_object(iter.next().unwrap())?;
+            let issuer = X509Name::with_asn1_object(iter.next().unwrap())?;
+            let validity = Validity::from_asn1_object(iter.next().unwrap())?;
+            let subject = X509Name::with_asn1_object(iter.next().unwrap())?;
+            let subject_public_key_info = SubjectPublicKeyInfo::from_asn1_object(iter.next().unwrap())?;
 
-            let serial_number = Asn1Integer::from_asn1_object(&sequence[index])?;
-            index += 1;
-            let signature = AlgorithmIdentifier::from_asn1_object(&sequence[index])?;
-            index += 1;
-            let issuer = X509Name::from_asn1_object(&sequence[index])?;
-            index += 1;
-            let validity = Validity::from_asn1_object(&sequence[index])?;
-            index += 1;
-            let subject = X509Name::from_asn1_object(&sequence[index])?;
-            index += 1;
-            let subject_public_key_info = SubjectPublicKeyInfo::from_asn1_object(&sequence[index])?;
-            
+            let mut issuer_unique_id = None;
+            let mut subject_unique_id = None;
+            let mut extensions = None;
             if !is_v1 {
+                issuer_unique_id = read_optional_context_iter(&mut iter, 1, true, Asn1BitString::get_tagged)?;
+                subject_unique_id = read_optional_context_iter(&mut iter, 2, true, Asn1BitString::get_tagged)?;
                 if !is_v2 {
-                    
+                    extensions = read_optional_context_iter(&mut iter, 3, true, X509Extensions::get_tagged)?;
                 }
             }
-            
-            todo!();
-            //let version =
-
-
-            // let version = sequence.get_optional(0).map_or_else(
-            //     || Ok(Asn1Integer::default()),
-            //     |obj| Asn1Integer::from_asn1_object(obj),
-            // )?;
-            // let serial_number = Asn1Integer::from_asn1_object(&sequence[1])?;
-            // let signature = AlgorithmIdentifier::from_asn1_object(&sequence[2])?;
-            // let issuer = X509Name::from_asn1_object(&sequence[3])?;
-            // let validity = Validity::from_asn1_object(&sequence[4])?;
-            // let subject = X509Name::from_asn1_object(&sequence[5])?;
-            // let subject_public_key_info = SubjectPublicKeyInfo::from_asn1_object(&sequence[6])?;
-            // 
-            // let issuer_unique_id = if sequence.len() > 7 {
-            //     Some(Asn1BitString::from_asn1_object(&sequence[7])?)
-            // } else {
-            //     None
-            // };
-            // 
-            // let subject_unique_id = if sequence.len() > 8 {
-            //     Some(Asn1BitString::from_asn1_object(&sequence[8])?)
-            // } else {
-            //     None
-            // };
-            // 
-            // let extensions = if sequence.len() > 9 {
-            //     X509Extensions::from_asn1_object(&sequence[9])?
-            // } else {
-            //     X509Extensions::default()
-            // };
-            // 
-            // Ok(TbsCertificateStructure {
-            //     version,
-            //     serial_number,
-            //     signature,
-            //     issuer,
-            //     validity,
-            //     subject,
-            //     subject_public_key_info,
-            //     issuer_unique_id,
-            //     subject_unique_id,
-            //     extensions,
-            // })
+            Ok(Self::new(
+                version,
+                serial_number,
+                signature,
+                issuer,
+                validity,
+                subject,
+                subject_public_key_info,
+                issuer_unique_id,
+                subject_unique_id,
+                extensions,
+            ))
         } else {
             Err(BcError::with_invalid_cast("Expected a sequence for TbsCertificateStructure"))
         }
@@ -177,7 +143,7 @@ impl TbsCertificateStructure {
     pub fn subject_unique_id(&self) -> Option<&Asn1BitString> {
         self.subject_unique_id.as_ref()
     }
-    pub fn extensions(&self) -> &X509Extensions {
+    pub fn extensions(&self) -> &Option<X509Extensions> {
         &self.extensions
     }
 }

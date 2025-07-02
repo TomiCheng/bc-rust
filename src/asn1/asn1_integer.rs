@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use std::io::Write;
 use crate::math::BigInteger;
 use crate::{BcError, Result};
-use crate::asn1::{asn1_tags, Asn1Encodable, Asn1Object, Asn1Sequence, Asn1TaggedObject, Asn1Write, EncodingType};
+use crate::asn1::{Asn1Encodable, Asn1Object, Asn1Sequence, Asn1TaggedObject, Asn1Write, EncodingType};
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{INTEGER, UNIVERSAL};
 use crate::asn1::asn1_universal_type::Asn1UniversalType;
@@ -42,9 +42,9 @@ impl Asn1Integer {
             value: BigInteger::with_buffer(&buffer)
         })
     }
-    pub(crate) fn from_asn1_object(asn1_object: &Asn1Object) -> Result<Self> {
+    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
         if let Asn1Object::Integer(integer) = asn1_object {
-            Ok(integer.clone())
+            Ok(integer)
         } else {
             Err(BcError::with_invalid_argument("not an integer object"))
         }
@@ -69,7 +69,10 @@ impl Asn1Integer {
     fn get_content(&self, _: EncodingType) -> Vec<u8> {
         self.value.to_vec()
     }
-
+    pub fn get_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Asn1Integer> {
+        let metadata = Asn1IntegerMetadata::new();
+        metadata.get_tagged(tagged_object, declared_explicit)
+    }
 }
 
 impl From<BigInteger> for Asn1Integer {
@@ -105,7 +108,7 @@ impl Asn1IntegerMetadata {
     }
 }
 impl Asn1UniversalType<Asn1Integer> for Asn1IntegerMetadata {
-    fn checked_cast(&self, asn1_object: &Asn1Object) -> Result<Asn1Integer> {
+    fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1Integer> {
         if let Some(value) = asn1_object.as_integer() {
             Ok(value.clone())
         } else {

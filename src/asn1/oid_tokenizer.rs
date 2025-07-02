@@ -5,7 +5,7 @@ pub struct OidTokenizer<'a> {
 }
 
 impl<'a> OidTokenizer<'a> {
-    pub fn new(oid: &str) -> OidTokenizer {
+    pub fn new(oid: &'_ str) -> OidTokenizer<'_> {
         OidTokenizer {  iter: oid.split('.') }
     }
 }

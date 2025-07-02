@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use crate::asn1::{Asn1BitString, Asn1ObjectIdentifier, Asn1OctetString, Asn1Boolean, Asn1Integer};
+use crate::asn1::{Asn1BitString, Asn1ObjectIdentifier, Asn1OctetString, Asn1Boolean, Asn1Integer, Asn1String};
 use crate::asn1::{Asn1Null, Asn1ObjectDescriptor, Asn1Enumerated, Asn1External, Asn1Utf8String,};
 use crate::asn1::{Asn1Set, EncodingType, Asn1Read, Asn1Encodable, Asn1Write, Asn1TaggedObject,};
 use crate::asn1::{Asn1Sequence, Asn1PrintableString, Asn1Ia5String, Asn1UtcTime, Asn1GeneralizedTime};
@@ -65,6 +65,12 @@ impl Asn1Object {
     pub fn is_relative_oid(&self) -> bool {
         matches!(self, Asn1Object::RelativeOid(_))
     }
+    pub fn is_universal_string(&self) -> bool {
+        matches!(self, Asn1Object::UniversalString)
+    }
+    pub fn is_printable_string(&self) -> bool {
+        matches!(self, Asn1Object::PrintableString(_))
+    }
     pub fn as_boolean(&self) -> Option<&Asn1Boolean> {
         match self {
             Asn1Object::Boolean(obj) => Some(obj),
@@ -101,6 +107,18 @@ impl Asn1Object {
             _ => None,
         }
     }
+    pub fn as_printable_string(&self) -> Option<&Asn1PrintableString> {
+        match self {
+            Asn1Object::PrintableString(obj) => Some(obj),
+            _ => None,
+        }
+    }
+    pub fn as_ia5_string(&self) -> Option<&Asn1Ia5String> {
+        match self {
+            Asn1Object::Ia5String(obj) => Some(obj),
+            _ => None,
+        }
+    }
     pub fn as_object_identifier(&self) -> Option<&Asn1ObjectIdentifier> {
         match self {
             Asn1Object::ObjectIdentifier(obj) => Some(obj),
@@ -120,8 +138,7 @@ impl Asn1Object {
             //Asn1Object::Enumerated(obj) => Box::new(obj.get_encoding(encoding_type)),
             //Asn1Object::Utf8String(obj) => Box::new(obj.get_encoding(encoding_type)),
             //Asn1Object::Set(obj) => Box::new(obj.get_encoding(encoding_type)),
-            _ =>  // Placeholder for other object types
-            todo!()
+            _ =>  todo!("Encoding not implemented for {:?}", self),
         }
         
     }
@@ -134,9 +151,19 @@ impl Asn1Object {
             Err(crate::BcError::with_invalid_format("No ASN.1 object found"))
         }
     }
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+    pub fn with_bytes(bytes: &[u8]) -> Result<Self> {
         let mut reader = bytes;
         Self::from_read(&mut reader)
+    }
+    pub fn as_string(&self) -> Option<&dyn Asn1String> {
+        if let Some(obj) = self.as_printable_string() {
+            Some(obj)
+        } else if let Some(obj) = self.as_ia5_string() {
+            Some(obj)
+        } else {
+            None
+        }
+
     }
 }
 
@@ -195,5 +222,6 @@ impl_tryfrom_asn1object! {
     Asn1Sequence => Sequence,
     Asn1ObjectIdentifier => ObjectIdentifier,
     Asn1Set => Set,
-    Asn1TaggedObject => Tagged
+    Asn1TaggedObject => Tagged,
+    Asn1GeneralizedTime => GeneralizedTime
 }

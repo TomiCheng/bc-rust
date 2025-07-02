@@ -1,5 +1,5 @@
-use crate::asn1::Asn1Object;
-use crate::asn1::x509::Time;
+use crate::asn1::{Asn1Object, Asn1Sequence};
+use crate::asn1::x509::{Time};
 use crate::Result;
 pub struct Validity {
     not_before: Time,
@@ -13,7 +13,19 @@ impl Validity {
             not_after,
         }
     }
-    pub(crate) fn from_asn1_object(p0: &Asn1Object) -> Result<Self> {
+    fn from_sequence(sequence: Asn1Sequence) -> Result<Self> {
+        if sequence.len() != 2 {
+            return Err(crate::BcError::with_invalid_format(format!("bad sequence size: {}", sequence.len())));
+        }
+        let mut iter = sequence.into_iter();
+        let not_before = Time::from_asn1_object(iter.next().unwrap())?;
+        let not_after = Time::from_asn1_object(iter.next().unwrap())?;
+        Ok(Validity::new(not_before, not_after))
+    }
+    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
+        if let Ok(sequence) = asn1_object.try_into() {
+            return Validity::from_sequence(sequence);
+        }
         todo!()
     }
     pub fn not_before(&self) -> &Time {

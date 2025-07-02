@@ -3,7 +3,7 @@ use std::hash::Hash;
 use std::io::Write;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{BOOLEAN, UNIVERSAL};
-use crate::asn1::{Asn1Encodable, Asn1Write, EncodingType};
+use crate::asn1::{Asn1Encodable, Asn1Object, Asn1Write, EncodingType};
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
 use crate::Result;
 
@@ -12,9 +12,18 @@ pub struct Asn1Boolean {
     value: bool,
 }
 
+
+
 impl Asn1Boolean {
     pub fn new(value: bool) -> Self {
         Asn1Boolean { value }
+    }
+    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
+        if let Asn1Object::Boolean(boolean) = asn1_object {
+            Ok(boolean)
+        } else {
+            Err(crate::error::BcError::with_invalid_argument("not an Asn1Boolean object"))
+        }
     }
     pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
         if contents.len() != 1 {
