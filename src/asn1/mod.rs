@@ -33,6 +33,8 @@ mod asn1_universal_type;
 mod asn1_generalized_time;
 mod oid_tokenizer;
 mod asn1_string;
+pub mod pkcs;
+pub(crate) mod asn1_macro;
 
 pub use encoding_type::EncodingType;
 pub use asn1_object::Asn1Object;

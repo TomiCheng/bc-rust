@@ -8,3 +8,4 @@ base64= "0.22.1"
 
 [dependencies]
 chrono = "0"
+rand = "0"

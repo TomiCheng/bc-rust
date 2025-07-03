@@ -1,7 +1,5 @@
 use crate::Result;
-use crate::asn1::asn1_integer::Asn1IntegerMetadata;
-use crate::asn1::asn1_universal_type::Asn1UniversalType;
-use crate::asn1::{Asn1Object, Asn1Sequence, Asn1TaggedObject, asn1_tags};
+use crate::asn1::{Asn1Object, Asn1TaggedObject, asn1_tags};
 use std::iter::Peekable;
 use std::vec::IntoIter;
 

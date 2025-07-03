@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use crate::asn1::{Asn1Boolean, Asn1ObjectIdentifier, Asn1OctetString, Asn1Sequence, Asn1TaggedObject};
 use crate::asn1::x509::X509Extension;
-use crate::Result;
+use crate::{define_oid, Result};
+use std::sync::LazyLock;
 pub struct X509Extensions {
     ordering: Vec<Asn1ObjectIdentifier>,
     extensions: HashMap<Asn1ObjectIdentifier, X509Extension>,
@@ -40,4 +41,19 @@ impl X509Extensions {
         let sequence = Asn1Sequence::get_tagged(tagged_object, declared_explicit)?;
         Self::from_sequence(sequence)
     }
+    pub fn iter_ordering(&self) -> impl Iterator<Item = &Asn1ObjectIdentifier> {
+        self.ordering.iter()
+    }
+    /// return the extension represented by the object identifier passed in.
+    /// 
+    /// # Arguments
+    /// * `oid` - The object identifier of the extension to retrieve.
+    /// 
+    /// # Returns
+    /// * `Option<&X509Extension>` - Returns an `Option` containing a reference to the `X509Extension` if it exists, or `None` if it does not.
+    pub fn get_extension(&self, oid: &Asn1ObjectIdentifier) -> Option<&X509Extension> {
+        self.extensions.get(oid)
+    }
 }
+define_oid!(SUBJECT_KEY_IDENTIFIER, "2.5.29.14", "Subject Key Identifier");
+define_oid!(KEY_USAGE, "2.5.29.15", "Key Usage");

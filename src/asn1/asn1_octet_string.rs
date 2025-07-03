@@ -25,6 +25,9 @@ impl Asn1OctetString {
     pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
         Ok(Self { contents })
     }
+    pub fn get_octets(&self) -> &Vec<u8> {
+        &self.contents
+    }
 }
 
 impl Display for Asn1OctetString {

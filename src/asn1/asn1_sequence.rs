@@ -1,6 +1,5 @@
 use std::ops::Index;
-use crate::asn1::{Asn1EncodableVector, Asn1Integer, Asn1Object, Asn1TaggedObject};
-use crate::asn1::asn1_integer::Asn1IntegerMetadata;
+use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1TaggedObject};
 use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::Result;
 

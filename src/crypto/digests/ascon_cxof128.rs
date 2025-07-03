@@ -246,7 +246,7 @@ impl Xof for AsconCxof128 {
 mod tests {
     use std::fs::File;
     use std::io::{BufRead, BufReader};
-    use std::random::{random, DefaultRandomSource, RandomSource};
+    use rand::RngCore;
     use crate::crypto::digests::ascon_cxof128::AsconCxof128;
     use crate::crypto::digests::test_digest;
     use crate::crypto::Xof;
@@ -266,7 +266,7 @@ mod tests {
     }
     #[test]
     fn test_vectors_xof_ascon_xof128() {
-        let mut random_source = DefaultRandomSource::default();
+        let mut random_source = rand::rng();
         let file = File::open("./src/crypto/digests/LWC_CXOF_KAT_128_512.txt").unwrap();
         let mut reader = BufReader::new(file);
 
@@ -297,14 +297,14 @@ mod tests {
     fn impl_test_output_xof<TXof: Xof>(mut xof: TXof) {
         let mut expected = [0u8; 64];
         xof.output_final(&mut expected);
-        let mut random_source = DefaultRandomSource::default();
+        let mut random_source = rand::rng();
         let output = &mut [0u8; 64];
         for i in 0..64 {
             random_source.fill_bytes(output);
 
             let mut pos = 0;
             while pos <= (output.len() - 16) {
-                let len: usize = random::<usize>() % 17;
+                let len: usize = rand::random_range(0..17);
                 xof.output(&mut output[pos..(pos + len)]);
                 pos += len;
             }
@@ -324,7 +324,7 @@ mod tests {
             xof.output_final(&mut data);
         }
     }
-    fn impl_test_vector_xof<TXof: Xof>(random_source: &mut DefaultRandomSource,
+    fn impl_test_vector_xof<TXof: Xof>(random_source: &mut dyn RngCore,
                                        xof: &mut TXof,
                                        count: u32,
                                        msg: &[u8],
@@ -340,7 +340,7 @@ mod tests {
         }
         if msg.len() > 1 {
             random_source.fill_bytes(&mut output);
-            let split_output: usize = random::<usize>() % output_length;
+            let split_output: usize = rand::random_range(0..output_length);
             xof.block_update(&msg).unwrap();
             xof.output(&mut output[..split_output]);
             xof.output_final(&mut output[split_output..]);

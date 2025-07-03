@@ -1,5 +1,5 @@
 
-use std::random::{DefaultRandomSource, RandomSource};
+use rand::RngCore;
 use crate::crypto::Digest;
 use crate::util::Memoable;
 use crate::util::encoders::hex::to_decode_with_str;
@@ -63,7 +63,7 @@ pub(crate) fn test_digest_reset<T: Digest>(mut digest: T) -> bool {
     
     // obtain some random data
     let mut my_data = vec![0u8; DATA_LEN];
-    let mut random_source = DefaultRandomSource::default();
+    let mut random_source = rand::rng();
     random_source.fill_bytes(&mut my_data);
     
     // update and finalise digest
@@ -90,10 +90,10 @@ fn test_vector<TDigest: Digest>(digest: &mut TDigest, count: usize, res_buf: &mu
 }
 fn span_consistency_tests<TDigest: Digest>(digest: &mut TDigest) {
     let mut data = vec![0u8; 16 + 256];
-    let mut random = std::random::DefaultRandomSource::default();
+    let mut random = rand::rng();
     random.fill_bytes(&mut data);
     for len in 0..=256 {
-        let off: usize = std::random::random::<usize>() % 16;
+        let off: usize = rand::random_range(0..16); 
         span_consistency_test(digest,&data[off..(off + len)]);
     }
 }
@@ -103,7 +103,7 @@ fn span_consistency_test<TDigest: Digest>(digest: &mut TDigest, data: &[u8]) {
 
     let mut pos = 0;
     while pos < data.len() {
-        let next = 1 + std::random::random::<usize>() % (data.len() - pos);
+        let next = 1 + rand::random_range(0..(data.len() - pos));
         digest.block_update(&data[pos..(pos + next)]).unwrap();
         pos += next;
     }

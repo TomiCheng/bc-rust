@@ -61,8 +61,9 @@ impl Asn1Convertible for X509CertificateStructure {
 
 #[cfg(test)]
 mod tests {
-    use crate::asn1::x509::X509CertificateStructure;
+    use crate::asn1::x509::{x509_extensions, KeyUsage, SubjectPublicKeyInfo, X509CertificateStructure};
     use base64::prelude::*;
+    use crate::asn1::{Asn1Object};
 
     const SUBECTS: [&'static str; 7] = [
         "C=AU,ST=Victoria,L=South Melbourne,O=Connect 4 Pty Ltd,OU=Webserver Team,CN=www2.connect4.com.au,E=webmaster@connect4.com.au",
@@ -75,7 +76,7 @@ mod tests {
     ];
     #[test]
     fn test_parse_x509_certificate_01() {
-        let cert = concat!(
+        let certificate_base64: String = concat!(
             "MIIDXjCCAsegAwIBAgIBBzANBgkqhkiG9w0BAQQFADCBtzELMAkGA1UEBhMCQVUx",
             "ETAPBgNVBAgTCFZpY3RvcmlhMRgwFgYDVQQHEw9Tb3V0aCBNZWxib3VybmUxGjAY",
             "BgNVBAoTEUNvbm5lY3QgNCBQdHkgTHRkMR4wHAYDVQQLExVDZXJ0aWZpY2F0ZSBB",
@@ -95,14 +96,29 @@ mod tests {
             "iBS4/3N/TO195yeQKbfmzbAA2jbPVvIvGgTxPgO1MP4ZgvgRhasaa0qCJCkWvpM4",
             "yQf33vOiYQbpv4rTwzU8AmRlBG45WdjyNIigGV+oRc61aKCTnLq7zB8N3z1TF/bF",
             "5/8="
-        );
-        let certificate_buffer = BASE64_STANDARD.decode(cert).unwrap();
+        ).to_string();
+        let certificate_buffer = BASE64_STANDARD.decode(certificate_base64).unwrap();
         check_certificate(1, &certificate_buffer);
     }
 
     fn check_certificate(id: usize, certificate_buffer: &[u8]) {
         let obj = X509CertificateStructure::with_bytes(certificate_buffer).unwrap();
         let tbs_certificate = obj.tbs_certificate();
-        assert_eq!(tbs_certificate.subject().to_string(), SUBECTS[id - 1]);
+        assert_eq!(SUBECTS[id - 1], &tbs_certificate.subject().to_string());
+
+        if tbs_certificate.version() >= 3 {
+            if let Some(extensions) = tbs_certificate.extensions() {
+                for oid in extensions.iter_ordering() {
+                    let extension = extensions.get_extension(oid).unwrap();
+                    let extension_object = Asn1Object::with_bytes(extension.get_value().get_octets()).unwrap();
+                    
+                    if oid == &(*x509_extensions::SUBJECT_KEY_IDENTIFIER) {
+                        SubjectPublicKeyInfo::from_asn1_object(extension_object).unwrap();
+                    } else if oid == &(*x509_extensions::KEY_USAGE) {
+                        KeyUsage::from_asn1_object(extension_object).unwrap();
+                    }
+                }
+            }
+        }
     }
 }

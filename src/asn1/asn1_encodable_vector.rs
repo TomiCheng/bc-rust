@@ -1,6 +1,5 @@
 use std::ops::Index;
-use crate::asn1::{Asn1Object, Asn1TaggedObject};
-use crate::asn1::x509::X509Extensions;
+use crate::asn1::{Asn1Object};
 use crate::Result;
 
 pub struct Asn1EncodableVector {

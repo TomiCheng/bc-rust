@@ -1,8 +1,8 @@
+use rand::prelude::*;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::ops::Neg;
-use std::random::{DefaultRandomSource, RandomSource};
 use std::sync::{LazyLock, OnceLock};
 use crate::util::pack::{be_to_u32_buffer, be_to_u32_low, le_to_u32_low, u32_to_be_bytes};
 use crate::{BcError, Result};
@@ -593,7 +593,7 @@ impl BigInteger {
     pub fn with_string(str: &str) -> Result<Self> {
         Self::with_string_radix(str, 10)
     }
-    pub fn with_random(size_in_bits: usize, random: &mut dyn RandomSource) -> BigInteger {
+    pub fn with_random(size_in_bits: usize, random: &mut dyn RngCore) -> BigInteger {
         if size_in_bits == 0 {
             return (*ZERO).clone();
         }
@@ -606,13 +606,13 @@ impl BigInteger {
         let sign = if magnitude.len() < 1 { 0 } else { 1 };
         BigInteger::new(sign, magnitude)
     }
-    pub fn with_random_certainty(size_in_bits: usize, certainty: i32, random: &mut dyn RandomSource) -> Result<Self> {
+    pub fn with_random_certainty(size_in_bits: usize, certainty: i32, random: &mut dyn RngCore) -> Result<Self> {
         if size_in_bits < 2 {
             return Err(BcError::with_invalid_argument("Size in bits must be at least 2"));
         }
 
         if size_in_bits == 2 {
-            return if std::random::random::<u32>() % 2 == 0 {
+            return if random.random_range(0..2) == 0 {
                 Ok(Self::with_u32(2))
             } else {
                 Ok(Self::with_u32(3))
@@ -646,7 +646,7 @@ impl BigInteger {
                 return Ok(result);
             }
             for j in 1..(magnitude.len() - 1) {
-                magnitude[j] ^= std::random::random::<u32>();
+                magnitude[j] ^= random.next_u32();
 
                 let result = BigInteger::new(1, magnitude.clone());
                 if result.check_probable_prime(certainty, random, true)? {
@@ -656,7 +656,7 @@ impl BigInteger {
         }
 
     }
-    pub fn with_probable_prime(bit_length: usize, random: &mut dyn RandomSource) -> Result<Self> {
+    pub fn with_probable_prime(bit_length: usize, random: &mut dyn RngCore) -> Result<Self> {
         Self::with_random_certainty(bit_length, 100, random)
     }
     /// Creates a new `BigInteger` with the given sign and magnitude, optionally stripping leading zeros.
@@ -2004,7 +2004,7 @@ impl BigInteger {
         }
 
         let mut n = self.inc().set_bit(0);
-        while !n.check_probable_prime(100, &mut DefaultRandomSource::default(), false)? {
+        while !n.check_probable_prime(100, &mut rand::rng(), false)? {
             n = n.add(&(*TWO));
         }
         Ok(n)
@@ -2042,7 +2042,7 @@ impl BigInteger {
 
         Ok(n.check_probable_prime(
             certainty,
-            &mut DefaultRandomSource::default(),
+            &mut rand::rng(),
             randomly_selected,
         )?)
     }
@@ -2097,7 +2097,7 @@ impl BigInteger {
         }
         acc as u32
     }
-    fn check_probable_prime(&self, certainty: i32, random: &mut dyn RandomSource, randomly_selected: bool) -> Result<bool> {
+    fn check_probable_prime(&self, certainty: i32, random: &mut dyn RngCore, randomly_selected: bool) -> Result<bool> {
         debug_assert!(certainty > 0);
         debug_assert!(self > &(*TWO));
         debug_assert!(self.test_bit(0));
@@ -2117,7 +2117,7 @@ impl BigInteger {
         }
         self.rabin_miller_test_with_randomly_selected(certainty, random, randomly_selected)
     }
-    fn rabin_miller_test_with_randomly_selected(&self, certainty: i32, random: &mut dyn RandomSource, randomly_selected: bool) -> Result<bool> {
+    fn rabin_miller_test_with_randomly_selected(&self, certainty: i32, random: &mut dyn RngCore, randomly_selected: bool) -> Result<bool> {
         let bits = self.bit_length();
 
         debug_assert!(certainty > 0);
@@ -3795,7 +3795,6 @@ fn create_value_of_u32(value: u32) -> BigInteger {
 }
 #[cfg(test)]
 mod tests {
-    use std::random::DefaultRandomSource;
     use super::*;
 
     #[test]
@@ -3872,7 +3871,7 @@ mod tests {
             assert_eq!(i as usize, pow2.negate().bit_count(), "{}", i);
         }
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
 
         for _ in 0..10 {
             let test = BigInteger::with_random_certainty(128, 0, &mut random).unwrap();
@@ -3898,10 +3897,10 @@ mod tests {
         assert_eq!(2, (*TWO).bit_length());
         assert_eq!(1, (*MINUS_TWO).bit_length());
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
 
         for i in 0..100 {
-            let bit = i + (std::random::random::<usize>() % 64);
+            let bit = i + rand::random_range(0..64);
             //println!("{}", bit);
             let odd = BigInteger::with_random(bit, &mut random)
                 .set_bit(bit + 1)
@@ -3925,12 +3924,12 @@ mod tests {
         assert_eq!(&(*ONE), &(*ONE).clear_bit(1));
         assert_eq!(&(*ZERO), &(*TWO).clear_bit(1));
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for _ in 0..10 {
             let n = BigInteger::with_random(128, &mut random);
 
             for _ in 0..10 {
-                let pos = std::random::random::<usize>() % 128;
+                let pos = rand::random_range(0..128);
                 let m = n.clear_bit(pos);
                 assert_ne!(m.shift_right(pos as isize).remainder(&(*TWO)).unwrap(), *ONE);
             }
@@ -4071,7 +4070,7 @@ mod tests {
         assert_eq!(&(*ZERO), &BigInteger::with_buffer(&[0u8]));
         assert_eq!(&(*ZERO), &BigInteger::with_buffer(&[0u8, 0u8]));
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for i in 0..10 {
             let m = BigInteger::with_random_certainty(i + 3, 0, &mut random).unwrap().test_bit(0);
             assert!(m, "i = {}", i);
@@ -4146,7 +4145,7 @@ mod tests {
 
     #[test]
     fn test_divide_03() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for req in 0..10 {
             let a = BigInteger::with_random_certainty(100 - req, 0, &mut random).unwrap();
             let b = BigInteger::with_random_certainty(100 + req, 0, &mut random).unwrap();
@@ -4159,9 +4158,9 @@ mod tests {
 
         // Special tests for power of two since uses a different code path internally
         for _ in 0..100 {
-            let shift = (std::random::random::<usize>() % 64) as isize;
+            let shift = rand::random_range(0..64) as isize;
             let a = (*ONE).shift_left(shift);
-            let b = BigInteger::with_random(64 + std::random::random::<usize>() % 64, &mut random);
+            let b = BigInteger::with_random(64 + rand::random_range(0..64), &mut random);
             let b_shift = b.shift_right(shift);
 
             assert_eq!(
@@ -4235,7 +4234,7 @@ mod tests {
 
     #[test]
     fn test_divide_and_remainder() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         let n = BigInteger::with_random(48, &mut random);
         let mut qr = n.divide_and_remainder(&n).unwrap();
         assert_eq!(*ONE, qr.0);
@@ -4258,9 +4257,9 @@ mod tests {
 
         // Special tests for power of two since uses a different code path internally
         for _ in 0..100 {
-            let shift = (std::random::random::<usize>() % 64) as isize;
+            let shift = rand::random_range(0..64) as isize;
             let a = (*ONE).shift_left(shift);
-            let b = BigInteger::with_random(64 + std::random::random::<usize>() % 64, &mut random);
+            let b = BigInteger::with_random(64 + rand::random_range(0..64), &mut random);
             let b_shift = b.shift_right(shift);
             let b_mod = b.and(&a.subtract(&(*ONE)));
 
@@ -4332,14 +4331,14 @@ mod tests {
 
     #[test]
     fn test_flip_bit() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for _ in 0..10 {
             let a = BigInteger::with_random_certainty(128, 0, &mut random).unwrap();
             let b = a.clone();
 
             for _ in 0..100 {
                 // Note: Intentionally greater than initial size
-                let pos = std::random::random::<usize>() % 256;
+                let pos = rand::random_range(0..256);
 
                 let a = a.flip_bit(pos);
                 let b = if b.test_bit(pos) {
@@ -4388,7 +4387,7 @@ mod tests {
 
     #[test]
     fn test_gcd() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for _ in 0..10 {
             let fac = BigInteger::with_random(32, &mut random).add(&(*TWO));
             let p1 = BigInteger::with_probable_prime(63, &mut random).unwrap();
@@ -4401,7 +4400,7 @@ mod tests {
 
     #[test]
     fn tst_get_lowest_set_bit() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for i in 1..=100 {
             let test = BigInteger::with_random_certainty(i + 1, 0, &mut random).unwrap();
             let bit1 = test.get_lowest_set_bit();
@@ -4513,9 +4512,9 @@ mod tests {
 
     #[test]
     fn test_mod() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for _ in 0..100 {
-            let diff = std::random::random::<usize>() % 25;
+            let diff = rand::random_range(0..25);
             let a = BigInteger::with_random_certainty(100 - diff, 0, &mut random).unwrap();
             let b = BigInteger::with_random_certainty(100 + diff, 0, &mut random).unwrap();
             let c = BigInteger::with_random_certainty(10 + diff, 0, &mut random).unwrap();
@@ -4524,14 +4523,14 @@ mod tests {
             let e = d.remainder(&a).unwrap();
             assert_eq!(c, e);
 
-            let pow2 = (*ONE).shift_left((std::random::random::<usize>() % 128) as isize);
+            let pow2 = (*ONE).shift_left(rand::random_range(0..128) as isize);
             assert_eq!(b.and(&pow2.subtract(&(*ONE))), b.modulus(&pow2).unwrap());
         }
     }
 
     #[test]
     fn test_mod_inverse() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for _ in 0..10 {
             let p = BigInteger::with_probable_prime(64, &mut random).unwrap();
             let q = BigInteger::with_random(63, &mut random).add(&(*ONE));
@@ -4565,7 +4564,7 @@ mod tests {
         assert_eq!(*ZERO, (*TWO).mod_pow(&(*ONE), &(*ONE)).unwrap());
         assert_eq!(*ONE, (*TWO).mod_pow(&(*ZERO), &(*TWO)).unwrap());
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for i in 0..100 {
             let m = BigInteger::with_probable_prime(10 + i, &mut random).unwrap();
             let x = BigInteger::with_random(m.bit_length() - 1, &mut random);
@@ -4601,10 +4600,10 @@ mod tests {
         let one = &(*ONE);
         assert_eq!(one, &one.negate().multiply(&one.negate()));
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for _ in 0..100 {
-            let a_len = 64 + std::random::random::<usize>() % 64;
-            let b_len = 64 + std::random::random::<usize>() % 64;
+            let a_len = 64 + rand::random_range(0..64);
+            let b_len = 64 + rand::random_range(0..64);
 
             let a = BigInteger::with_random(a_len, &mut random).set_bit(a_len);
             let b = BigInteger::with_random(b_len, &mut random).set_bit(b_len);
@@ -4625,9 +4624,9 @@ mod tests {
 
         // Special tests for power of two since uses a different code path internally
         for _ in 0..100 {
-            let shift = (std::random::random::<usize>() % 64) as isize;
+            let shift = rand::random_range(0..64) as isize;
             let a = one.shift_left(shift);
-            let b = BigInteger::with_random(64 + std::random::random::<usize>() % 64, &mut random);
+            let b = BigInteger::with_random(64 + rand::random_range(0..64), &mut random);
             let b_shift = b.shift_left(shift);
 
             assert_eq!(b_shift, a.multiply(&b));
@@ -4654,7 +4653,7 @@ mod tests {
 
     #[test]
     fn test_next_probable_prime() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         let first_prime = BigInteger::with_probable_prime(32, &mut random).unwrap();
         let next_prime = first_prime.next_probable_prime().unwrap();
 
@@ -4713,10 +4712,10 @@ mod tests {
     fn test_remainder() {
         for rep in 0..10 {
             let a =
-                BigInteger::with_random_certainty(100 - rep, 0, &mut DefaultRandomSource::default()).unwrap();
+                BigInteger::with_random_certainty(100 - rep, 0, &mut rand::rng()).unwrap();
             let b =
-                BigInteger::with_random_certainty(100 + rep, 0, &mut DefaultRandomSource::default()).unwrap();
-            let c = BigInteger::with_random_certainty(10 + rep, 0, &mut DefaultRandomSource::default()).unwrap();
+                BigInteger::with_random_certainty(100 + rep, 0, &mut rand::rng()).unwrap();
+            let c = BigInteger::with_random_certainty(10 + rep, 0, &mut rand::rng()).unwrap();
             let d = a.multiply(&b).add(&c);
             let e = d.remainder(&a).unwrap();
             let f = d.divide(&a).unwrap();
@@ -4742,12 +4741,12 @@ mod tests {
         assert_eq!(&(*THREE), &(*ONE).set_bit(1));
         assert_eq!(&(*TWO), &(*TWO).set_bit(1));
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for _ in 0..10 {
             let n = BigInteger::with_random(128, &mut random);
 
             for _ in 0..10 {
-                let pos = std::random::random::<usize>() % 128;
+                let pos = rand::random_range(0..128);
                 let m = n.set_bit(pos);
                 let test = m.shift_right(pos as isize).remainder(&(*TWO)).unwrap() == *ONE;
                 assert!(test);
@@ -4757,9 +4756,9 @@ mod tests {
 
     #[test]
     fn test_shift_left() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for i in 0..100 {
-            let shift = std::random::random::<usize>() % 128;
+            let shift = rand::random_range(0..128);
 
             let a = BigInteger::with_random(128 + i, &mut random);
             a.bit_count();
@@ -4801,9 +4800,9 @@ mod tests {
 
     #[test]
     fn test_shift_right() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for i in 0..10 {
-            let shift = std::random::random::<usize>() % 128;
+            let shift = rand::random_range(0..128);
             let a = BigInteger::with_random(256 + i, &mut random);
             let b = a.shift_right(shift as isize);
 
@@ -4842,7 +4841,7 @@ mod tests {
             }
         }
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for _ in 0..10 {
             let a = BigInteger::with_random_certainty(128, 0, &mut random).unwrap();
             let b = BigInteger::with_random_certainty(128, 0, &mut random).unwrap();
@@ -4854,14 +4853,14 @@ mod tests {
 
     #[test]
     fn test_test_bit() {
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for _ in 0..10 {
             let n = BigInteger::with_random(128, &mut random);
             assert!(!n.test_bit(128));
             assert!(n.negate().test_bit(128));
 
             for _ in 0..10 {
-                let pos = std::random::random::<usize>() % 128;
+                let pos = rand::random_range(0..128);
                 let test = n.shift_right(pos as isize).remainder(&(*TWO)).unwrap() == *ONE;
                 assert_eq!(test, n.test_bit(pos));
             }
@@ -4874,7 +4873,7 @@ mod tests {
         assert_eq!(z.len(), 1);
         assert_eq!(z[0], 0);
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for i in 16..=48 {
             let x = BigInteger::with_random(i, &mut random).set_bit(i - 1);
             let b = x.to_vec();
@@ -4895,7 +4894,7 @@ mod tests {
         let z = &(*ZERO).to_vec_unsigned();
         assert_eq!(z.len(), 0);
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for i in 16..=48 {
             let mut x = BigInteger::with_random(i, &mut random).set_bit(i - 1);
             let mut b = x.to_vec_unsigned();
@@ -4929,7 +4928,7 @@ mod tests {
                 .to_string_radix(16).unwrap()
         );
 
-        let mut random = DefaultRandomSource::default();
+        let mut random = rand::rng();
         for i in 0..100 {
             let left = BigInteger::with_random(i, &mut random);
             {
@@ -5006,7 +5005,7 @@ mod tests {
 
         let mut tests = vec![(*ZERO).clone(); trials];
         for i in 0..trials {
-            let len = std::random::random::<usize>() % (i + 1);
+            let len = rand::random_range(0..(i + 1));
             tests[i] = BigInteger::with_random(len, &mut random);
         }
 

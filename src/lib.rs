@@ -1,5 +1,3 @@
-#![feature(random)]
-
 pub mod math;
 mod error;
 pub mod util;
