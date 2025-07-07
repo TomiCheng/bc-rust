@@ -57,3 +57,5 @@ impl X509Extensions {
 }
 define_oid!(SUBJECT_KEY_IDENTIFIER, "2.5.29.14", "Subject Key Identifier");
 define_oid!(KEY_USAGE, "2.5.29.15", "Key Usage");
+define_oid!(EXTENDED_KEY_USAGE, "2.5.29.37", "Extended Key Usage");
+define_oid!(SUBJECT_ALTERNATIVE_NAME, "2.5.29.17", "Subject Alternative Name");

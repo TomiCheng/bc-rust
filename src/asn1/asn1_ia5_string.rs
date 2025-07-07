@@ -1,9 +1,15 @@
-use crate::asn1::Asn1String;
+use crate::asn1::{Asn1String, Asn1TaggedObject};
 use crate::Result;
 
 #[derive(Clone, Debug)]
 pub struct Asn1Ia5String {
     contents: Vec<u8>,
+}
+
+impl Asn1Ia5String {
+    pub(crate) fn get_tagged(p0: Asn1TaggedObject, p1: bool) -> Result<Self> {
+        todo!()
+    }
 }
 
 impl Asn1Ia5String {

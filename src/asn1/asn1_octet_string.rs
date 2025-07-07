@@ -1,11 +1,18 @@
 use std::fmt::Display;
-use crate::asn1::Asn1Object;
+use crate::asn1::{Asn1Object, Asn1TaggedObject};
 use crate::Result;
 
 #[derive(Clone, Debug)]
 pub struct Asn1OctetString {
     contents: Vec<u8>,
 }
+
+impl Asn1OctetString {
+    pub(crate) fn get_tagged(p0: Asn1TaggedObject, p1: bool) -> Result<Self> {
+        todo!()
+    }
+}
+
 impl Asn1OctetString {
     pub fn new(contents: Vec<u8>) -> Self {
         Self { contents }

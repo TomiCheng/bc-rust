@@ -2,7 +2,7 @@ use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{OBJECT_IDENTIFIER, UNIVERSAL};
 use crate::asn1::oid_tokenizer::OidTokenizer;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
-use crate::asn1::{Asn1Encodable, Asn1Object, Asn1Write, EncodingType, asn1_relative_oid};
+use crate::asn1::{Asn1Encodable, Asn1Object, Asn1Write, EncodingType, asn1_relative_oid, Asn1TaggedObject};
 use crate::math::BigInteger;
 use crate::{BcError, Result};
 use std::fmt;
@@ -14,6 +14,12 @@ use std::sync::OnceLock;
 pub struct Asn1ObjectIdentifier {
     contents: Vec<u8>,
     identifier: OnceLock<String>,
+}
+
+impl Asn1ObjectIdentifier {
+    pub(crate) fn get_tagged(p0: Asn1TaggedObject, p1: bool) -> Result<Self> {
+        todo!()
+    }
 }
 
 impl Asn1ObjectIdentifier {

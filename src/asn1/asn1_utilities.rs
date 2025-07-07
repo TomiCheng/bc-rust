@@ -74,3 +74,16 @@ where
     }
     Ok(None)
 }
+
+pub(crate) fn read_context_iter<TResult, TState, TFunc>(
+    iter: &mut Peekable<IntoIter<Asn1Object>>,
+    tag_no: u8,
+    state: TState,
+    func: TFunc,
+) -> Result<TResult>
+where
+    TFunc: Fn(Asn1TaggedObject, TState) -> Result<TResult>,
+{
+    let tagged: Asn1TaggedObject = iter.next().unwrap().try_into()?;
+    func(tagged, state)
+}

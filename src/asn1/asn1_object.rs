@@ -1,11 +1,7 @@
-use std::io::{Read, Write};
-use crate::asn1::{Asn1BitString, Asn1ObjectIdentifier, Asn1OctetString, Asn1Boolean, Asn1Integer, Asn1String};
-use crate::asn1::{Asn1Null, Asn1ObjectDescriptor, Asn1Enumerated, Asn1External, Asn1Utf8String,};
-use crate::asn1::{Asn1Set, EncodingType, Asn1Read, Asn1Encodable, Asn1Write, Asn1TaggedObject,};
-use crate::asn1::{Asn1Sequence, Asn1PrintableString, Asn1Ia5String, Asn1UtcTime, Asn1GeneralizedTime};
 use crate::asn1::asn1_encoding::Asn1Encoding;
+use crate::asn1::*;
 use crate::{BcError, Result};
-use crate::asn1::asn1_relative_oid::Asn1RelativeOid;
+use std::io::{Read, Write};
 
 #[derive(Clone, Debug)]
 pub enum Asn1Object {
@@ -18,34 +14,33 @@ pub enum Asn1Object {
     ObjectDescriptor(Asn1ObjectDescriptor),
     External(Asn1External),
     Enumerated(Asn1Enumerated),
-    // not support EMBEDDED_PDV
+    // not support EmbeddedPdv
     Utf8String(Asn1Utf8String),
     RelativeOid(Asn1RelativeOid),
-    Time,
+    // not support Time,
     Sequence(Asn1Sequence),
     Set(Asn1Set),
-    NumericString,
+    NumericString(Asn1NumericString),
     PrintableString(Asn1PrintableString),
-    T61String,
-    VideotexString,
+    T61String(Asn1T61String),
+    VideotexString(Asn1VideotexString),
     Ia5String(Asn1Ia5String),
     UtcTime(Asn1UtcTime),
     GeneralizedTime(Asn1GeneralizedTime),
-    GraphicString,
-    VisibleString,
-    GeneralString,
-    UniversalString,
-    UnrestrictedString,
-    BmpString,
-    Date,
-    TimeOfDay,
-    DateTime,
-    Duration,
-    ObjectIdentifierIri,
-    RelativeOidIri,
+    GraphicString(Asn1GraphicString),
+    VisibleString(Asn1VisibleString),
+    GeneralString(Asn1GeneralString),
+    UniversalString(Asn1UniversalString),
+    // not support UnrestrictedString,
+    BmpString(Asn1BmpString),
+    // not support Date,
+    // not support TimeOfDay,
+    // not support DateTime,
+    // not support Duration,
+    // not support ObjectIdentifierIri,
+    // not support RelativeOidIri,
     Tagged(Asn1TaggedObject),
 }
-
 impl Asn1Object {
     pub fn is_boolean(&self) -> bool {
         matches!(self, Asn1Object::Boolean(_))
@@ -66,7 +61,7 @@ impl Asn1Object {
         matches!(self, Asn1Object::RelativeOid(_))
     }
     pub fn is_universal_string(&self) -> bool {
-        matches!(self, Asn1Object::UniversalString)
+        matches!(self, Asn1Object::UniversalString(_))
     }
     pub fn is_printable_string(&self) -> bool {
         matches!(self, Asn1Object::PrintableString(_))
@@ -138,9 +133,8 @@ impl Asn1Object {
             //Asn1Object::Enumerated(obj) => Box::new(obj.get_encoding(encoding_type)),
             //Asn1Object::Utf8String(obj) => Box::new(obj.get_encoding(encoding_type)),
             //Asn1Object::Set(obj) => Box::new(obj.get_encoding(encoding_type)),
-            _ =>  todo!("Encoding not implemented for {:?}", self),
+            _ => todo!("Encoding not implemented for {:?}", self),
         }
-        
     }
     pub fn from_read(reader: &mut dyn Read) -> Result<Self> {
         let mut asn1_reader = Asn1Read::new(reader, i32::MAX as usize);
@@ -163,10 +157,8 @@ impl Asn1Object {
         } else {
             None
         }
-
     }
 }
-
 impl Asn1Encodable for Asn1Object {
     fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
         let mut asn1_writer = Asn1Write::new(writer, encoding_type);
@@ -174,7 +166,6 @@ impl Asn1Encodable for Asn1Object {
         asn1_encoding.encode(&mut asn1_writer)
     }
 }
-
 macro_rules! impl_from_for_asn1object {
     ($($t:ty => $v:ident),*) => {
         $(
@@ -183,23 +174,6 @@ macro_rules! impl_from_for_asn1object {
                     Asn1Object::$v(value)
                 }
             }
-        )*
-    };
-}
-
-impl_from_for_asn1object! {
-    Asn1Boolean => Boolean,
-    Asn1BitString => BitString,
-    Asn1OctetString => OctetString,
-    Asn1Sequence => Sequence,
-    Asn1ObjectIdentifier => ObjectIdentifier,
-    Asn1Set => Set,
-    Asn1TaggedObject => Tagged,
-    Asn1RelativeOid => RelativeOid
-}
-macro_rules! impl_tryfrom_asn1object {
-    ($($t:ty => $v:ident),*) => {
-        $(
             impl TryFrom<Asn1Object> for $t {
                 type Error = BcError;
                 fn try_from(value: Asn1Object) -> Result<Self> {
@@ -210,18 +184,19 @@ macro_rules! impl_tryfrom_asn1object {
                     }
                 }
             }
+        
         )*
     };
 }
 
-impl_tryfrom_asn1object! {
-    Asn1RelativeOid => RelativeOid,
+impl_from_for_asn1object! {
     Asn1Boolean => Boolean,
+    Asn1Integer => Integer,
     Asn1BitString => BitString,
     Asn1OctetString => OctetString,
     Asn1Sequence => Sequence,
     Asn1ObjectIdentifier => ObjectIdentifier,
     Asn1Set => Set,
     Asn1TaggedObject => Tagged,
-    Asn1GeneralizedTime => GeneralizedTime
+    Asn1RelativeOid => RelativeOid
 }

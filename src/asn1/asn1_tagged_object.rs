@@ -10,6 +10,7 @@ pub struct Asn1TaggedObject {
     tag_no: u8,
     object: Box<Asn1Object>,
 }
+
 impl Asn1TaggedObject {
     const DECLARED_EXPLICIT: u8 = 1;
     const DECLARED_IMPLICIT: u8 = 2;
@@ -49,6 +50,9 @@ impl Asn1TaggedObject {
     pub fn has_tag_class(&self,tag_class: u8) -> bool {
         self.tag_class == tag_class
     }
+    pub(crate) fn has_context_tag(&self) -> bool {
+        self.tag_class == asn1_tags::CONTEXT_SPECIFIC
+    }
     pub fn is_explicit(&self) -> bool {
         self.explicitness == Self::DECLARED_EXPLICIT || self.explicitness == Self::PARSED_EXPLICIT
     }
@@ -81,5 +85,8 @@ impl Asn1TaggedObject {
     
     fn rebuild_constructed(&self) -> Asn1Sequence {
         Asn1Sequence::new(vec![(*self.object).clone()])
+    }
+    pub fn tag_no(&self) -> u8 {
+       self.tag_no 
     }
 }

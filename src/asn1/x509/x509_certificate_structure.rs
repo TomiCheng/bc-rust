@@ -1,5 +1,5 @@
 use crate::asn1::x509::{AlgorithmIdentifier, TbsCertificateStructure};
-use crate::asn1::{Asn1BitString, Asn1Convertible, Asn1Object, Asn1Sequence};
+use crate::asn1::{Asn1BitString, Asn1Convertible, Asn1Object, Asn1Sequence, Asn1TaggedObject};
 use crate::{BcError, Result};
 
 /// an X509Certificate structure.
@@ -61,9 +61,9 @@ impl Asn1Convertible for X509CertificateStructure {
 
 #[cfg(test)]
 mod tests {
-    use crate::asn1::x509::{x509_extensions, KeyUsage, SubjectPublicKeyInfo, X509CertificateStructure};
+    use crate::asn1::x509::{x509_extensions, ExtendedKeyUsage, GeneralNames, KeyPurposeId, KeyUsage, SubjectPublicKeyInfo, X509CertificateStructure};
     use base64::prelude::*;
-    use crate::asn1::{Asn1Object};
+    use crate::asn1::{Asn1Convertible, Asn1Object};
 
     const SUBECTS: [&'static str; 7] = [
         "C=AU,ST=Victoria,L=South Melbourne,O=Connect 4 Pty Ltd,OU=Webserver Team,CN=www2.connect4.com.au,E=webmaster@connect4.com.au",
@@ -76,7 +76,7 @@ mod tests {
     ];
     #[test]
     fn test_parse_x509_certificate_01() {
-        let certificate_base64: String = concat!(
+        const CERTIFICATE_BASE64: &str = concat!(
             "MIIDXjCCAsegAwIBAgIBBzANBgkqhkiG9w0BAQQFADCBtzELMAkGA1UEBhMCQVUx",
             "ETAPBgNVBAgTCFZpY3RvcmlhMRgwFgYDVQQHEw9Tb3V0aCBNZWxib3VybmUxGjAY",
             "BgNVBAoTEUNvbm5lY3QgNCBQdHkgTHRkMR4wHAYDVQQLExVDZXJ0aWZpY2F0ZSBB",
@@ -96,8 +96,8 @@ mod tests {
             "iBS4/3N/TO195yeQKbfmzbAA2jbPVvIvGgTxPgO1MP4ZgvgRhasaa0qCJCkWvpM4",
             "yQf33vOiYQbpv4rTwzU8AmRlBG45WdjyNIigGV+oRc61aKCTnLq7zB8N3z1TF/bF",
             "5/8="
-        ).to_string();
-        let certificate_buffer = BASE64_STANDARD.decode(certificate_base64).unwrap();
+        );
+        let certificate_buffer = BASE64_STANDARD.decode(CERTIFICATE_BASE64).unwrap();
         check_certificate(1, &certificate_buffer);
     }
 
@@ -116,7 +116,19 @@ mod tests {
                         SubjectPublicKeyInfo::from_asn1_object(extension_object).unwrap();
                     } else if oid == &(*x509_extensions::KEY_USAGE) {
                         KeyUsage::from_asn1_object(extension_object).unwrap();
+                    } else if oid == &(*x509_extensions::EXTENDED_KEY_USAGE) {
+                        let extended_key_usage = ExtendedKeyUsage::from_asn1_object(extension_object).unwrap();
+                        for usage in extended_key_usage.into_iter() {
+                            KeyPurposeId::new(usage);
+                        }
+                    } else if oid == &(*x509_extensions::SUBJECT_ALTERNATIVE_NAME) {
+                        let general_names = GeneralNames::from_asn1_object(extension_object).unwrap();
+                        for name in general_names.into_iter() {
+                            name.to_asn1_object().unwrap();
+                        }
                     }
+                
+                        
                 }
             }
         }

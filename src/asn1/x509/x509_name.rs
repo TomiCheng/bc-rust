@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::asn1::EncodingType::Ber;
 use crate::asn1::x509::x509_object_identifiers;
-use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set};
+use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1TaggedObject};
 use crate::util::encoders::hex::to_hex_string;
 use std::collections::HashMap;
 use std::fmt;
@@ -24,6 +24,12 @@ pub struct X509Name {
     ordering: Vec<Asn1ObjectIdentifier>,
     values: Vec<String>,
     added: Vec<bool>,
+}
+
+impl X509Name {
+    pub(crate) fn get_tagged(p0: Asn1TaggedObject, p1: bool) -> Result<Self> {
+        todo!()
+    }
 }
 
 impl X509Name {
