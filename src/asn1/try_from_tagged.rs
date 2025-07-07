@@ -15,3 +15,16 @@ pub(crate) trait TryFromTagged {
     where
         Self: Sized;
 }
+
+pub(crate) trait TryIntoTagged<T>: Sized {
+    fn try_into_tagged(self, declared_explicit: bool) -> Result<T, BcError>;
+}
+
+impl<T> TryIntoTagged<T> for Asn1TaggedObject
+where
+    T: TryFromTagged,
+{
+    fn try_into_tagged(self, declared_explicit: bool) -> Result<T, BcError> {
+        T::try_from_tagged(self, declared_explicit)
+    }
+}

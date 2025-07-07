@@ -1,6 +1,7 @@
 use std::ops::Index;
 use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1TaggedObject};
 use crate::asn1::asn1_universal_type::Asn1UniversalType;
+use crate::asn1::try_from_tagged::TryFromTagged;
 use crate::Result;
 
 #[derive(Clone, Debug)]
@@ -75,5 +76,14 @@ impl Asn1UniversalType<Asn1Sequence> for Asn1SequenceMetadata {
 
     fn implicit_constructed(&self, sequence: Asn1Sequence) -> Result<Asn1Sequence> {
         todo!();
+    }
+}
+impl TryFromTagged for Asn1Sequence {
+    fn try_from_tagged(tagged: Asn1TaggedObject, declared_explicit: bool) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let metadata = Asn1SequenceMetadata::new();
+        metadata.get_tagged(tagged, declared_explicit)
     }
 }
