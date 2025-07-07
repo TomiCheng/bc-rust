@@ -8,6 +8,7 @@ use crate::asn1::x500::DirectoryString;
 ///     nameAssigner [0] Name OPTIONAL,
 ///     partyName [1] Name
 /// }
+/// ```
 pub struct EdiPartyName {
     name_assigner: Option<DirectoryString>,
     party_name: DirectoryString,
@@ -20,6 +21,13 @@ impl EdiPartyName {
             party_name,
         }
     }
+    pub fn name_assigner(&self) -> Option<&DirectoryString> {
+        self.name_assigner.as_ref()
+    }
+    pub fn party_name(&self) -> &DirectoryString {
+        &self.party_name
+    }
+
     pub(crate) fn from_sequence(sequence: Asn1Sequence) -> Result<Self> {
         // if sequence.len() < 1 || sequence.len() > 2 {
         //     return Err(BcError::with_invalid_argument("EdiPartyName must have 1 or 2 elements"));

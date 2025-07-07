@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use crate::asn1::{Asn1String, Asn1UniversalString};
 
 #[derive(Clone, Debug)]
 pub struct Asn1Utf8String {
@@ -19,7 +20,11 @@ impl Display for Asn1Utf8String {
         write!(f, "{}", self.content)
     }
 }
-
+impl Asn1String for Asn1Utf8String {
+    fn to_asn1_string(&self) -> crate::Result<String> {
+        todo!()
+    }
+}
 impl From<Asn1Utf8String> for String {
     fn from(value: Asn1Utf8String) -> Self {
         value.content

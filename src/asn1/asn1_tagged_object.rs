@@ -89,4 +89,13 @@ impl Asn1TaggedObject {
     pub fn tag_no(&self) -> u8 {
        self.tag_no 
     }
+    pub fn tag_class(&self) -> u8 {
+        self.tag_class
+    }
+    pub fn try_into_explicit_base_object(self) -> Result<Asn1Object> {
+        if !self.is_explicit() {
+            return Err(BcError::with_invalid_operation("object implicit - explicit expected."));
+        }
+        Ok(*self.object)
+    }
 }

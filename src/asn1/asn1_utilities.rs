@@ -1,4 +1,4 @@
-use crate::Result;
+use crate::{BcError, Result};
 use crate::asn1::{Asn1Object, Asn1TaggedObject, asn1_tags};
 use std::iter::Peekable;
 use std::vec::IntoIter;
@@ -86,4 +86,47 @@ where
 {
     let tagged: Asn1TaggedObject = iter.next().unwrap().try_into()?;
     func(tagged, state)
+}
+
+
+pub(crate) fn try_from_choice_tagged<TResult, TFunc>(
+    tagged: Asn1TaggedObject,
+    declared_explicit: bool,
+    func: TFunc) -> Result<TResult>
+where TFunc: FnOnce(Asn1Object) -> Result<TResult> {
+    if !declared_explicit {
+        return Err(BcError::with_invalid_argument("Implicit tagging cannot be used with untagged choice type (X.680 30.6, 30.8)."));
+    }
+    func(try_from_explicit_context_base_object(tagged)?)
+}
+
+pub(crate) fn try_from_explicit_context_base_object(tagged: Asn1TaggedObject) -> Result<Asn1Object> {
+    try_from_explicit_base_object(tagged, asn1_tags::CONTEXT_SPECIFIC)
+}
+
+pub(crate) fn try_from_explicit_base_object(tagged: Asn1TaggedObject, tag_class: u8) -> Result<Asn1Object> {
+    check_tag_class(tagged, tag_class)?.try_into_explicit_base_object()
+}
+
+pub(crate) fn check_tag_class(tagged: Asn1TaggedObject, tag_class: u8) -> Result<Asn1TaggedObject> {
+    if !tagged.has_tag_class(tag_class) {
+        let expected = get_tag_class_text_from_class_no(tag_class);
+        let found = get_tag_class_text_from_tagged(&tagged);
+        return Err(BcError::with_invalid_operation(format!("expected {}, tag but found {}", expected, found)));
+    }
+    Ok(tagged)
+}
+
+fn get_tag_class_text_from_tagged(tagged: &Asn1TaggedObject) -> String {
+    get_tag_class_text_from_class_no(tagged.tag_class())
+}
+
+fn get_tag_class_text_from_class_no(tag_class: u8) -> String {
+    match tag_class {
+        asn1_tags::UNIVERSAL => "UNIVERSAL".to_string(),
+        asn1_tags::APPLICATION => "APPLICATION".to_string(),
+        asn1_tags::CONTEXT_SPECIFIC => "CONTEXT".to_string(),
+        asn1_tags::PRIVATE => "PRIVATE".to_string(),
+        _ => format!("UNKNOWN({})", tag_class),
+    }
 }
