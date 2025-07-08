@@ -33,12 +33,12 @@ impl Asn1UtcTime {
     /// - Returns an error if the year is out of `two_digit_year_max`.
     /// # Example
     /// ```rust
-    /// use chrono::{DateTime, Utc};
+    /// use chrono::{DateTime, Utc, SubsecRound};
     /// use bc_rust::asn1::Asn1UtcTime;
     /// let date_time = Utc::now();
     /// let asn1_utc_time = Asn1UtcTime::with_date_time(date_time, 2049).unwrap();
     /// let date_time1 = asn1_utc_time.to_date_time(2049).unwrap();
-    /// assert_eq!(date_time, date_time1);
+    /// assert_eq!(date_time.trunc_subsecs(0), date_time1);
     /// ```
     pub fn with_date_time<Tz: TimeZone>(
         date_time: DateTime<Tz>,
