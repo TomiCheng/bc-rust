@@ -1,32 +1,18 @@
-use std::io::Write;
 use crate::{BcError, Result};
-use crate::asn1::{Asn1Convertible, Asn1Encodable, Asn1Object, Asn1TaggedObject, Asn1Write, EncodingType};
+use crate::asn1::{Asn1Object, Asn1TaggedObject, EncodingType};
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{BIT_STRING, UNIVERSAL};
+use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
 use crate::asn1::primitive_encoding_suffixed::PrimitiveEncodingSuffixed;
+use crate::asn1::try_from_tagged::TryFromTagged;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Asn1BitString {
     contents: Vec<u8>,
     pad_bits: u8,
 }
-
-impl Asn1BitString {
-    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Asn1BitString> {
-        if let Asn1Object::BitString(bit_string) = asn1_object {
-            Ok(bit_string)
-        } else {
-            Err(BcError::with_invalid_argument("Expected Asn1Object::BitString"))
-        }
-    }
-    pub fn get_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
-        //let metadata = Asn1IntegerMetadata::new();
-        //metadata.get_tagged(tagged_object, declared_explicit)
-        todo!();
-    }
-}
-
 impl Asn1BitString {
     pub fn with_pad_bits(contents: &[u8], pad_bits: u8) -> Result<Self> {
         if pad_bits > 7 {
@@ -78,7 +64,24 @@ impl Asn1BitString {
         }
         Ok(Asn1BitString { contents, pad_bits })
     }
-    pub(crate) fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut result = self.contents.to_vec();
+        if !self.contents.is_empty() {
+            // DER requires pad bits be zero
+            let last = result.len() - 1;
+            result[last] &= 0xFF << self.pad_bits;
+        }
+        result
+    }
+    pub fn get_pad_bits(&self) -> u8 {
+        self.pad_bits
+    }
+    pub fn get_contents(&self) -> &[u8] {
+        &self.contents
+    }
+}
+impl Asn1EncodingInternal for Asn1BitString {
+    fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
         let mut contents = vec![0u8; 1 + self.contents.len()];
         contents[0] = self.pad_bits;
         contents[1..].copy_from_slice(&self.contents);
@@ -103,32 +106,20 @@ impl Asn1BitString {
             contents,
         ))
     }
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut result = self.contents.to_vec();
-        if !self.contents.is_empty() {
-            // DER requires pad bits be zero
-            let last = result.len() - 1;
-            result[last] &= 0xFF << self.pad_bits;
-        }
-        result
-    }
-    pub fn get_pad_bits(&self) -> u8 {
-        self.pad_bits
-    }
-    pub fn get_contents(&self) -> &[u8] {
-        &self.contents
+}
+impl TryFromTagged for Asn1BitString {
+    fn try_from_tagged(tagged: Asn1TaggedObject, declared_explicit: bool) -> std::result::Result<Self, BcError>
+    where
+        Self: Sized
+    {
+        tagged.try_from_base_universal(declared_explicit, Asn1BitStringMetadata)
     }
 }
-impl Asn1Encodable for Asn1BitString {
-    fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
-        let mut asn1_writer = Asn1Write::new(writer, encoding_type);
-        let length = self.get_encoding(encoding_type).encode(&mut asn1_writer)?;
-        Ok(length)
-    }
-}
-impl Asn1Convertible for Asn1BitString {
-    fn to_asn1_object(&self) -> Result<Asn1Object> {
-        Ok(Asn1Object::from(self.clone()))
+
+struct Asn1BitStringMetadata;
+impl Asn1UniversalType<Asn1BitString> for Asn1BitStringMetadata  {
+    fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1BitString> {
+        asn1_object.try_into()
     }
 }
 

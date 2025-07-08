@@ -2,7 +2,7 @@ use crate::asn1::Asn1String;
 
 #[derive(Debug, Clone)]
 pub struct Asn1UniversalString {
-    content: String,
+    //content: String,
 }
 
 impl Asn1String for Asn1UniversalString {

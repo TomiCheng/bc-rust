@@ -2,12 +2,13 @@ use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{RELATIVE_OID, UNIVERSAL};
 use crate::asn1::oid_tokenizer::OidTokenizer;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
-use crate::asn1::{Asn1Encodable, Asn1Write, EncodingType};
+use crate::asn1::EncodingType;
 use crate::math::BigInteger;
 use crate::{BcError, Result};
 use std::cell::OnceCell;
 use std::fmt;
 use std::io::Write;
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 
 #[derive(Debug, Clone)]
 pub struct Asn1RelativeOid {
@@ -87,11 +88,9 @@ impl PartialEq for Asn1RelativeOid {
         &self.contents == &other.contents
     }
 }
-impl Asn1Encodable for Asn1RelativeOid {
-    fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
-        let mut asn1_writer = Asn1Write::new(writer, encoding_type);
-        let length = self.get_encoding(encoding_type).encode(&mut asn1_writer)?;
-        Ok(length)
+impl Asn1EncodingInternal for Asn1RelativeOid {
+    fn get_encoding(&self, _: EncodingType) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(UNIVERSAL, RELATIVE_OID, self.contents.clone()))
     }
 }
 impl fmt::Display for Asn1RelativeOid {

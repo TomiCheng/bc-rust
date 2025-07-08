@@ -2,26 +2,21 @@ use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{OBJECT_IDENTIFIER, UNIVERSAL};
 use crate::asn1::oid_tokenizer::OidTokenizer;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
-use crate::asn1::{Asn1Encodable, Asn1Object, Asn1Write, EncodingType, asn1_relative_oid, Asn1TaggedObject};
+use crate::asn1::{Asn1Object, EncodingType, asn1_relative_oid};
 use crate::math::BigInteger;
 use crate::{BcError, Result};
 use std::fmt;
 use std::hash::Hash;
-use std::io::Write;
 use std::sync::OnceLock;
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
+use crate::asn1::asn1_universal_type::Asn1UniversalType;
+use crate::asn1::try_from_tagged::TryFromTagged;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq)]
 pub struct Asn1ObjectIdentifier {
     contents: Vec<u8>,
     identifier: OnceLock<String>,
 }
-
-impl Asn1ObjectIdentifier {
-    pub(crate) fn get_tagged(p0: Asn1TaggedObject, p1: bool) -> Result<Self> {
-        todo!()
-    }
-}
-
 impl Asn1ObjectIdentifier {
     pub fn new(contents: Vec<u8>, identifier: OnceLock<String>) -> Self {
         Asn1ObjectIdentifier {
@@ -103,9 +98,6 @@ impl Asn1ObjectIdentifier {
         let stem_contents_len = stem_contents.len();
         contents_len > stem_contents_len && stem_contents == &contents[0..stem_contents_len]
     }
-    fn get_encoding(&self, _: EncodingType) -> impl Asn1Encoding {
-        PrimitiveEncoding::new(UNIVERSAL, OBJECT_IDENTIFIER, self.contents.clone())
-    }
 }
 impl fmt::Display for Asn1ObjectIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -117,23 +109,28 @@ impl PartialEq for Asn1ObjectIdentifier {
         &self.contents == &other.contents
     }
 }
-impl Eq for Asn1ObjectIdentifier {
-    
-}
 impl Hash for Asn1ObjectIdentifier {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.contents.hash(state);
     }
 }
-
-
-impl Asn1Encodable for Asn1ObjectIdentifier {
-    fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
-        let mut asn1_writer = Asn1Write::new(writer, encoding_type);
-        let length = self.get_encoding(encoding_type).encode(&mut asn1_writer)?;
-        Ok(length)
+impl Asn1EncodingInternal for Asn1ObjectIdentifier {
+    fn get_encoding(&self, _: EncodingType) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(UNIVERSAL, OBJECT_IDENTIFIER, self.contents.clone()))
     }
 }
+impl TryFromTagged for Asn1ObjectIdentifier {
+    fn try_from_tagged(tagged: crate::asn1::Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
+        tagged.try_from_base_universal(declared_explicit, Asn1ObjectIdentifierMetadata)
+    }
+}
+struct Asn1ObjectIdentifierMetadata;
+impl Asn1UniversalType<Asn1ObjectIdentifier> for Asn1ObjectIdentifierMetadata {
+    fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1ObjectIdentifier> {
+        asn1_object.try_into()
+    }
+}
+
 const MAX_CONTENTS_LENGTH: usize = 4096;
 const MAX_IDENTIFIER_LENGTH: usize = MAX_CONTENTS_LENGTH * 4 + 1;
 pub(crate) fn check_identifier(identifier: &str) -> Result<()> {
@@ -286,7 +283,7 @@ fn parse_contents(contents: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::asn1::Asn1Object;
+    use crate::asn1::{Asn1Encodable, Asn1Object};
     use crate::util::encoders::hex::to_decode_with_str;
     use std::io;
     fn recode_check(oid: &str, req: &Vec<u8>) {

@@ -1,6 +1,6 @@
 use crate::asn1::{Asn1Object, Asn1Sequence};
 use crate::asn1::x509::{Time};
-use crate::Result;
+use crate::{BcError, Result};
 pub struct Validity {
     not_before: Time,
     not_after: Time,
@@ -22,16 +22,20 @@ impl Validity {
         let not_after = Time::from_asn1_object(iter.next().unwrap())?;
         Ok(Validity::new(not_before, not_after))
     }
-    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
-        if let Ok(sequence) = asn1_object.try_into() {
-            return Validity::from_sequence(sequence);
-        }
-        todo!()
-    }
     pub fn not_before(&self) -> &Time {
         &self.not_before
     }
     pub fn not_after(&self) -> &Time {
         &self.not_after
+    }
+}
+impl TryFrom<Asn1Object> for Validity {
+    type Error = BcError;
+
+    fn try_from(value: Asn1Object) -> Result<Self> {
+        if let Ok(sequence) = value.try_into() {
+            return Validity::from_sequence(sequence);
+        }
+        todo!()
     }
 }

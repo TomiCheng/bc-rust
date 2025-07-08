@@ -1,7 +1,8 @@
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::*;
 use crate::{BcError, Result};
-use std::io::{Read, Write};
+use std::io::Read;
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 
 #[derive(Clone, Debug)]
 pub enum Asn1Object {
@@ -159,11 +160,38 @@ impl Asn1Object {
         }
     }
 }
-impl Asn1Encodable for Asn1Object {
-    fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
-        let mut asn1_writer = Asn1Write::new(writer, encoding_type);
-        let asn1_encoding = self.get_encoding(encoding_type);
-        asn1_encoding.encode(&mut asn1_writer)
+impl Asn1EncodingInternal for Asn1Object {
+    fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
+        match self {
+            Asn1Object::Boolean(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::Integer(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::BitString(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::OctetString(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::Null(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::ObjectIdentifier(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::ObjectDescriptor(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::External(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::Enumerated(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::Utf8String(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::RelativeOid(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::Sequence(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::Set(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::NumericString(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::PrintableString(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::T61String(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::VideotexString(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::Ia5String(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::UtcTime(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::GeneralizedTime(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::GraphicString(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::VisibleString(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::GeneralString(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::UniversalString(obj) => obj.get_encoding(encoding_type),
+            // Asn1Object::BmpString(obj) => obj.get_encoding(encoding_type),
+            _ => {
+                todo!()
+            }
+        }
     }
 }
 macro_rules! impl_from_for_asn1object {
@@ -198,5 +226,6 @@ impl_from_for_asn1object! {
     Asn1ObjectIdentifier => ObjectIdentifier,
     Asn1Set => Set,
     Asn1TaggedObject => Tagged,
-    Asn1RelativeOid => RelativeOid
+    Asn1RelativeOid => RelativeOid,
+    Asn1Ia5String => Ia5String
 }

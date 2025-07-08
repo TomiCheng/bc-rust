@@ -1,27 +1,53 @@
-use crate::asn1::{Asn1String, Asn1TaggedObject};
 use crate::Result;
+use crate::asn1::asn1_universal_type::Asn1UniversalType;
+use crate::asn1::try_from_tagged::TryFromTagged;
+use crate::asn1::{Asn1Object, Asn1OctetString, Asn1String, Asn1TaggedObject};
 
+/// IA5String object - this is an Ascii string.
 #[derive(Clone, Debug)]
 pub struct Asn1Ia5String {
-    contents: Vec<u8>,
+    contents: String,
 }
 
 impl Asn1Ia5String {
-    pub(crate) fn get_tagged(p0: Asn1TaggedObject, p1: bool) -> Result<Self> {
-        todo!()
-    }
-}
-
-impl Asn1Ia5String {
-    pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
-        
-        // TODO
+    pub fn new(contents: String) -> Result<Self> {
+        if !Self::is_ia5_string(&contents) {
+            return Err(crate::BcError::with_invalid_argument("Invalid IA5String content"));
+        }
         Ok(Asn1Ia5String { contents })
+    }
+    pub fn with_str(s: &str) -> Result<Self> {
+        Asn1Ia5String::new(s.to_string())
+    }
+    pub fn is_ia5_string(s: &str) -> bool {
+        s.chars().all(|c| c.is_ascii())
+    }
+    pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
+        let s = String::from_utf8(contents)?;
+        Asn1Ia5String::new(s)
     }
 }
 
 impl Asn1String for Asn1Ia5String {
     fn to_asn1_string(&self) -> Result<String> {
-        Ok(String::from_utf8(self.contents.clone())?)
+        Ok(self.contents.clone())
+    }
+}
+impl TryFromTagged for Asn1Ia5String {
+    fn try_from_tagged(tagged: Asn1TaggedObject, declared_explicit: bool) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        tagged.try_from_base_universal(declared_explicit, Asn1Ia5StringMetadata)
+    }
+}
+
+struct Asn1Ia5StringMetadata;
+impl Asn1UniversalType<Asn1Ia5String> for Asn1Ia5StringMetadata {
+    fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1Ia5String> {
+        asn1_object.try_into()
+    }
+    fn implicit_primitive(&self, octets: Asn1OctetString) -> Result<Asn1Ia5String> {
+        Asn1Ia5String::create_primitive(octets.into_vec())
     }
 }

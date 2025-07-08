@@ -1,42 +1,30 @@
-use std::fmt::{Display, Formatter};
 use std::hash::Hash;
-use std::io::Write;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{BOOLEAN, UNIVERSAL};
-use crate::asn1::{Asn1Encodable, Asn1Object, Asn1Write, EncodingType};
+use crate::asn1::EncodingType;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
 use crate::Result;
+use std::fmt;
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Asn1Boolean {
     value: bool,
 }
 
-
-
 impl Asn1Boolean {
     pub fn new(value: bool) -> Self {
         Asn1Boolean { value }
-    }
-    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
-        if let Asn1Object::Boolean(boolean) = asn1_object {
-            Ok(boolean)
-        } else {
-            Err(crate::error::BcError::with_invalid_argument("not an Asn1Boolean object"))
-        }
     }
     pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
         if contents.len() != 1 {
             return Err(crate::error::BcError::with_invalid_operation("BOOLEAN value should have 1 byte in it"));
         }
         let value = contents[0] != 0x00;
-        Ok(Asn1Boolean { value })
+        Ok(Asn1Boolean::new(value))
     }
     pub fn is_true(&self) -> bool {
         self.value
-    }
-    pub(crate) fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(UNIVERSAL, BOOLEAN, self.get_content(encoding_type)))
     }
     fn get_content(&self, _: EncodingType) -> Vec<u8> {
         if self.value {
@@ -46,9 +34,8 @@ impl Asn1Boolean {
         }
     }
 }
-
-impl Display for Asn1Boolean {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Asn1Boolean {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.value {
             write!(f, "TRUE")
         } else {
@@ -56,12 +43,9 @@ impl Display for Asn1Boolean {
         }
     }
 }
-
-impl Asn1Encodable for Asn1Boolean {
-    fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
-        let mut asn1_writer = Asn1Write::new(writer, encoding_type);
-        let length = self.get_encoding(encoding_type).encode(&mut asn1_writer)?;
-        Ok(length)
+impl Asn1EncodingInternal for Asn1Boolean {
+    fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(UNIVERSAL, BOOLEAN, self.get_content(encoding_type)))
     }
 }
 

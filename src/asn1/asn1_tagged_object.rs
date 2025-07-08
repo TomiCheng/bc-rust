@@ -10,7 +10,6 @@ pub struct Asn1TaggedObject {
     tag_no: u8,
     object: Box<Asn1Object>,
 }
-
 impl Asn1TaggedObject {
     const DECLARED_EXPLICIT: u8 = 1;
     const DECLARED_IMPLICIT: u8 = 2;
@@ -26,6 +25,15 @@ impl Asn1TaggedObject {
             tag_no,
             object: Box::new(object),
         })
+    }
+    pub(crate) fn from_explicit_tag_object(is_explicit: bool, tag_no: u8, asn1_object: Asn1Object) -> Self {
+        let explicitness = if is_explicit { Self::DECLARED_EXPLICIT } else { Self::DECLARED_IMPLICIT };
+        Self {
+            explicitness,
+            tag_class: asn1_tags::CONTEXT_SPECIFIC,
+            tag_no,
+            object: Box::new(asn1_object),
+        }
     }
     pub(crate) fn with_context_specific(explicitness: bool, tag_no: u8, object: Asn1Object) -> Result<Self> {
         Self::new(if  explicitness { Self::DECLARED_EXPLICIT } else { Self::DECLARED_IMPLICIT }, asn1_tags::CONTEXT_SPECIFIC, tag_no, object)
@@ -62,30 +70,6 @@ impl Asn1TaggedObject {
     pub fn get_base_object(&self) -> &Asn1Object {
         &self.object
     }
-    pub(crate) fn get_base_universal<TMetadata, TResult>(&self, declared_explicit: bool,  metadata: &TMetadata) -> Result<TResult> 
-    where TMetadata: Asn1UniversalType<TResult> {
-        if declared_explicit {
-            if !self.is_explicit() {
-                return Err(BcError::with_invalid_operation("object implicit - explicit expected."));
-            }
-            
-            return metadata.checked_cast(self.get_base_object().clone());
-        }
-        
-        if self.explicitness == Self::DECLARED_EXPLICIT {
-            return Err(BcError::with_invalid_operation("object explicit - implicit expected."));
-        }
-        
-        match self.explicitness {
-            Self::PARSED_EXPLICIT => metadata.implicit_constructed(self.rebuild_constructed()),
-            Self::PARSED_IMPLICIT => todo!(),
-            _ => metadata.checked_cast(self.get_base_object().clone())
-        }
-    }
-    
-    fn rebuild_constructed(&self) -> Asn1Sequence {
-        Asn1Sequence::new(vec![(*self.object).clone()])
-    }
     pub fn tag_no(&self) -> u8 {
        self.tag_no 
     }
@@ -97,5 +81,38 @@ impl Asn1TaggedObject {
             return Err(BcError::with_invalid_operation("object implicit - explicit expected."));
         }
         Ok(*self.object)
+    }
+
+
+
+    //
+
+    pub(crate) fn try_from_base_universal<TMetadata, TResult>(self, declared_explicit: bool,  metadata: TMetadata) -> Result<TResult>
+    where TMetadata: Asn1UniversalType<TResult> {
+        if declared_explicit {
+            if !self.is_explicit() {
+                return Err(BcError::with_invalid_operation("object implicit - explicit expected."));
+            }
+            return metadata.checked_cast(*self.object);
+        }
+
+        if self.explicitness == Self::DECLARED_EXPLICIT {
+            return Err(BcError::with_invalid_operation("object explicit - implicit expected."));
+        }
+
+        match self.explicitness {
+            Self::PARSED_EXPLICIT => metadata.implicit_constructed(self.rebuild_constructed()),
+            Self::PARSED_IMPLICIT => {
+                if let Asn1Object::Sequence(sequence) = *self.object {
+                    metadata.implicit_constructed(sequence)
+                } else {
+                    metadata.implicit_primitive((*self.object).try_into()?)
+                }
+            },
+            _ => metadata.checked_cast(*self.object)
+        }
+    }
+    fn rebuild_constructed(self) -> Asn1Sequence {
+        Asn1Sequence::new(vec![*self.object])
     }
 }

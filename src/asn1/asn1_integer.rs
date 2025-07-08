@@ -1,16 +1,17 @@
-use std::fmt::{Display, Formatter};
-use std::io::Write;
-use crate::math::BigInteger;
-use crate::{BcError, Result};
-use crate::asn1::{Asn1Encodable, Asn1Object, Asn1Sequence, Asn1TaggedObject, Asn1Write, EncodingType};
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{INTEGER, UNIVERSAL};
 use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
+use crate::asn1::try_from_tagged::TryFromTagged;
+use crate::asn1::{Asn1Object, Asn1TaggedObject, EncodingType};
+use crate::math::BigInteger;
+use crate::{BcError, Result};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Asn1Integer {
-    value: BigInteger
+    value: BigInteger,
 }
 
 impl Asn1Integer {
@@ -21,33 +22,27 @@ impl Asn1Integer {
         if Self::is_malformed(buffer) {
             return Err(BcError::with_invalid_argument("malformed integer"));
         }
-        Ok(Asn1Integer { value: BigInteger::with_buffer(buffer) })
-    }
-    pub fn with_tagged(tagged_object: &Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
-        todo!();
+        Ok(Asn1Integer {
+            value: BigInteger::with_buffer(buffer),
+        })
     }
     pub fn with_buffer_allow_unsafe(buffer: &[u8]) -> Result<Self> {
         if buffer.is_empty() {
             return Err(BcError::with_invalid_argument("buffer len is zero"));
         }
-        Ok(Asn1Integer { value: BigInteger::with_buffer(buffer) })
+        Ok(Asn1Integer {
+            value: BigInteger::with_buffer(buffer),
+        })
     }
     pub fn with_i64(value: i64) -> Self {
         Asn1Integer {
-            value: BigInteger::with_i64(value)
+            value: BigInteger::with_i64(value),
         }
     }
     pub(crate) fn create_primitive(buffer: Vec<u8>) -> Result<Self> {
         Ok(Asn1Integer {
-            value: BigInteger::with_buffer(&buffer)
+            value: BigInteger::with_buffer(&buffer),
         })
-    }
-    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
-        if let Asn1Object::Integer(integer) = asn1_object {
-            Ok(integer)
-        } else {
-            Err(BcError::with_invalid_argument("not an integer object"))
-        }
     }
     /// Apply the correct validation for an INTEGER primitive following the BER rules.
     ///
@@ -63,68 +58,54 @@ impl Asn1Integer {
             _ => (bytes[0] as i8) == (bytes[1] as i8) >> 7,
         }
     }
-    pub(crate) fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(UNIVERSAL, INTEGER, self.get_content(encoding_type)))
-    }
     fn get_content(&self, _: EncodingType) -> Vec<u8> {
         self.value.to_vec()
     }
-    pub fn get_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Asn1Integer> {
-        let metadata = Asn1IntegerMetadata::new();
-        metadata.get_tagged(tagged_object, declared_explicit)
-    }
+    // pub fn get_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Asn1Integer> {
+    //     let metadata = Asn1IntegerMetadata::new();
+    //     metadata.get_tagged(tagged_object, declared_explicit)
+    // }
 }
-
 impl From<BigInteger> for Asn1Integer {
     fn from(value: BigInteger) -> Self {
         Asn1Integer::new(value)
     }
 }
-
 impl AsRef<BigInteger> for Asn1Integer {
     fn as_ref(&self) -> &BigInteger {
         &self.value
     }
 }
-
 impl Display for Asn1Integer {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.value)
     }
 }
-
-impl Asn1Encodable for Asn1Integer {
-    fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
-        let mut asn1_writer = Asn1Write::new(writer, encoding_type);
-        let length = self.get_encoding(encoding_type).encode(&mut asn1_writer)?;
-        Ok(length)
+impl Asn1EncodingInternal for Asn1Integer {
+    fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(UNIVERSAL, INTEGER, self.get_content(encoding_type)))
+    }
+}
+impl TryFromTagged for Asn1Integer {
+    fn try_from_tagged(tagged: Asn1TaggedObject, declared_explicit: bool) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        tagged.try_from_base_universal(declared_explicit, Asn1IntegerMetadata)
     }
 }
 
-pub(crate) struct Asn1IntegerMetadata;
-impl Asn1IntegerMetadata {
-    pub(crate) fn new() -> Self {
-        Asn1IntegerMetadata
-    }
-}
+struct Asn1IntegerMetadata;
 impl Asn1UniversalType<Asn1Integer> for Asn1IntegerMetadata {
     fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1Integer> {
-        if let Some(value) = asn1_object.as_integer() {
-            Ok(value.clone())
-        } else {
-            Err(crate::BcError::with_invalid_operation("Expected an ASN.1 Integer object"))
-        }
-    }
-
-    fn implicit_constructed(&self, sequence: Asn1Sequence) -> Result<Asn1Integer> {
-        todo!();
+        asn1_object.try_into()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::asn1::{Asn1Encodable, Asn1Integer, Asn1Object};
     use crate::asn1::EncodingType::{Ber, Der};
+    use crate::asn1::{Asn1Encodable, Asn1Integer, Asn1Object};
     use crate::math::BigInteger;
     use crate::util::encoders::hex::to_decode_with_str;
 
@@ -170,44 +151,33 @@ mod tests {
     #[test]
     fn test_loose_valid_encoding_zero_32b_aligned() {
         let raw_i64 = to_decode_with_str("00000010FF000000").unwrap();
-        let i = Asn1Integer::with_buffer_allow_unsafe(&raw_i64)
-            .expect("error")
-            .into();
+        let i = Asn1Integer::with_buffer_allow_unsafe(&raw_i64).expect("error").into();
         check_i64_value(&i, 72997666816);
     }
     #[test]
     fn test_loose_valid_encoding_ff_32b_aligned() {
         let raw_i64 = to_decode_with_str("FFFFFF10FF000000").unwrap();
-        let i = Asn1Integer::with_buffer_allow_unsafe(&raw_i64)
-            .expect("error")
-            .into();
+        let i = Asn1Integer::with_buffer_allow_unsafe(&raw_i64).expect("error").into();
         check_i64_value(&i, -1026513960960);
     }
 
     #[test]
     fn test_loose_valid_encoding_ff_32b_aligned_1not0() {
         let raw_i64 = to_decode_with_str("FFFEFF10FF000000").unwrap();
-        let i = Asn1Integer::with_buffer_allow_unsafe(&raw_i64)
-            .expect("error")
-            .into();
+        let i = Asn1Integer::with_buffer_allow_unsafe(&raw_i64).expect("error").into();
         check_i64_value(&i, -282501490671616);
     }
 
     #[test]
     fn test_loose_valid_encoding_ff_32b_aligned_2not0() {
         let raw_i64 = to_decode_with_str("FFFFFE10FF000000").unwrap();
-        let i = Asn1Integer::with_buffer_allow_unsafe(&raw_i64)
-            .expect("error")
-            .into();
+        let i = Asn1Integer::with_buffer_allow_unsafe(&raw_i64).expect("error").into();
         check_i64_value(&i, -2126025588736);
     }
     #[test]
     fn test_over_sized_encoding() {
         // Should pass as loose validation permits 3 leading 0xFF bytes.
-        let der_integer = Asn1Integer::with_buffer_allow_unsafe(
-            &to_decode_with_str("FFFFFFFE10FF000000000000").unwrap(),
-        )
-            .unwrap();
+        let der_integer = Asn1Integer::with_buffer_allow_unsafe(&to_decode_with_str("FFFFFFFE10FF000000000000").unwrap()).unwrap();
         let big_integer = BigInteger::with_buffer(&to_decode_with_str("FFFFFFFE10FF000000000000").unwrap());
 
         assert_eq!(der_integer.as_ref(), &big_integer);
@@ -236,8 +206,7 @@ mod tests {
         }
         {
             let mut buffer = Vec::<u8>::new();
-            let length = asn1_integer.encode_to(&mut buffer, Ber)
-                .expect("fail");
+            let length = asn1_integer.encode_to(&mut buffer, Ber).expect("fail");
             assert_eq!(result_length, length);
             assert_eq!(result_buffer, buffer);
         }

@@ -73,13 +73,6 @@ impl X509Name {
         }
         Ok(X509Name::new(ordering, values, added))
     }
-    pub(crate) fn with_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
-        if let Ok(sequence) = asn1_object.try_into() {
-            return X509Name::from_sequence(sequence);
-        }
-
-        todo!()
-    }
     /// Convert the structure to a string - if reverse is `true` the
     /// `oids` and values are listed out starting with the last element
     /// in the sequence (ala RFC 2253), otherwise the string will begin
@@ -127,7 +120,21 @@ impl fmt::Display for X509Name {
         write!(f, "{}", self.to_string_with_symbols(false, &DEFAULT_SYMBOLS))
     }
 }
+impl From<X509Name> for Asn1Object {
+    fn from(value: X509Name) -> Self {
+        todo!();
+    }
+}
+impl TryFrom<Asn1Object> for X509Name {
+    type Error = crate::BcError;
 
+    fn try_from(asn1_object: Asn1Object) -> Result<Self> {
+        if let Ok(sequence) = asn1_object.try_into() {
+            return X509Name::from_sequence(sequence);
+        }
+        todo!();
+    }
+}
 // TODO Refactor common code between this and IetfUtilities.ValueToString
 fn append_value(buffer: &mut String, oid_symbols: &Symbols, oid: &Asn1ObjectIdentifier, value: &str) {
     buffer.push_str(oid_symbols.get(oid).unwrap_or(oid.id()));

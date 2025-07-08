@@ -21,7 +21,7 @@ impl GeneralNames {
     fn from_sequence(sequence: Asn1Sequence) -> Result<Self> {
         let mut names = Vec::with_capacity(sequence.len());
         for element in sequence.into_iter() {
-            let name = GeneralName::from_asn1_object(element)?;
+            let name = element.try_into()?;
             names.push(name);
         }
         Ok(Self::new(names))

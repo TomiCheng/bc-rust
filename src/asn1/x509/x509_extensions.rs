@@ -3,6 +3,8 @@ use crate::asn1::{Asn1Boolean, Asn1ObjectIdentifier, Asn1OctetString, Asn1Sequen
 use crate::asn1::x509::X509Extension;
 use crate::{define_oid, Result};
 use std::sync::LazyLock;
+use crate::asn1::try_from_tagged::{TryFromTagged, TryIntoTagged};
+
 pub struct X509Extensions {
     ordering: Vec<Asn1ObjectIdentifier>,
     extensions: HashMap<Asn1ObjectIdentifier, X509Extension>,
@@ -17,7 +19,7 @@ impl X509Extensions {
         let mut extensions = HashMap::new();
 
         for asn1_object in sequence {
-            let s = Asn1Sequence::from_asn1_object(asn1_object)?;
+            let s: Asn1Sequence = asn1_object.try_into()?;
             let length = s.len();
             if length < 2 || length > 3 {
                 return Err(crate::BcError::with_invalid_argument(format!("Bad sequence size: {}", s.len())));
@@ -27,7 +29,7 @@ impl X509Extensions {
             let oid = Asn1ObjectIdentifier::from_asn1_object(iter.next().unwrap())?;
             let mut is_critical = false;
             if length == 3 {
-                let boolean = Asn1Boolean::from_asn1_object(iter.next().unwrap())?;
+                let boolean: Asn1Boolean = iter.next().unwrap().try_into()?;
                 is_critical = boolean.is_true();
             }
             let octets = Asn1OctetString::from_asn1_object(iter.next().unwrap())?;
@@ -36,10 +38,6 @@ impl X509Extensions {
             extensions.insert(oid.clone(), X509Extension::new(is_critical, octets));
         }
         Ok(X509Extensions::new(ordering, extensions))
-    }
-    pub fn get_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
-        let sequence = Asn1Sequence::get_tagged(tagged_object, declared_explicit)?;
-        Self::from_sequence(sequence)
     }
     pub fn iter_ordering(&self) -> impl Iterator<Item = &Asn1ObjectIdentifier> {
         self.ordering.iter()
@@ -55,6 +53,14 @@ impl X509Extensions {
         self.extensions.get(oid)
     }
 }
+impl TryFromTagged for X509Extensions {
+    fn try_from_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
+        let sequence = tagged_object.try_into_tagged(declared_explicit)?;
+        Self::from_sequence(sequence)
+    }
+}
+
+
 define_oid!(SUBJECT_KEY_IDENTIFIER, "2.5.29.14", "Subject Key Identifier");
 define_oid!(KEY_USAGE, "2.5.29.15", "Key Usage");
 define_oid!(EXTENDED_KEY_USAGE, "2.5.29.37", "Extended Key Usage");

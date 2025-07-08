@@ -1,4 +1,4 @@
-use crate::asn1::{Asn1Convertible, Asn1Object, Asn1ObjectIdentifier};
+use crate::asn1::{Asn1Object, Asn1ObjectIdentifier};
 use crate::Result;
 
 pub struct AlgorithmIdentifier {
@@ -7,15 +7,32 @@ pub struct AlgorithmIdentifier {
 }
 
 impl AlgorithmIdentifier {
-    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
-        if let Some(sequence) = asn1_object.as_sequence() {
-            if sequence.len() < 1 || sequence.len() > 2 {
+    pub fn new(algorithm: Asn1ObjectIdentifier, parameters: Option<Asn1Object>) -> Self {
+        AlgorithmIdentifier { algorithm, parameters }
+    }
+
+    pub fn algorithm(&self) -> &Asn1ObjectIdentifier {
+        &self.algorithm
+    }
+
+    pub fn parameters(&self) -> Option<&Asn1Object> {
+        self.parameters.as_ref()
+    }
+}
+impl TryFrom<Asn1Object> for AlgorithmIdentifier {
+    type Error = crate::BcError;
+
+    fn try_from(asn1_object: Asn1Object) -> Result<Self> {
+        if let Asn1Object::Sequence(sequence) = asn1_object.into() {
+            let len = sequence.len();
+            if len < 1 || len > 2 {
                 return Err(crate::BcError::with_invalid_argument(format!("Bad sequence size: {}", sequence.len())));
             }
 
-            let algorithm = Asn1ObjectIdentifier::from_asn1_object(sequence[0].clone())?;
-            let parameters = if sequence.len() == 2 {
-                Some(sequence[1].clone())
+            let mut iter = sequence.into_iter();
+            let algorithm =  iter.next().unwrap().try_into()?;
+            let parameters = if len == 2 {
+                Some(iter.next().unwrap())
             } else {
                 None
             };
@@ -23,12 +40,6 @@ impl AlgorithmIdentifier {
         } else {
             Err(crate::BcError::with_invalid_cast("Expected a sequence for AlgorithmIdentifier"))
         }
-    }
-}
-
-impl Asn1Convertible for AlgorithmIdentifier {
-    fn to_asn1_object(&self) -> Result<Asn1Object> {
-        todo!()
     }
 }
 // TODO

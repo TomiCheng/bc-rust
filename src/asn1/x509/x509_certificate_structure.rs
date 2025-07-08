@@ -1,5 +1,5 @@
 use crate::asn1::x509::{AlgorithmIdentifier, TbsCertificateStructure};
-use crate::asn1::{Asn1BitString, Asn1Convertible, Asn1Object, Asn1Sequence, Asn1TaggedObject};
+use crate::asn1::{Asn1BitString, Asn1Object, Asn1Sequence};
 use crate::{BcError, Result};
 
 /// an X509Certificate structure.
@@ -31,11 +31,11 @@ impl X509CertificateStructure {
         if sequence.len() != 3 {
             return Err(BcError::with_invalid_argument(format!("Bad sequence size: {}", sequence.len())));
         }
-        let mut array: Vec<Asn1Object> = sequence.into();
+        let mut iter = sequence.into_iter();
         Ok(X509CertificateStructure {
-            tbs_certificate: TbsCertificateStructure::from_asn1_object(array.remove(0))?,
-            algorithm: AlgorithmIdentifier::from_asn1_object(array.remove(0))?,
-            signature: Asn1BitString::from_asn1_object(array.remove(0))?,
+            tbs_certificate: iter.next().unwrap().try_into()?,
+            algorithm: iter.next().unwrap().try_into()?,
+            signature: iter.next().unwrap().try_into()?,
         })
     }
     pub fn tbs_certificate(&self) -> &TbsCertificateStructure {
@@ -49,21 +49,11 @@ impl X509CertificateStructure {
     }
 }
 
-impl Asn1Convertible for X509CertificateStructure {
-    fn to_asn1_object(&self) -> Result<Asn1Object> {
-        Ok(Asn1Object::from(Asn1Sequence::new(vec![
-            self.tbs_certificate.to_asn1_object()?,
-            self.algorithm.to_asn1_object()?,
-            self.signature.to_asn1_object()?,
-        ])))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::asn1::x509::{x509_extensions, ExtendedKeyUsage, GeneralNames, KeyPurposeId, KeyUsage, SubjectPublicKeyInfo, X509CertificateStructure};
     use base64::prelude::*;
-    use crate::asn1::{Asn1Convertible, Asn1Object};
+    use crate::asn1::Asn1Object;
 
     const SUBECTS: [&'static str; 7] = [
         "C=AU,ST=Victoria,L=South Melbourne,O=Connect 4 Pty Ltd,OU=Webserver Team,CN=www2.connect4.com.au,E=webmaster@connect4.com.au",
@@ -77,25 +67,25 @@ mod tests {
     #[test]
     fn test_parse_x509_certificate_01() {
         const CERTIFICATE_BASE64: &str = concat!(
-            "MIIDXjCCAsegAwIBAgIBBzANBgkqhkiG9w0BAQQFADCBtzELMAkGA1UEBhMCQVUx",
-            "ETAPBgNVBAgTCFZpY3RvcmlhMRgwFgYDVQQHEw9Tb3V0aCBNZWxib3VybmUxGjAY",
-            "BgNVBAoTEUNvbm5lY3QgNCBQdHkgTHRkMR4wHAYDVQQLExVDZXJ0aWZpY2F0ZSBB",
-            "dXRob3JpdHkxFTATBgNVBAMTDENvbm5lY3QgNCBDQTEoMCYGCSqGSIb3DQEJARYZ",
-            "d2VibWFzdGVyQGNvbm5lY3Q0LmNvbS5hdTAeFw0wMDA2MDIwNzU2MjFaFw0wMTA2",
-            "MDIwNzU2MjFaMIG4MQswCQYDVQQGEwJBVTERMA8GA1UECBMIVmljdG9yaWExGDAW",
-            "BgNVBAcTD1NvdXRoIE1lbGJvdXJuZTEaMBgGA1UEChMRQ29ubmVjdCA0IFB0eSBM",
-            "dGQxFzAVBgNVBAsTDldlYnNlcnZlciBUZWFtMR0wGwYDVQQDExR3d3cyLmNvbm5l",
-            "Y3Q0LmNvbS5hdTEoMCYGCSqGSIb3DQEJARYZd2VibWFzdGVyQGNvbm5lY3Q0LmNv",
-            "bS5hdTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEArvDxclKAhyv7Q/Wmr2re",
-            "Gw4XL9Cnh9e+6VgWy2AWNy/MVeXdlxzd7QAuc1eOWQkGQEiLPy5XQtTY+sBUJ3AO",
-            "Rvd2fEVJIcjf29ey7bYua9J/vz5MG2KYo9/WCHIwqD9mmG9g0xLcfwq/s8ZJBswE",
-            "7sb85VU+h94PTvsWOsWuKaECAwEAAaN3MHUwJAYDVR0RBB0wG4EZd2VibWFzdGVy",
-            "QGNvbm5lY3Q0LmNvbS5hdTA6BglghkgBhvhCAQ0ELRYrbW9kX3NzbCBnZW5lcmF0",
-            "ZWQgY3VzdG9tIHNlcnZlciBjZXJ0aWZpY2F0ZTARBglghkgBhvhCAQEEBAMCBkAw",
-            "DQYJKoZIhvcNAQEEBQADgYEAotccfKpwSsIxM1Hae8DR7M/Rw8dg/RqOWx45HNVL",
-            "iBS4/3N/TO195yeQKbfmzbAA2jbPVvIvGgTxPgO1MP4ZgvgRhasaa0qCJCkWvpM4",
-            "yQf33vOiYQbpv4rTwzU8AmRlBG45WdjyNIigGV+oRc61aKCTnLq7zB8N3z1TF/bF",
-            "5/8="
+        "MIIDXjCCAsegAwIBAgIBBzANBgkqhkiG9w0BAQQFADCBtzELMAkGA1UEBhMCQVUx",
+        "ETAPBgNVBAgTCFZpY3RvcmlhMRgwFgYDVQQHEw9Tb3V0aCBNZWxib3VybmUxGjAY",
+        "BgNVBAoTEUNvbm5lY3QgNCBQdHkgTHRkMR4wHAYDVQQLExVDZXJ0aWZpY2F0ZSBB",
+        "dXRob3JpdHkxFTATBgNVBAMTDENvbm5lY3QgNCBDQTEoMCYGCSqGSIb3DQEJARYZ",
+        "d2VibWFzdGVyQGNvbm5lY3Q0LmNvbS5hdTAeFw0wMDA2MDIwNzU2MjFaFw0wMTA2",
+        "MDIwNzU2MjFaMIG4MQswCQYDVQQGEwJBVTERMA8GA1UECBMIVmljdG9yaWExGDAW",
+        "BgNVBAcTD1NvdXRoIE1lbGJvdXJuZTEaMBgGA1UEChMRQ29ubmVjdCA0IFB0eSBM",
+        "dGQxFzAVBgNVBAsTDldlYnNlcnZlciBUZWFtMR0wGwYDVQQDExR3d3cyLmNvbm5l",
+        "Y3Q0LmNvbS5hdTEoMCYGCSqGSIb3DQEJARYZd2VibWFzdGVyQGNvbm5lY3Q0LmNv",
+        "bS5hdTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEArvDxclKAhyv7Q/Wmr2re",
+        "Gw4XL9Cnh9e+6VgWy2AWNy/MVeXdlxzd7QAuc1eOWQkGQEiLPy5XQtTY+sBUJ3AO",
+        "Rvd2fEVJIcjf29ey7bYua9J/vz5MG2KYo9/WCHIwqD9mmG9g0xLcfwq/s8ZJBswE",
+        "7sb85VU+h94PTvsWOsWuKaECAwEAAaN3MHUwJAYDVR0RBB0wG4EZd2VibWFzdGVy",
+        "QGNvbm5lY3Q0LmNvbS5hdTA6BglghkgBhvhCAQ0ELRYrbW9kX3NzbCBnZW5lcmF0",
+        "ZWQgY3VzdG9tIHNlcnZlciBjZXJ0aWZpY2F0ZTARBglghkgBhvhCAQEEBAMCBkAw",
+        "DQYJKoZIhvcNAQEEBQADgYEAotccfKpwSsIxM1Hae8DR7M/Rw8dg/RqOWx45HNVL",
+        "iBS4/3N/TO195yeQKbfmzbAA2jbPVvIvGgTxPgO1MP4ZgvgRhasaa0qCJCkWvpM4",
+        "yQf33vOiYQbpv4rTwzU8AmRlBG45WdjyNIigGV+oRc61aKCTnLq7zB8N3z1TF/bF",
+        "5/8="
         );
         let certificate_buffer = BASE64_STANDARD.decode(CERTIFICATE_BASE64).unwrap();
         check_certificate(1, &certificate_buffer);
@@ -111,9 +101,9 @@ mod tests {
                 for oid in extensions.iter_ordering() {
                     let extension = extensions.get_extension(oid).unwrap();
                     let extension_object = Asn1Object::with_bytes(extension.get_value().get_octets()).unwrap();
-                    
+
                     if oid == &(*x509_extensions::SUBJECT_KEY_IDENTIFIER) {
-                        SubjectPublicKeyInfo::from_asn1_object(extension_object).unwrap();
+                        let _:SubjectPublicKeyInfo = extension_object.try_into().unwrap();
                     } else if oid == &(*x509_extensions::KEY_USAGE) {
                         KeyUsage::from_asn1_object(extension_object).unwrap();
                     } else if oid == &(*x509_extensions::EXTENDED_KEY_USAGE) {
@@ -124,11 +114,9 @@ mod tests {
                     } else if oid == &(*x509_extensions::SUBJECT_ALTERNATIVE_NAME) {
                         let general_names = GeneralNames::from_asn1_object(extension_object).unwrap();
                         for name in general_names.into_iter() {
-                            name.to_asn1_object().unwrap();
+                            let _: Asn1Object = name.into();
                         }
                     }
-                
-                        
                 }
             }
         }

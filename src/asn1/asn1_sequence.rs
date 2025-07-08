@@ -18,22 +18,16 @@ impl Asn1Sequence {
             elements: vector.get_elements().to_vec(),
         })
     }
-    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
-        if let Some(sequence) = asn1_object.as_sequence() {
-            return Ok(sequence.clone());
-        }
-        todo!()
-    }
     pub fn len(&self) -> usize {
         self.elements.len()
     }
     pub fn get_elements(&self) -> &[Asn1Object] {
         &self.elements
     }
-    pub fn get_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
-        let metadata = Asn1SequenceMetadata::new();
-        metadata.get_tagged(tagged_object, declared_explicit)
-    }
+    // pub fn get_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
+    //     let metadata = Asn1SequenceMetadata::new();
+    //     metadata.get_tagged(tagged_object, declared_explicit)
+    // }
 }
 impl Index<usize> for Asn1Sequence {
     type Output = Asn1Object;
@@ -57,33 +51,20 @@ impl IntoIterator for Asn1Sequence {
     }
 }
 
-pub(crate) struct Asn1SequenceMetadata;
 
-impl Asn1SequenceMetadata {
-    pub(crate) fn new() -> Self {
-        Asn1SequenceMetadata
-    }
-}
-impl Asn1UniversalType<Asn1Sequence> for Asn1SequenceMetadata {
-    fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1Sequence> {
-        asn1_object.try_into()
-        // if let Ok(value) =  {
-        //     Ok(value)
-        // } else {
-        //     Err(crate::BcError::with_invalid_operation("Expected an ASN.1 Integer object"))
-        // }
-    }
-
-    fn implicit_constructed(&self, sequence: Asn1Sequence) -> Result<Asn1Sequence> {
-        todo!();
-    }
-}
 impl TryFromTagged for Asn1Sequence {
     fn try_from_tagged(tagged: Asn1TaggedObject, declared_explicit: bool) -> Result<Self>
     where
         Self: Sized,
     {
-        let metadata = Asn1SequenceMetadata::new();
-        metadata.get_tagged(tagged, declared_explicit)
+        tagged.try_from_base_universal(declared_explicit, Asn1SequenceMetadata)
+    }
+}
+
+struct Asn1SequenceMetadata;
+
+impl Asn1UniversalType<Asn1Sequence> for Asn1SequenceMetadata {
+    fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1Sequence> {
+        asn1_object.try_into()
     }
 }

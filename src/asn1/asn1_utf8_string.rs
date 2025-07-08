@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use crate::asn1::{Asn1String, Asn1UniversalString};
+use crate::asn1::{Asn1String};
 
 #[derive(Clone, Debug)]
 pub struct Asn1Utf8String {
