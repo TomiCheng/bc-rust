@@ -187,7 +187,7 @@ impl Asn1EncodingInternal for Asn1Object {
             // Asn1Object::VisibleString(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::GeneralString(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::UniversalString(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::BmpString(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::BmpString(obj) => obj.get_encoding(encoding_type),
             _ => {
                 todo!()
             }
@@ -227,5 +227,6 @@ impl_from_for_asn1object! {
     Asn1Set => Set,
     Asn1TaggedObject => Tagged,
     Asn1RelativeOid => RelativeOid,
-    Asn1Ia5String => Ia5String
+    Asn1Ia5String => Ia5String,
+    Asn1BmpString => BmpString
 }

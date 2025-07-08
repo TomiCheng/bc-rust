@@ -2,7 +2,7 @@
 use std::error::Error;
 use std::fmt::{Debug, Formatter};
 use std::num::ParseIntError;
-use std::string::{FromUtf8Error};
+use std::string::{FromUtf16Error, FromUtf8Error};
 use chrono::ParseError;
 
 pub struct BcError {
@@ -25,6 +25,7 @@ pub enum ErrorKind {
     InvalidFormat,
     EndOfStream,
     FromUtf8Error,
+    FromUtf16Error,
     ParseStringError,
 }
 
@@ -89,6 +90,14 @@ impl From<FromUtf8Error> for BcError {
         BcError {
             error: Box::new(error),
             kind: ErrorKind::FromUtf8Error,
+        }
+    }
+}
+impl From<FromUtf16Error> for BcError {
+    fn from(error: FromUtf16Error) -> Self {
+        BcError {
+            error: Box::new(error),
+            kind: ErrorKind::FromUtf16Error,
         }
     }
 }

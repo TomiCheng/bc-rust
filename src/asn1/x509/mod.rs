@@ -14,6 +14,7 @@ mod key_purpose_id;
 mod general_names;
 mod general_name;
 mod edi_party_name;
+mod subject_key_identifier;
 //pub use key_usage::KeyUsage;
 
 pub use tbs_certificate_structure::TbsCertificateStructure;
@@ -31,3 +32,4 @@ pub use key_purpose_id::KeyPurposeId;
 pub use general_names::GeneralNames;
 pub use general_name::GeneralName;
 pub use edi_party_name::EdiPartyName;
+pub use subject_key_identifier::SubjectKeyIdentifier;

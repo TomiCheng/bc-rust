@@ -1,13 +1,13 @@
 use crate::Result;
 use crate::asn1::EncodingType::Ber;
+use crate::asn1::pkcs::pkcs_object_identifiers::*;
 use crate::asn1::x509::x509_object_identifiers;
 use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1TaggedObject};
+use crate::define_oid;
 use crate::util::encoders::hex::to_hex_string;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::LazyLock;
-use crate::define_oid;
-use crate::asn1::pkcs::pkcs_object_identifiers::*;
 type Symbols = HashMap<Asn1ObjectIdentifier, String>;
 
 /// ```text
@@ -88,14 +88,17 @@ impl X509Name {
         let mut components = Vec::new();
         let mut ava = String::new();
         for i in 0..self.ordering.len() {
+            if ava.len() > 0 && !self.added[i] {
+                components.push(ava);
+                ava = String::new();
+            }
             if self.added[i] {
                 ava.push('+');
-                append_value(&mut ava, oid_symbols, &self.ordering[i], &self.values[i]);
-            } else {
-                ava = String::new();
-                append_value(&mut ava, oid_symbols, &self.ordering[i], &self.values[i]);
-                components.push(ava.clone());
             }
+            append_value(&mut ava, oid_symbols, &self.ordering[i], &self.values[i]);
+        }
+        if !ava.is_empty() {
+            components.push(ava);
         }
 
         if reverse {
@@ -122,7 +125,7 @@ impl fmt::Display for X509Name {
 }
 impl From<X509Name> for Asn1Object {
     fn from(value: X509Name) -> Self {
-        todo!();
+        todo!()
     }
 }
 impl TryFrom<Asn1Object> for X509Name {
@@ -157,9 +160,9 @@ fn append_value(buffer: &mut String, oid_symbols: &Symbols, oid: &Asn1ObjectIden
         }
 
         if first && c == ' ' {
-           buffer.push('\\');
-           buffer.push(c);
-           continue;
+            buffer.push('\\');
+            buffer.push(c);
+            continue;
         } else {
             first = false;
         }
@@ -212,11 +215,36 @@ define_oid!(DN_QUALIFIER, ATTRIBUTE_TYPE, "46", "DN qualifier");
 define_oid!(PSEUDONYM, ATTRIBUTE_TYPE, "65", "pseudonym");
 define_oid!(ROLE, ATTRIBUTE_TYPE, "72", "role");
 define_oid!(ID_AT_ORGANIZATION_IDENTIFIER, ATTRIBUTE_TYPE, "97", "");
-define_oid!(DATE_OF_BIRTH, x509_object_identifiers::ID_PDA, "1", "RFC 3039 DateOfBirth - GeneralizedTime - YYYYMMDD000000Z");
-define_oid!(PLACE_OF_BIRTH, x509_object_identifiers::ID_PDA, "2", "RFC 3039 PlaceOfBirth - DirectoryString(SIZE(1..128))");
-define_oid!(GENDER, x509_object_identifiers::ID_PDA, "3", "RFC 3039 DateOfBirth - PrintableString (SIZE(1)) -- \"M\", \"F\", \"m\" or \"f\"");
-define_oid!(COUNTRY_OF_CITIZENSHIP, x509_object_identifiers::ID_PDA, "4", "RFC 3039 CountryOfCitizenship - PrintableString (SIZE (2)) -- ISO 3166");
-define_oid!(COUNTRY_OF_RESIDENCE, x509_object_identifiers::ID_PDA, "5", "RFC 3039 CountryOfResidence - PrintableString (SIZE (2)) -- ISO 3166");
+define_oid!(
+    DATE_OF_BIRTH,
+    x509_object_identifiers::ID_PDA,
+    "1",
+    "RFC 3039 DateOfBirth - GeneralizedTime - YYYYMMDD000000Z"
+);
+define_oid!(
+    PLACE_OF_BIRTH,
+    x509_object_identifiers::ID_PDA,
+    "2",
+    "RFC 3039 PlaceOfBirth - DirectoryString(SIZE(1..128))"
+);
+define_oid!(
+    GENDER,
+    x509_object_identifiers::ID_PDA,
+    "3",
+    "RFC 3039 DateOfBirth - PrintableString (SIZE(1)) -- \"M\", \"F\", \"m\" or \"f\""
+);
+define_oid!(
+    COUNTRY_OF_CITIZENSHIP,
+    x509_object_identifiers::ID_PDA,
+    "4",
+    "RFC 3039 CountryOfCitizenship - PrintableString (SIZE (2)) -- ISO 3166"
+);
+define_oid!(
+    COUNTRY_OF_RESIDENCE,
+    x509_object_identifiers::ID_PDA,
+    "5",
+    "RFC 3039 CountryOfResidence - PrintableString (SIZE (2)) -- ISO 3166"
+);
 define_oid!(NAME_AT_BIRTH, "1.3.36.8.3.14", "ISIS-MTT NameAtBirth - DirectoryString(SIZE(1..64)");
 
 pub static EMAIL_ADDRESS: LazyLock<Asn1ObjectIdentifier> = LazyLock::new(|| PKCS9_AT_EMAIL_ADDRESS.clone());
@@ -225,9 +253,21 @@ pub static UNSTRUCTURED_ADDRESS: LazyLock<Asn1ObjectIdentifier> = LazyLock::new(
 pub static ORGANIZATION_IDENTIFIER: LazyLock<Asn1ObjectIdentifier> = LazyLock::new(|| ID_AT_ORGANIZATION_IDENTIFIER.clone());
 define_oid!(DC, "0.9.2342.19200300.100.1.25", "others");
 define_oid!(UID, "0.9.2342.19200300.100.1.25", "LDAP User id.");
-define_oid!(JURISDICTION_L, "1.3.6.1.4.1.311.60.2.1.1", "CA/Browser Forum https://cabforum.org/uploads/CA-Browser-Forum-BR-v2.0.0.pdf, Table 78");
-define_oid!(JURISDICTION_ST, "1.3.6.1.4.1.311.60.2.1.2", "CA/Browser Forum https://cabforum.org/uploads/CA-Browser-Forum-BR-v2.0.0.pdf, Table 78");
-define_oid!(JURISDICTION_C, "1.3.6.1.4.1.311.60.2.1.3", "CA/Browser Forum https://cabforum.org/uploads/CA-Browser-Forum-BR-v2.0.0.pdf, Table 78");
+define_oid!(
+    JURISDICTION_L,
+    "1.3.6.1.4.1.311.60.2.1.1",
+    "CA/Browser Forum https://cabforum.org/uploads/CA-Browser-Forum-BR-v2.0.0.pdf, Table 78"
+);
+define_oid!(
+    JURISDICTION_ST,
+    "1.3.6.1.4.1.311.60.2.1.2",
+    "CA/Browser Forum https://cabforum.org/uploads/CA-Browser-Forum-BR-v2.0.0.pdf, Table 78"
+);
+define_oid!(
+    JURISDICTION_C,
+    "1.3.6.1.4.1.311.60.2.1.3",
+    "CA/Browser Forum https://cabforum.org/uploads/CA-Browser-Forum-BR-v2.0.0.pdf, Table 78"
+);
 
 static DEFAULT_SYMBOLS: LazyLock<Symbols> = LazyLock::new(|| {
     let mut symbols = Symbols::new();

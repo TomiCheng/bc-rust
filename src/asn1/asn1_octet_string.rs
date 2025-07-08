@@ -59,4 +59,8 @@ impl Asn1UniversalType<Asn1OctetString> for Asn1OctetStringMetadata {
     fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1OctetString> {
         asn1_object.try_into()
     }
+
+    fn implicit_primitive(&self, value: Asn1OctetString) -> Result<Asn1OctetString> {
+        Ok(value)
+    }
 }

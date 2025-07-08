@@ -28,9 +28,9 @@ impl TryFrom<Asn1Object> for SubjectPublicKeyInfo {
     type Error = BcError;
 
     fn try_from(value: Asn1Object) -> Result<Self> {
-        if let Ok(sequence) = value.try_into() {
+        if let Asn1Object::Sequence(sequence) = value {
             return SubjectPublicKeyInfo::from_sequence(sequence);
-        }
+        } 
         todo!()
     }
 }

@@ -37,19 +37,22 @@ impl KeyUsage {
         let content = Asn1BitString::with_named_bits(value);
         KeyUsage { content }
     }
-    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
-        if let Asn1Object::BitString(content) = asn1_object {
-            return Ok(KeyUsage::new(content));
-        }
-        todo!()
-    }
 }
 impl AsRef<Asn1BitString> for KeyUsage {
     fn as_ref(&self) -> &Asn1BitString {
         &self.content
     }
 }
+impl TryFrom<Asn1Object> for KeyUsage {
+    type Error = crate::BcError;
 
+    fn try_from(asn1_object: Asn1Object) -> Result<Self> {
+        if let Asn1Object::BitString(content) = asn1_object {
+            return Ok(KeyUsage::new(content));
+        }
+        todo!()
+    }
+}
 #[cfg(test)]
 mod tests {
     use crate::asn1::x509::KeyUsage;
