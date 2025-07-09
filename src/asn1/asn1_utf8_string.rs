@@ -1,5 +1,9 @@
 use std::fmt::Display;
-use crate::asn1::{Asn1String};
+use crate::asn1::{asn1_tags, Asn1String, EncodingType};
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
+use crate::asn1::asn1_encoding::Asn1Encoding;
+use crate::asn1::primitive_encoding::PrimitiveEncoding;
+use crate::Result;
 
 #[derive(Clone, Debug)]
 pub struct Asn1Utf8String {
@@ -21,12 +25,17 @@ impl Display for Asn1Utf8String {
     }
 }
 impl Asn1String for Asn1Utf8String {
-    fn to_asn1_string(&self) -> crate::Result<String> {
-        todo!()
+    fn to_asn1_string(&self) -> Result<String> {
+        Ok(self.content.clone())
     }
 }
 impl From<Asn1Utf8String> for String {
     fn from(value: Asn1Utf8String) -> Self {
         value.content
+    }
+}
+impl Asn1EncodingInternal for Asn1Utf8String {
+    fn get_encoding(&self, _: EncodingType) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(asn1_tags::UNIVERSAL, asn1_tags::UTF8_STRING, self.content.as_bytes().to_vec()))
     }
 }

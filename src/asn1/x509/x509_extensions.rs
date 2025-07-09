@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use crate::asn1::{Asn1Boolean, Asn1ObjectIdentifier, Asn1OctetString, Asn1Sequence, Asn1TaggedObject};
 use crate::asn1::x509::X509Extension;
 use crate::{define_oid, Result};
-use std::sync::LazyLock;
 use crate::asn1::try_from_tagged::{TryFromTagged, TryIntoTagged};
 
 pub struct X509Extensions {

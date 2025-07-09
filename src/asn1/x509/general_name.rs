@@ -57,15 +57,15 @@ impl GeneralName {
     fn try_from_base_object(tagged_object: Asn1TaggedObject) -> Result<Self> {
         if tagged_object.has_context_tag() {
             match tagged_object.tag_no() {
-                //Self::OTHER_NAME => Ok(GeneralName::OtherName(Asn1Sequence::get_tagged(tagged_object, false)?)),
+                Self::OTHER_NAME => Ok(GeneralName::OtherName(tagged_object.try_into_tagged(false)?)),
                 Self::RFC822_NAME => Ok(GeneralName::Rfc822Name(tagged_object.try_into_tagged(false)?)),
                 Self::DNS_NAME => Ok(GeneralName::DnsName(tagged_object.try_into_tagged(false)?)),
-                //Self::X400_ADDRESS => Ok(GeneralName::X400Address(Asn1Sequence::get_tagged(tagged_object, false)?)),
+                Self::X400_ADDRESS => Ok(GeneralName::X400Address(tagged_object.try_into_tagged(false)?)),
                 Self::DIRECTORY_NAME => Ok(GeneralName::DirectoryName(X509Name::get_tagged(tagged_object, false)?)),
-                //Self::EDI_PARTY_NAME => {
-                //let sequence = Asn1Sequence::get_tagged(tagged_object, false)?;
-                //Ok(GeneralName::EdiPartyName(EdiPartyName::from_sequence(sequence)?))
-                //}
+                Self::EDI_PARTY_NAME => {
+                    let sequence = tagged_object.try_into_tagged(false)?;
+                    Ok(GeneralName::EdiPartyName(EdiPartyName::from_sequence(sequence)?))
+                },
                 Self::UNIFORM_RESOURCE_IDENTIFIER => Ok(GeneralName::UniformResourceIdentifier(tagged_object.try_into_tagged(false)?)),
                 Self::IP_ADDRESS => Ok(GeneralName::IpAddress(tagged_object.try_into_tagged(false)?)),
                 Self::REGISTERED_ID => Ok(GeneralName::RegisteredId(tagged_object.try_into_tagged(false)?)),

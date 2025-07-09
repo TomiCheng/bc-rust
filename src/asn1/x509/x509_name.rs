@@ -1,13 +1,15 @@
-use crate::Result;
 use crate::asn1::EncodingType::Ber;
 use crate::asn1::pkcs::pkcs_object_identifiers::*;
-use crate::asn1::x509::x509_object_identifiers;
-use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1TaggedObject};
-use crate::define_oid;
+use crate::asn1::x509::{X509DefaultEntryConverter, X509NameEntryConverter, X509NameTokenizer};
+use crate::asn1::x509::x509_object_identifiers::*;
+use crate::asn1::{Asn1Encodable, Asn1EncodableVector, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1TaggedObject};
 use crate::util::encoders::hex::to_hex_string;
+use crate::{GLOBAL, Result, BcError};
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::LazyLock;
+use crate::asn1::x500::style::ietf_utilities::unescape;
+
 type Symbols = HashMap<Asn1ObjectIdentifier, String>;
 
 /// ```text
@@ -24,17 +26,65 @@ pub struct X509Name {
     ordering: Vec<Asn1ObjectIdentifier>,
     values: Vec<String>,
     added: Vec<bool>,
+    converter: Box<dyn X509NameEntryConverter>,
 }
 
 impl X509Name {
     pub(crate) fn get_tagged(p0: Asn1TaggedObject, p1: bool) -> Result<Self> {
         todo!()
     }
-}
+    fn new(ordering: Vec<Asn1ObjectIdentifier>, values: Vec<String>, added: Vec<bool>, converter: Box<dyn X509NameEntryConverter>) -> Self {
+        X509Name { ordering, values, added, converter }
+    }
+    pub fn with_str(dir_name: &str) -> Result<Self> {
+        Self::with_reverse_lookup_str((*GLOBAL).x509_name_default_reverse(), &DEFAULT_LOOKUP, dir_name)
+    }
+    pub fn with_ordering_attributes(
+        ordering: Vec<Asn1ObjectIdentifier>,
+        attributes: HashMap<Asn1ObjectIdentifier, String>,
+    ) -> Result<Self> {
+        Self::with_ordering_attributes_converter(ordering, attributes, Box::new(X509DefaultEntryConverter))
+    }
+    pub fn with_ordering_attributes_converter(
+        ordering: Vec<Asn1ObjectIdentifier>,
+        attributes: HashMap<Asn1ObjectIdentifier, String>,
+        converter: Box<dyn X509NameEntryConverter>,
+    ) -> Result<Self> {
+        if ordering.len() != attributes.len() {
+            return Err(BcError::with_invalid_argument("'oids' must be same length as 'values'."));
+        }
 
-impl X509Name {
-    fn new(ordering: Vec<Asn1ObjectIdentifier>, values: Vec<String>, added: Vec<bool>) -> Self {
-        X509Name { ordering, values, added }
+        let added = vec![false; ordering.len()];
+        Ok(X509Name::new(ordering, attributes.into_values().collect(), added, converter))
+    }
+    pub fn with_reverse_lookup_str(reverse: bool, lookup: &HashMap<String, Asn1ObjectIdentifier>, dir_name: &str) -> Result<Self> {
+        Self::with_reverse_lookup_str_converter(reverse, lookup, dir_name, Box::new(X509DefaultEntryConverter))
+    }
+    pub fn with_reverse_lookup_str_converter(
+        reverse: bool,
+        lookup: &HashMap<String, Asn1ObjectIdentifier>,
+        dir_name: &str,
+        converter: Box<dyn X509NameEntryConverter>,
+    ) -> Result<Self> {
+        let mut name_tokenizer = X509NameTokenizer::with_str(dir_name);
+
+        let mut result = X509Name::new(Vec::new(), Vec::new(), Vec::new(), converter);
+
+        while let Some(rdn) = name_tokenizer.next_token()? {
+            let mut rdn_tokenizer = X509NameTokenizer::with_str_and_separator(rdn, '+')?;
+            let token = rdn_tokenizer.next_token()?.ok_or(BcError::with_invalid_argument("badly formatted directory string"))?;
+            result.add_attribute(lookup, token, false)?;
+            while let Some(token) = rdn_tokenizer.next_token()? {
+                result.add_attribute(lookup, token, true)?;
+            }
+        }
+
+        if reverse {
+
+        }
+
+
+        Ok(result)
     }
     fn from_sequence(sequence: Asn1Sequence) -> Result<Self> {
         let mut ordering = Vec::new();
@@ -71,7 +121,7 @@ impl X509Name {
                 }
             }
         }
-        Ok(X509Name::new(ordering, values, added))
+        Ok(X509Name::new(ordering, values, added, Box::new(X509DefaultEntryConverter)))
     }
     /// Convert the structure to a string - if reverse is `true` the
     /// `oids` and values are listed out starting with the last element
@@ -116,6 +166,36 @@ impl X509Name {
         }
         result
     }
+    fn add_attribute(&mut self, lookup: &HashMap<String, Asn1ObjectIdentifier>, token: &str, added: bool) -> Result<()> {
+        let mut tokenizer = X509NameTokenizer::with_str_and_separator(token, '=')?;
+
+        let type_token = tokenizer.next_token()?.ok_or(BcError::with_invalid_argument("badly formatted directory string"))?;
+        let value_token = tokenizer.next_token()?.ok_or(BcError::with_invalid_argument("badly formatted directory string"))?;
+
+        let oid = Self::decode_oid(type_token.trim(), lookup)?;
+        let value = unescape(value_token);
+
+        self.ordering.push(oid);
+        self.values.push(value);
+        self.added.push(added);
+
+        Ok(())
+    }
+    fn decode_oid(name: &str, lookup: &HashMap<String, Asn1ObjectIdentifier>) -> Result<Asn1ObjectIdentifier> {
+        if name.starts_with("OID.") || name.starts_with("oid.") {
+            return Ok(Asn1ObjectIdentifier::with_str(&name[4..])?);
+        }
+
+        if let Some(r) = Asn1ObjectIdentifier::try_parse(name) {
+            return Ok(r);
+        }
+
+        if let Some(r) = lookup.get(name) {
+            return Ok(r.clone());
+        }
+
+        Err(BcError::with_invalid_argument(format!("unknown object id - {} - passed to distinguished name", name)))
+    }
 }
 
 impl fmt::Display for X509Name {
@@ -125,6 +205,15 @@ impl fmt::Display for X509Name {
 }
 impl From<X509Name> for Asn1Object {
     fn from(value: X509Name) -> Self {
+
+
+
+        //let mut vec = Asn1EncodableVector::new();
+        //let mut s_vec = Asn1EncodableVector::new();
+
+
+
+        //let sequence = Asn1Sequence::with_
         todo!()
     }
 }
@@ -185,102 +274,17 @@ fn append_value(buffer: &mut String, oid_symbols: &Symbols, oid: &Asn1ObjectIden
     }
 }
 
-// 定義基礎 OID
-define_oid!(ATTRIBUTE_TYPE, "2.5.4", "X.500 attribute type base OID");
-
-define_oid!(CN, ATTRIBUTE_TYPE, "3", "common name - StringType(SIZE(1..64))");
-define_oid!(SURNAME, ATTRIBUTE_TYPE, "4", "surname");
-define_oid!(SERIAL_NUMBER, ATTRIBUTE_TYPE, "5", "device serial number name - StringType(SIZE(1..64))");
-define_oid!(C, ATTRIBUTE_TYPE, "6", "country name - StringType(SIZE(2))");
-define_oid!(L, ATTRIBUTE_TYPE, "7", "locality name - StringType(SIZE(1..64))");
-define_oid!(ST, ATTRIBUTE_TYPE, "8", "state, or province name - StringType(SIZE(1..64))");
-define_oid!(STREET, ATTRIBUTE_TYPE, "9", "street - StringType(SIZE(1..64))");
-define_oid!(O, ATTRIBUTE_TYPE, "10", "organization - StringType(SIZE(1..64))");
-define_oid!(OU, ATTRIBUTE_TYPE, "11", "organizational unit name - StringType(SIZE(1..64))");
-define_oid!(T, ATTRIBUTE_TYPE, "12", "title");
-define_oid!(DESCRIPTION, ATTRIBUTE_TYPE, "13", "description");
-define_oid!(SEARCH_GUIDE, ATTRIBUTE_TYPE, "14", "search guide");
-define_oid!(BUSINESS_CATEGORY, ATTRIBUTE_TYPE, "15", "businessCategory - DirectoryString(SIZE(1..128)");
-define_oid!(POSTAL_ADDRESS, ATTRIBUTE_TYPE, "16", "postal address");
-define_oid!(POSTAL_CODE, ATTRIBUTE_TYPE, "17", "postal code - DirectoryString(SIZE(1..40)");
-define_oid!(TELEPHONE_NUMBER, ATTRIBUTE_TYPE, "20", "telephone number");
-define_oid!(ID_AT_TELEPHONE_NUMBER, ATTRIBUTE_TYPE, "20", "telephone number");
-define_oid!(NAME, ATTRIBUTE_TYPE, "41", "Name");
-define_oid!(ID_AT_NAME, ATTRIBUTE_TYPE, "41", "Name");
-define_oid!(GIVEN_NAME, ATTRIBUTE_TYPE, "42", "given name");
-define_oid!(INITIALS, ATTRIBUTE_TYPE, "43", "initials");
-define_oid!(GENERATION, ATTRIBUTE_TYPE, "44", "generation");
-define_oid!(UNIQUE_IDENTIFIER, ATTRIBUTE_TYPE, "45", "unique identifier");
-define_oid!(DN_QUALIFIER, ATTRIBUTE_TYPE, "46", "DN qualifier");
-define_oid!(PSEUDONYM, ATTRIBUTE_TYPE, "65", "pseudonym");
-define_oid!(ROLE, ATTRIBUTE_TYPE, "72", "role");
-define_oid!(ID_AT_ORGANIZATION_IDENTIFIER, ATTRIBUTE_TYPE, "97", "");
-define_oid!(
-    DATE_OF_BIRTH,
-    x509_object_identifiers::ID_PDA,
-    "1",
-    "RFC 3039 DateOfBirth - GeneralizedTime - YYYYMMDD000000Z"
-);
-define_oid!(
-    PLACE_OF_BIRTH,
-    x509_object_identifiers::ID_PDA,
-    "2",
-    "RFC 3039 PlaceOfBirth - DirectoryString(SIZE(1..128))"
-);
-define_oid!(
-    GENDER,
-    x509_object_identifiers::ID_PDA,
-    "3",
-    "RFC 3039 DateOfBirth - PrintableString (SIZE(1)) -- \"M\", \"F\", \"m\" or \"f\""
-);
-define_oid!(
-    COUNTRY_OF_CITIZENSHIP,
-    x509_object_identifiers::ID_PDA,
-    "4",
-    "RFC 3039 CountryOfCitizenship - PrintableString (SIZE (2)) -- ISO 3166"
-);
-define_oid!(
-    COUNTRY_OF_RESIDENCE,
-    x509_object_identifiers::ID_PDA,
-    "5",
-    "RFC 3039 CountryOfResidence - PrintableString (SIZE (2)) -- ISO 3166"
-);
-define_oid!(NAME_AT_BIRTH, "1.3.36.8.3.14", "ISIS-MTT NameAtBirth - DirectoryString(SIZE(1..64)");
-
-pub static EMAIL_ADDRESS: LazyLock<Asn1ObjectIdentifier> = LazyLock::new(|| PKCS9_AT_EMAIL_ADDRESS.clone());
-pub static UNSTRUCTURED_NAME: LazyLock<Asn1ObjectIdentifier> = LazyLock::new(|| PKCS9_AT_UNSTRUCTURED_NAME.clone());
-pub static UNSTRUCTURED_ADDRESS: LazyLock<Asn1ObjectIdentifier> = LazyLock::new(|| PKCS9_AT_UNSTRUCTURED_ADDRESS.clone());
-pub static ORGANIZATION_IDENTIFIER: LazyLock<Asn1ObjectIdentifier> = LazyLock::new(|| ID_AT_ORGANIZATION_IDENTIFIER.clone());
-define_oid!(DC, "0.9.2342.19200300.100.1.25", "others");
-define_oid!(UID, "0.9.2342.19200300.100.1.25", "LDAP User id.");
-define_oid!(
-    JURISDICTION_L,
-    "1.3.6.1.4.1.311.60.2.1.1",
-    "CA/Browser Forum https://cabforum.org/uploads/CA-Browser-Forum-BR-v2.0.0.pdf, Table 78"
-);
-define_oid!(
-    JURISDICTION_ST,
-    "1.3.6.1.4.1.311.60.2.1.2",
-    "CA/Browser Forum https://cabforum.org/uploads/CA-Browser-Forum-BR-v2.0.0.pdf, Table 78"
-);
-define_oid!(
-    JURISDICTION_C,
-    "1.3.6.1.4.1.311.60.2.1.3",
-    "CA/Browser Forum https://cabforum.org/uploads/CA-Browser-Forum-BR-v2.0.0.pdf, Table 78"
-);
-
 static DEFAULT_SYMBOLS: LazyLock<Symbols> = LazyLock::new(|| {
     let mut symbols = Symbols::new();
-    symbols.insert(C.clone(), "C".to_owned());
-
-    symbols.insert(O.clone(), "O".to_owned());
-    symbols.insert(T.clone(), "T".to_owned());
-    symbols.insert(OU.clone(), "OU".to_owned());
-    symbols.insert(CN.clone(), "CN".to_owned());
-    symbols.insert(L.clone(), "L".to_owned());
-    symbols.insert(ST.clone(), "ST".to_owned());
+    symbols.insert(COUNTRY_NAME.clone(), "C".to_owned());
+    symbols.insert(ORGANIZATION_NAME.clone(), "O".to_owned());
+    symbols.insert(TITLE.clone(), "T".to_owned());
+    symbols.insert(ORGANIZATIONAL_UNIT_NAME.clone(), "OU".to_owned());
+    symbols.insert(COMMON_NAME.clone(), "CN".to_owned());
+    symbols.insert(LOCALITY_NAME.clone(), "L".to_owned());
+    symbols.insert(STATE_OR_PROVINCE_NAME.clone(), "ST".to_owned());
     symbols.insert(SERIAL_NUMBER.clone(), "SERIALNUMBER".to_owned());
-    symbols.insert(EMAIL_ADDRESS.clone(), "E".to_owned());
+    symbols.insert(PKCS9_AT_EMAIL_ADDRESS.clone(), "E".to_owned());
     symbols.insert(DC.clone(), "DC".to_owned());
     symbols.insert(UID.clone(), "UID".to_owned());
     symbols.insert(STREET.clone(), "STREET".to_owned());
@@ -290,8 +294,8 @@ static DEFAULT_SYMBOLS: LazyLock<Symbols> = LazyLock::new(|| {
     symbols.insert(GENERATION.clone(), "GENERATION".to_owned());
     symbols.insert(DESCRIPTION.clone(), "DESCRIPTION".to_owned());
     symbols.insert(ROLE.clone(), "ROLE".to_owned());
-    symbols.insert(UNSTRUCTURED_ADDRESS.clone(), "unstructuredAddress".to_owned());
-    symbols.insert(UNSTRUCTURED_NAME.clone(), "unstructuredName".to_owned());
+    symbols.insert(PKCS9_AT_UNSTRUCTURED_ADDRESS.clone(), "unstructuredAddress".to_owned());
+    symbols.insert(PKCS9_AT_UNSTRUCTURED_NAME.clone(), "unstructuredName".to_owned());
     symbols.insert(UNIQUE_IDENTIFIER.clone(), "UniqueIdentifier".to_owned());
     symbols.insert(DN_QUALIFIER.clone(), "DN".to_owned());
     symbols.insert(PSEUDONYM.clone(), "Pseudonym".to_owned());
@@ -313,3 +317,59 @@ static DEFAULT_SYMBOLS: LazyLock<Symbols> = LazyLock::new(|| {
 
     symbols
 });
+
+static DEFAULT_LOOKUP: LazyLock<HashMap<String, Asn1ObjectIdentifier>> = LazyLock::new(|| {
+    let mut lookup = HashMap::new();
+    lookup.insert("c".to_owned(), COUNTRY_NAME.clone());
+    lookup
+});
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::sync::LazyLock;
+    use crate::asn1::{Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Utf8String};
+    use crate::asn1::x500::style::ietf_utilities::asn1_object_to_string;
+    use crate::asn1::x509::x509_object_identifiers::{COMMON_NAME, DN_QUALIFIER, SERIAL_NUMBER};
+    use crate::asn1::x509::X509Name;
+    use crate::Result;
+
+    #[test]
+    fn test_ietf_utilities() {
+        let o = Asn1Utf8String::with_str(" ").into();
+        asn1_object_to_string(&o).unwrap();
+    }
+    #[test]
+    fn test_bogus_equals() {
+        assert!(X509Name::with_str("CN=foo=bar").is_err());
+    }
+    #[test]
+    fn test_encoding_printable_string() {
+        do_test_encoding_printable_string(&(*COMMON_NAME), "AU");
+        do_test_encoding_printable_string(&(*SERIAL_NUMBER), "123456");
+        do_test_encoding_printable_string(&(*DN_QUALIFIER), "123456");
+    }
+
+    fn do_test_encoding_printable_string(oid: &Asn1ObjectIdentifier, value: &str) {
+        let converted = create_entry_value(oid, value).unwrap();
+        assert!(converted.is_printable_string());
+    }
+
+    fn create_entry_value(oid: &Asn1ObjectIdentifier, value: &str) -> Result<Asn1Object> {
+        let mut attrs = HashMap::new();
+        attrs.insert(oid.clone(), value.to_owned());
+
+        let mut ord = Vec::new();
+        ord.push(oid.clone());
+
+        let name = X509Name::with_ordering_attributes(ord, attrs)?;
+
+        let sequence: Asn1Object = name.into();
+
+
+
+
+
+        Ok(sequence)
+    }
+}

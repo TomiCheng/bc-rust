@@ -15,6 +15,9 @@ mod general_names;
 mod general_name;
 mod edi_party_name;
 mod subject_key_identifier;
+mod x509_name_entry_converter;
+mod x509_default_entry_converter;
+mod x509_name_tokenizer;
 //pub use key_usage::KeyUsage;
 
 pub use tbs_certificate_structure::TbsCertificateStructure;
@@ -33,3 +36,6 @@ pub use general_names::GeneralNames;
 pub use general_name::GeneralName;
 pub use edi_party_name::EdiPartyName;
 pub use subject_key_identifier::SubjectKeyIdentifier;
+pub use x509_name_entry_converter::X509NameEntryConverter;
+pub use x509_default_entry_converter::X509DefaultEntryConverter;
+pub use x509_name_tokenizer::X509NameTokenizer;

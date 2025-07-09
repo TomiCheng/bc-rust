@@ -172,7 +172,7 @@ impl Asn1EncodingInternal for Asn1Object {
             // Asn1Object::ObjectDescriptor(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::External(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::Enumerated(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::Utf8String(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::Utf8String(obj) => obj.get_encoding(encoding_type),
             Asn1Object::RelativeOid(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::Sequence(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::Set(obj) => obj.get_encoding(encoding_type),
@@ -228,5 +228,8 @@ impl_from_for_asn1object! {
     Asn1TaggedObject => Tagged,
     Asn1RelativeOid => RelativeOid,
     Asn1Ia5String => Ia5String,
-    Asn1BmpString => BmpString
+    Asn1BmpString => BmpString,
+    Asn1Utf8String => Utf8String,
+    Asn1GeneralizedTime => GeneralizedTime,
+    Asn1PrintableString => PrintableString
 }
