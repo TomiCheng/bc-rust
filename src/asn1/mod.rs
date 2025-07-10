@@ -44,6 +44,8 @@ mod asn1_numeric_string;
 mod asn1_graphic_string;
 mod asn1_general_string;
 mod try_from_tagged;
+mod constructed_dl_encoding;
+mod constructed_il_encoding;
 
 pub use encoding_type::EncodingType;
 pub use asn1_object::Asn1Object;

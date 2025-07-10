@@ -76,9 +76,6 @@ impl Asn1RelativeOid {
             .get_or_init(|| parse_contents(&self.contents))
             .to_string()
     }
-    fn get_encoding(&self, _: EncodingType) -> impl Asn1Encoding {
-        PrimitiveEncoding::new(UNIVERSAL, RELATIVE_OID, self.contents.clone())
-    }
     pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
         check_contents_length(contents.len())?;
         Ok(Asn1RelativeOid::new(contents, OnceCell::new()))

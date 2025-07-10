@@ -1,5 +1,5 @@
 use std::io::Read;
-use crate::asn1::{asn1_tags, Asn1BitString, Asn1BmpString, Asn1Boolean, Asn1EncodableVector, Asn1GeneralizedTime, Asn1Ia5String, Asn1Integer, Asn1Null, Asn1Object, Asn1ObjectIdentifier, Asn1OctetString, Asn1PrintableString, Asn1RelativeOid, Asn1Sequence, Asn1Set, Asn1TaggedObject, Asn1UtcTime};
+use crate::asn1::{asn1_tags, Asn1BitString, Asn1BmpString, Asn1Boolean, Asn1EncodableVector, Asn1GeneralizedTime, Asn1Ia5String, Asn1Integer, Asn1Null, Asn1Object, Asn1ObjectIdentifier, Asn1OctetString, Asn1PrintableString, Asn1RelativeOid, Asn1Sequence, Asn1Set, Asn1TaggedObject, Asn1UtcTime, Asn1Utf8String};
 use crate::{BcError, Result};
 use crate::asn1::asn1_tags::{FLAGS, PRIVATE};
 use crate::asn1::definite_length_read::DefiniteLengthRead;
@@ -145,10 +145,11 @@ impl<'a> Asn1Read<'a> {
             asn1_tags::BIT_STRING => Ok(Asn1Object::BitString(Asn1BitString::create_primitive(bytes)?)),
             asn1_tags::NULL => Ok(Asn1Object::Null(Asn1Null::create_primitive(bytes)?)),
             asn1_tags::RELATIVE_OID => Ok(Asn1RelativeOid::create_primitive(bytes)?.into()),
-            asn1_tags::PRINTABLE_STRING => Ok(Asn1Object::PrintableString(Asn1PrintableString::create_primitive(bytes)?)),
+            asn1_tags::PRINTABLE_STRING => Ok(Asn1PrintableString::create_primitive(bytes)?.into()),
             asn1_tags::IA5_STRING => Ok(Asn1Object::Ia5String(Asn1Ia5String::create_primitive(bytes)?)),
             asn1_tags::UTC_TIME => Ok(Asn1Object::UtcTime(Asn1UtcTime::create_primitive(bytes)?)),
             asn1_tags::GENERALIZED_TIME => Ok(Asn1GeneralizedTime::create_primitive(bytes)?.into()),
+            asn1_tags::UTF8_STRING => Ok(Asn1Utf8String::create_primitive(bytes)?.into()),
             // TODO
             _ => Err(BcError::with_invalid_format(format!("Unsupported primitive tag: 0x{:X}", tag_no))),
         }

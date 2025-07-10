@@ -1,5 +1,11 @@
 use std::hash::{Hash, Hasher};
-use crate::asn1::{Asn1EncodableVector, Asn1Object};
+use crate::asn1::{asn1_tags, Asn1EncodableVector, Asn1Object, EncodingType};
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
+use crate::asn1::asn1_encoding::Asn1Encoding;
+use crate::asn1::asn1_write::get_contents_encodings;
+use crate::asn1::constructed_dl_encoding::ConstructedDlEncoding;
+use crate::asn1::constructed_il_encoding::ConstructedIlEncoding;
+use crate::asn1::EncodingType::*;
 use crate::Result;
 #[derive(Clone, Debug)]
 pub struct Asn1Set {
@@ -37,6 +43,15 @@ impl Hash for Asn1Set {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for element in self.elements.iter() {
             element.hash(state)
+        }
+    }
+}
+impl Asn1EncodingInternal for Asn1Set {
+    fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
+        match  encoding_type {
+            Dl => Box::new(ConstructedDlEncoding::new(asn1_tags::UNIVERSAL, asn1_tags::SET, get_contents_encodings(encoding_type, &self.elements))),
+            Ber => Box::new(ConstructedIlEncoding::new(asn1_tags::UNIVERSAL, asn1_tags::SET, get_contents_encodings(encoding_type, &self.elements))),
+            Der => Box::new(ConstructedDlEncoding::new(asn1_tags::UNIVERSAL, asn1_tags::SET, get_contents_encodings(encoding_type, &self.elements))),
         }
     }
 }

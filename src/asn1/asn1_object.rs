@@ -128,22 +128,6 @@ impl Asn1Object {
             _ => None,
         }
     }
-    pub(crate) fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
-        match self {
-            Asn1Object::Boolean(obj) => obj.get_encoding(encoding_type),
-            Asn1Object::Integer(obj) => obj.get_encoding(encoding_type),
-            Asn1Object::BitString(obj) => obj.get_encoding(encoding_type),
-            //Asn1Object::OctetString(obj) => Box::new(obj.get_encoding(encoding_type)),
-            //Asn1Object::Null(obj) => Box::new(obj.get_encoding(encoding_type)),
-            //Asn1Object::ObjectIdentifier(obj) => Box::new(obj.get_encoding(encoding_type)),
-            //Asn1Object::ObjectDescriptor(obj) => Box::new(obj.get_encoding(encoding_type)),
-            //Asn1Object::External(obj) => Box::new(obj.get_encoding(encoding_type)),
-            //Asn1Object::Enumerated(obj) => Box::new(obj.get_encoding(encoding_type)),
-            //Asn1Object::Utf8String(obj) => Box::new(obj.get_encoding(encoding_type)),
-            //Asn1Object::Set(obj) => Box::new(obj.get_encoding(encoding_type)),
-            _ => todo!("Encoding not implemented for {:?}", self),
-        }
-    }
     pub fn from_read(reader: &mut dyn Read) -> Result<Self> {
         let mut asn1_reader = Asn1Read::new(reader, i32::MAX as usize);
         let result = asn1_reader.read_object()?;
@@ -158,49 +142,17 @@ impl Asn1Object {
         Self::from_read(&mut reader)
     }
     pub fn as_string(&self) -> Option<&dyn Asn1String> {
-        if let Some(obj) = self.as_printable_string() {
+        if let Asn1Object::PrintableString(obj) = self {
             Some(obj)
-        } else if let Some(obj) = self.as_ia5_string() {
+        } else if let Asn1Object::Ia5String(obj) = self {
+            Some(obj)
+        } else if let Asn1Object::Utf8String(obj) = self {
             Some(obj)
         } else {
             None
         }
     }
 }
-// impl Hash for Asn1Object {
-//     fn hash<H: Hasher>(&self, state: &mut H) {
-//         match self {
-//             //sn1Object::Boolean(obj) => obj.get_encoding(encoding_type),
-//             //Asn1Object::Integer(obj) => obj.get_encoding(encoding_type),
-//             //Asn1Object::BitString(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::OctetString(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::Null(obj) => obj.get_encoding(encoding_type),
-//             //Asn1Object::ObjectIdentifier(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::ObjectDescriptor(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::External(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::Enumerated(obj) => obj.get_encoding(encoding_type),
-//             //Asn1Object::Utf8String(obj) => obj.get_encoding(encoding_type),
-//             //Asn1Object::RelativeOid(obj) => obj.get_encoding(encoding_type),
-//             Asn1Object::Sequence(obj) => obj.hash(state),
-//             Asn1Object::Set(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::NumericString(obj) => obj.get_encoding(encoding_type),
-//             //Asn1Object::PrintableString(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::T61String(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::VideotexString(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::Ia5String(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::UtcTime(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::GeneralizedTime(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::GraphicString(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::VisibleString(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::GeneralString(obj) => obj.get_encoding(encoding_type),
-//             // Asn1Object::UniversalString(obj) => obj.get_encoding(encoding_type),
-//             //Asn1Object::BmpString(obj) => obj.get_encoding(encoding_type),
-//             _ => {
-//                 todo!("{}", format!("Hashing not implemented for {:?}", self));
-//             }
-//         }
-//     }
-// }
 impl Asn1EncodingInternal for Asn1Object {
     fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
         match self {
@@ -215,8 +167,8 @@ impl Asn1EncodingInternal for Asn1Object {
             // Asn1Object::Enumerated(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Utf8String(obj) => obj.get_encoding(encoding_type),
             Asn1Object::RelativeOid(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::Sequence(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::Set(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::Sequence(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::Set(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::NumericString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::PrintableString(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::T61String(obj) => obj.get_encoding(encoding_type),
@@ -230,7 +182,7 @@ impl Asn1EncodingInternal for Asn1Object {
             // Asn1Object::UniversalString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::BmpString(obj) => obj.get_encoding(encoding_type),
             _ => {
-                todo!()
+                todo!("Encoding not implemented for {:?}", self);
             }
         }
     }

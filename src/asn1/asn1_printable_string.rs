@@ -24,6 +24,12 @@ impl Asn1PrintableString {
         }
         Ok(Asn1PrintableString::new(s.to_string()))
     }
+    pub fn with_str_validate(s: &str, validate: bool) -> Result<Self> {
+        if validate && !Self::is_printable_string(s) {
+            return Err(crate::BcError::with_invalid_argument("Invalid PrintableString content"));
+        }
+        Ok(Asn1PrintableString::new(s.to_string()))
+    }
     pub fn is_printable_string(s: &str) -> bool {
         s.chars().all(|c| {
             c.is_ascii()

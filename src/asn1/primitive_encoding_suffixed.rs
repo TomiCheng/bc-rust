@@ -1,4 +1,5 @@
 use crate::asn1::asn1_encoding::Asn1Encoding;
+use crate::asn1::asn1_write::get_length_of_encoding_dl;
 use crate::asn1::Asn1Write;
 
 pub(crate) struct PrimitiveEncodingSuffixed {
@@ -27,5 +28,9 @@ impl Asn1Encoding for PrimitiveEncodingSuffixed {
         length += writer.write(&self.contents_octets[..(&self.contents_octets.len() - 1)])?;
         length += writer.write_u8(self.contents_suffix)?;
         Ok(length)
+    }
+
+    fn get_length(&self) -> usize {
+        get_length_of_encoding_dl(self.tag_no, self.contents_octets.len())
     }
 }

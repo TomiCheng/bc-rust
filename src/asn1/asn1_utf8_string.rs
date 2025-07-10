@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use std::hash::{Hash, Hasher};
+use std::hash::{Hash};
 use crate::asn1::{asn1_tags, Asn1String, EncodingType};
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
@@ -17,6 +17,10 @@ impl Asn1Utf8String {
     }
     pub fn with_str(s: &str) -> Self {
         Asn1Utf8String::new(s.to_string())
+    }
+    pub(crate) fn create_primitive(contents: Vec<u8>) -> Result<Self> {
+        let s = String::from_utf8(contents)?;
+        Ok(Self::new(s))
     }
 }
 

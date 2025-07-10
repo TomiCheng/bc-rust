@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::asn1::pkcs::pkcs_object_identifiers::PKCS9_AT_EMAIL_ADDRESS;
 use crate::asn1::x509::x509_name_entry_converter::convert_hex_encoded;
-use crate::asn1::x509::x509_object_identifiers::{COMMON_NAME, DATE_OF_BIRTH, DC, DN_QUALIFIER, SERIAL_NUMBER, TELEPHONE_NUMBER};
+use crate::asn1::x509::x509_object_identifiers::{COUNTRY_NAME, DATE_OF_BIRTH, DC, DN_QUALIFIER, SERIAL_NUMBER, TELEPHONE_NUMBER};
 use crate::asn1::{Asn1GeneralizedTime, Asn1Ia5String, Asn1Object, Asn1ObjectIdentifier, Asn1PrintableString, Asn1Utf8String};
 use crate::asn1::x509::X509NameEntryConverter;
 
@@ -27,8 +27,8 @@ impl X509NameEntryConverter for X509DefaultEntryConverter {
             return Ok(Asn1GeneralizedTime::with_str(value)?.into());
         }
 
-        if oid == &(*COMMON_NAME) || oid == &(*SERIAL_NUMBER) || oid == &(*DN_QUALIFIER) || oid == &(*TELEPHONE_NUMBER) {
-            return Ok(Asn1PrintableString::with_str(value)?.into());
+        if oid == &(*COUNTRY_NAME) || oid == &(*SERIAL_NUMBER) || oid == &(*DN_QUALIFIER) || oid == &(*TELEPHONE_NUMBER) {
+            return Ok(Asn1PrintableString::with_str_validate(value, false)?.into());
         }
 
         Ok(Asn1Utf8String::with_str(value).into())

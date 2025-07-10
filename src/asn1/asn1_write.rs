@@ -1,5 +1,7 @@
 use std::io::Write;
 use crate::asn1::{Asn1Object, EncodingType};
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
+use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::Result;
 
 pub struct Asn1Write<'a> {
@@ -71,7 +73,54 @@ impl<'a> Asn1Write<'a> {
         let length = self.writer.write(&[data])?;
         Ok(length)
     }
+    pub(crate) fn write_encodings(&mut self, encodings: &[Box<dyn Asn1Encoding>]) -> Result<usize> {
+        let mut length = 0;
+        for encoding in encodings {
+            length += encoding.encode(self)?;
+        }
+        Ok(length)
+    }
 }
 
+pub fn get_contents_encodings(encoding_type: EncodingType, elements: &[Asn1Object]) -> Vec<Box<dyn Asn1Encoding>> {
+    elements.iter()
+        .map(|e| e.get_encoding(encoding_type))
+        .collect()
+}
+pub(crate) fn get_length_of_encoding_dl(tag_no: u8, contents_length: usize) -> usize {
+    get_length_of_identifier(tag_no) + get_length_of_dl(contents_length) + contents_length
+}
+pub(crate) fn get_length_of_identifier(tag_no: u8) -> usize {
+    if tag_no < 31 {
+        return 1;
+    }
+    let mut length = 2;
+    let mut tag_no = tag_no;
+    while tag_no > 0 {
+        length += 1;
+        tag_no >>= 7;
+    }
+    length
+}
+pub(crate) fn get_length_of_dl(contents_length: usize) -> usize {
+    if contents_length < 128 {
+        return 1;
+    }
+    let mut length = 2;
+    let mut contents_length = contents_length;
+    while contents_length > 0 {
+        length += 1;
+        contents_length >>= 8;
+    }
+    length
+}
+pub(crate) fn get_length_of_encodings_il(tag_no: u8, contents_encodings: &[Box<dyn Asn1Encoding>]) -> usize {
+    get_length_of_identifier(tag_no) + 3 + get_length_of_contents(contents_encodings)
+}
+pub(crate) fn get_length_of_contents(contents_encodings: &[Box<dyn Asn1Encoding>]) -> usize {
+    contents_encodings.iter()
+        .map(|e| e.get_length())
+        .sum()
+}
 #[cfg(test)]
 mod tests {}

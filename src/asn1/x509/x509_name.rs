@@ -5,12 +5,13 @@ use crate::asn1::try_from_tagged::TryFromTagged;
 use crate::asn1::x500::style::ietf_utilities::{escape_dn_string, unescape};
 use crate::asn1::x509::x509_object_identifiers::*;
 use crate::asn1::x509::{X509DefaultEntryConverter, X509NameEntryConverter, X509NameTokenizer};
-use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1TaggedObject};
+use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1TaggedObject, EncodingType};
 use crate::util::encoders::hex::{to_decode_with_str, to_hex_string};
 use crate::{BcError, GLOBAL, Result};
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::io::Write;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
@@ -71,26 +72,43 @@ impl X509Name {
         }
         Ok(X509Name::new(r_ordering, r_values, r_added, converter))
     }
+    pub fn with_reverse_str(reverse: bool, dir_name: &str) -> Result<Self> {
+        Self::with_reverse_lookup_str(reverse, &DEFAULT_LOOKUP, dir_name)
+    }
     pub fn with_reverse_lookup_str(reverse: bool, lookup: &LookupType, dir_name: &str) -> Result<Self> {
         Self::with_reverse_lookup_str_converter(reverse, lookup, dir_name, Rc::new(X509DefaultEntryConverter))
     }
     pub fn with_reverse_lookup_str_converter(reverse: bool, lookup: &LookupType, dir_name: &str, converter: ConverterType) -> Result<Self> {
         let mut name_tokenizer = X509NameTokenizer::with_str(dir_name);
 
-        let mut result = X509Name::new(Vec::new(), Vec::new(), Vec::new(), converter);
+        let mut result = X509Name::new(Vec::new(), Vec::new(), Vec::new(), converter.clone());
 
         while let Some(rdn) = name_tokenizer.next_token()? {
-            let mut rdn_tokenizer = X509NameTokenizer::with_str_and_separator(rdn, '+')?;
+            let mut rdn_tokenizer = X509NameTokenizer::with_str_and_separator(&rdn, '+')?;
             let token = rdn_tokenizer
                 .next_token()?
                 .ok_or(BcError::with_invalid_argument("badly formatted directory string"))?;
-            result.add_attribute(lookup, token, false)?;
+            result.add_attribute(lookup, &token, false)?;
             while let Some(token) = rdn_tokenizer.next_token()? {
-                result.add_attribute(lookup, token, true)?;
+                result.add_attribute(lookup, &token, true)?;
             }
         }
 
-        if reverse {}
+        if reverse {
+            let mut o = Vec::new();
+            let mut v = Vec::new();
+            let mut a = Vec::new();
+            let mut count: isize = 1;
+
+            for i in 0..result.ordering.len() {
+                count &= if result.added[i] { -1 } else { 0 };
+                o.insert(count as usize, result.ordering[i].clone());
+                v.insert(count as usize, result.values[i].clone());
+                a.insert(count as usize, result.added[i].clone());
+                count += 1;
+            }
+            result = X509Name::new(o, v, a, converter.clone());
+        }
 
         Ok(result)
     }
@@ -206,7 +224,7 @@ impl X509Name {
             .ok_or(BcError::with_invalid_argument("badly formatted directory string"))?;
 
         let oid = Self::decode_oid(type_token.trim(), lookup)?;
-        let value = unescape(value_token);
+        let value = unescape(&value_token);
 
         self.ordering.push(oid);
         self.values.push(value);
@@ -381,6 +399,19 @@ impl X509Name {
     pub fn values(&self) -> &[String] {
         &self.values
     }
+    pub fn values_by_oid(&self, oid: &Asn1ObjectIdentifier) -> Vec<String> {
+        let mut result = Vec::new();
+        for (i, o) in self.ordering.iter().enumerate() {
+            if o == oid {
+                let mut value = self.values.get(i).unwrap().to_string();
+                if value.starts_with("\\#") {
+                    value = value[1..].to_string();
+                }
+                result.push(value)
+            }
+        }
+        result
+    }
 }
 impl fmt::Display for X509Name {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -442,6 +473,12 @@ impl TryFromTagged for X509Name {
         Self: Sized,
     {
         try_from_choice_tagged(tagged, declared_explicit, X509Name::try_from)
+    }
+}
+impl Asn1Encodable for X509Name {
+    fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
+        let asn1_object: Asn1Object = self.clone().into();
+        asn1_object.encode_to(writer, encoding_type)
     }
 }
 fn append_value(buffer: &mut String, oid_symbols: &Symbols, oid: &Asn1ObjectIdentifier, value: &str) {
@@ -540,13 +577,15 @@ static DEFAULT_LOOKUP: LazyLock<HashMap<String, Asn1ObjectIdentifier>> = LazyLoc
 #[cfg(test)]
 mod tests {
     use crate::Result;
+    use crate::asn1::EncodingType::Ber;
     use crate::asn1::pkcs::pkcs_object_identifiers::PKCS9_AT_EMAIL_ADDRESS;
     use crate::asn1::x500::style::ietf_utilities::asn1_object_to_string;
-    use crate::asn1::x509::X509Name;
     use crate::asn1::x509::x509_object_identifiers::{
-        COMMON_NAME, DATE_OF_BIRTH, DC, DN_QUALIFIER, LOCALITY_NAME, ORGANIZATION_NAME, SERIAL_NUMBER, STREET,
+        COMMON_NAME, COUNTRY_NAME, DATE_OF_BIRTH, DC, DN_QUALIFIER, LOCALITY_NAME, ORGANIZATION_NAME, SERIAL_NUMBER, STREET,
     };
-    use crate::asn1::{Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1Utf8String};
+    use crate::asn1::x509::{X509Name, x509_name};
+    use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1Utf8String};
+    use crate::util::encoders::hex::to_decode_with_str;
     use std::collections::HashMap;
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
@@ -562,7 +601,7 @@ mod tests {
     }
     #[test]
     fn test_encoding_printable_string() {
-        do_test_encoding_printable_string(&(*COMMON_NAME), "AU");
+        do_test_encoding_printable_string(&(*COUNTRY_NAME), "AU");
         do_test_encoding_printable_string(&(*SERIAL_NUMBER), "123456");
         do_test_encoding_printable_string(&(*DN_QUALIFIER), "123456");
     }
@@ -695,6 +734,58 @@ mod tests {
         order2.push((*COMMON_NAME).clone());
         let name2 = X509Name::with_ordering_attributes(order2.clone(), attrs.clone()).unwrap();
         assert!(!name1.equivalent(&name2));
+    }
+    #[test]
+    fn test_composite_05() {
+        let enc = to_decode_with_str("305e310b300906035504061302415531283026060355040a0c1f546865204c6567696f6e206f662074686520426f756e637920436173746c653125301006035504070c094d656c626f75726e653011060355040b0c0a4173636f742056616c65").unwrap();
+        let n: X509Name = Asn1Object::with_bytes(&enc).unwrap().try_into().unwrap();
+        assert_eq!("C=AU,O=The Legion of the Bouncy Castle,L=Melbourne+OU=Ascot Vale", n.to_string());
+
+        let symbols = &(*x509_name::DEFAULT_SYMBOLS);
+        assert_eq!(
+            "L=Melbourne+OU=Ascot Vale,O=The Legion of the Bouncy Castle,C=AU",
+            n.to_string_with_symbols(true, symbols)
+        );
+
+        let n = X509Name::with_reverse_str(true, "L=Melbourne+OU=Ascot Vale,O=The Legion of the Bouncy Castle,C=AU").unwrap();
+        assert_eq!("C=AU,O=The Legion of the Bouncy Castle,L=Melbourne+OU=Ascot Vale", n.to_string());
+
+        let n = X509Name::with_str("C=AU, O=The Legion of the Bouncy Castle, L=Melbourne + OU=Ascot Vale").unwrap();
+        let enc2 = n.get_encoded(Ber).unwrap();
+        assert_eq!(enc, enc2);
+
+        let n = X509Name::with_str("C=CH,O=,OU=dummy,CN=mail@dummy.com").unwrap();
+        let buffer = n.get_encoded(Ber).unwrap();
+        let _: X509Name = Asn1Object::with_bytes(&buffer).unwrap().try_into().unwrap();
+    }
+    #[test]
+    fn test_get_values() {
+        let mut attrs = Vec::new();
+        attrs.push("AU".to_owned());
+        attrs.push("The Legion of the Bouncy Castle".to_owned());
+        attrs.push("Melbourne".to_owned());
+        attrs.push("Victoria".to_owned());
+        attrs.push("feedback-crypto@bouncycastle.org".to_owned());
+
+        let mut order1 = Vec::new();
+        order1.push((*COMMON_NAME).clone());
+        order1.push((*ORGANIZATION_NAME).clone());
+        order1.push((*LOCALITY_NAME).clone());
+        order1.push((*STREET).clone());
+        order1.push((*PKCS9_AT_EMAIL_ADDRESS).clone());
+
+        let name1 = X509Name::with_ordering_values(order1.clone(), attrs.clone()).unwrap();
+        let values = name1.values_by_oid(&(*ORGANIZATION_NAME));
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0], "The Legion of the Bouncy Castle");
+
+        let values = name1.values_by_oid(&(*LOCALITY_NAME));
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0], "Melbourne");
+    }
+    #[test]
+    fn test_general_subjects() {
+        
     }
     // TODO: Add more tests for X509Name
 

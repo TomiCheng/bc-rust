@@ -1,4 +1,5 @@
 use crate::asn1::asn1_encoding::Asn1Encoding;
+use crate::asn1::asn1_write::get_length_of_encoding_dl;
 use crate::asn1::Asn1Write;
 use crate::Result;
 
@@ -25,5 +26,9 @@ impl Asn1Encoding for PrimitiveEncoding {
         length += writer.write_dl(self.contents_octets.len())?;
         length += writer.write(&self.contents_octets)?;
         Ok(length)
+    }
+
+    fn get_length(&self) -> usize {
+        get_length_of_encoding_dl(self.tag_no, self.contents_octets.len())
     }
 }
