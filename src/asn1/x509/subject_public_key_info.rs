@@ -15,13 +15,19 @@ impl SubjectPublicKeyInfo {
     }
     fn from_sequence(sequence: Asn1Sequence) -> Result<Self> {
         if sequence.len() != 2 {
-            return Err(crate::BcError::with_invalid_format(format!("bad sequence size: {}", sequence.len())));
+            return Err(BcError::with_invalid_format(format!("bad sequence size: {}", sequence.len())));
         }
         let mut iter = sequence.into_iter();
         let algorithm = iter.next().unwrap().try_into()?;
         let subject_public_key = iter.next().unwrap().try_into()?;
 
         Ok(SubjectPublicKeyInfo::new(algorithm, subject_public_key))
+    }
+    pub fn algorithm(&self) -> &AlgorithmIdentifier {
+        &self.algorithm
+    }
+    pub fn subject_public_key(&self) -> &Asn1BitString {
+        &self.subject_public_key
     }
 }
 impl TryFrom<Asn1Object> for SubjectPublicKeyInfo {
