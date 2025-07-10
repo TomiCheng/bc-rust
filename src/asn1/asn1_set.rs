@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 use crate::asn1::{Asn1EncodableVector, Asn1Object};
 use crate::Result;
 #[derive(Clone, Debug)]
@@ -6,6 +7,9 @@ pub struct Asn1Set {
 }
 
 impl Asn1Set {
+    pub fn new(elements: Vec<Asn1Object>) -> Self {
+        Asn1Set { elements }
+    }
     pub(crate) fn from_vector(vector: Asn1EncodableVector) -> Result<Self> {
         Ok(Asn1Set {
             elements: vector.get_elements().to_vec(),
@@ -21,12 +25,18 @@ impl Asn1Set {
         &self.elements
     }
 }
-
 impl IntoIterator for Asn1Set {
     type Item = Asn1Object;
     type IntoIter = std::vec::IntoIter<Asn1Object>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.elements.into_iter()
+    }
+}
+impl Hash for Asn1Set {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for element in self.elements.iter() {
+            element.hash(state)
+        }
     }
 }

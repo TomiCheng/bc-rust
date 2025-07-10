@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-use crate::asn1::Asn1ObjectIdentifier;
 use crate::define_oid;
 
 define_oid!(PKCS1, "1.2.840.113549.1.1", "iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) 1");

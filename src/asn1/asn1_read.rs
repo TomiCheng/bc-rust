@@ -1,5 +1,5 @@
 use std::io::Read;
-use crate::asn1::{asn1_tags, Asn1BitString, Asn1BmpString, Asn1Boolean, Asn1EncodableVector, Asn1Ia5String, Asn1Integer, Asn1Null, Asn1Object, Asn1ObjectIdentifier, Asn1OctetString, Asn1PrintableString, Asn1RelativeOid, Asn1Sequence, Asn1Set, Asn1TaggedObject, Asn1UtcTime};
+use crate::asn1::{asn1_tags, Asn1BitString, Asn1BmpString, Asn1Boolean, Asn1EncodableVector, Asn1GeneralizedTime, Asn1Ia5String, Asn1Integer, Asn1Null, Asn1Object, Asn1ObjectIdentifier, Asn1OctetString, Asn1PrintableString, Asn1RelativeOid, Asn1Sequence, Asn1Set, Asn1TaggedObject, Asn1UtcTime};
 use crate::{BcError, Result};
 use crate::asn1::asn1_tags::{FLAGS, PRIVATE};
 use crate::asn1::definite_length_read::DefiniteLengthRead;
@@ -18,8 +18,7 @@ impl<'a> Asn1Read<'a> {
     pub fn read_object(&mut self) -> Result<Option<Asn1Object>> {
         let tag_header = self.read_u8();
         
-        if let Err(error) = tag_header {
-            
+        if let Err(_) = tag_header {
             return Ok(None);
         }
         let tag_header = tag_header?;
@@ -149,6 +148,7 @@ impl<'a> Asn1Read<'a> {
             asn1_tags::PRINTABLE_STRING => Ok(Asn1Object::PrintableString(Asn1PrintableString::create_primitive(bytes)?)),
             asn1_tags::IA5_STRING => Ok(Asn1Object::Ia5String(Asn1Ia5String::create_primitive(bytes)?)),
             asn1_tags::UTC_TIME => Ok(Asn1Object::UtcTime(Asn1UtcTime::create_primitive(bytes)?)),
+            asn1_tags::GENERALIZED_TIME => Ok(Asn1GeneralizedTime::create_primitive(bytes)?.into()),
             // TODO
             _ => Err(BcError::with_invalid_format(format!("Unsupported primitive tag: 0x{:X}", tag_no))),
         }
@@ -201,28 +201,28 @@ fn create_der_bmp_string(def_in: &mut DefiniteLengthRead) -> Result<Asn1BmpStrin
         remaining_bytes -= 8;
     }
     if remaining_bytes > 0 {
-        
+
         if read_fully(def_in, &mut buffer[..remaining_bytes])? != remaining_bytes {
             return Err(BcError::with_end_of_stream("EOF encountered in middle of BMPString"));
         }
-        
+
         let mut buffer_index = 0;
         loop {
 
-            chars[index] = u16::from_be_bytes(buffer[buffer_index..(buffer_index + 2)].try_into().unwrap()); 
+            chars[index] = u16::from_be_bytes(buffer[buffer_index..(buffer_index + 2)].try_into().unwrap());
             index += 1;
             buffer_index += 2;
-            
+
            if buffer_index >= remaining_bytes {
                break;
-           }  
+           }
         };
     }
 
     if def_in.remaining() != 0 || chars.len() != index {
         return Err(BcError::with_invalid_operation("BMPString length mismatch"));
     }
-    
+
     Ok(Asn1BmpString::new(String::from_utf16(&chars)?))
 }
 

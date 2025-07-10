@@ -1,11 +1,13 @@
-use crate::asn1::{Asn1Encodable, Asn1Object};
-use crate::asn1::EncodingType::Der;
 use crate::Result;
+use crate::asn1::EncodingType::Der;
+use crate::asn1::{Asn1Encodable, Asn1Object};
 use crate::util::encoders::hex::to_hex_string;
 
 pub fn asn1_object_to_string(value: &Asn1Object) -> Result<String> {
     let mut str = String::new();
-    if let Some(v) = value.as_string() && !matches!(value, Asn1Object::UniversalString(_)) {
+    if let Some(v) = value.as_string()
+        && !matches!(value, Asn1Object::UniversalString(_))
+    {
         let s = v.to_asn1_string()?;
         if s.chars().count() > 0 && s.chars().nth(0) == Some('#') {
             str.push('\\');
@@ -16,10 +18,14 @@ pub fn asn1_object_to_string(value: &Asn1Object) -> Result<String> {
         str.push_str(&to_hex_string(value.get_encoded(Der)?.as_slice()));
     }
 
+    let mut buffer = String::new();
+    escape_dn_string(&str, &mut buffer);
+    Ok(buffer)
+}
+pub(crate) fn escape_dn_string(str: &str, buffer: &mut String) {
     let mut chars = str.chars().peekable();
     let mut first = true;
     let mut end_space = 0;
-    let mut buffer = String::new();
     while let Some(c) = chars.next() {
         let next_c = chars.peek();
 
@@ -57,9 +63,7 @@ pub fn asn1_object_to_string(value: &Asn1Object) -> Result<String> {
     if end_space > 0 {
         buffer.push_str(&"\\ ".repeat(end_space));
     }
-    Ok(buffer)
 }
-
 pub(crate) fn unescape(elt: &str) -> String {
     if elt.is_empty() {
         return elt.to_string();
@@ -133,11 +137,9 @@ pub(crate) fn unescape(elt: &str) -> String {
     }
     buffer
 }
-
 fn is_hex_digit(c: char) -> bool {
     c.is_ascii_hexdigit()
 }
-
 fn convert_hex(c: char) -> u8 {
     if '0' <= c && c <= '9' {
         return (c as u8) - b'0';

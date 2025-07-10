@@ -61,7 +61,7 @@ impl GeneralName {
                 Self::RFC822_NAME => Ok(GeneralName::Rfc822Name(tagged_object.try_into_tagged(false)?)),
                 Self::DNS_NAME => Ok(GeneralName::DnsName(tagged_object.try_into_tagged(false)?)),
                 Self::X400_ADDRESS => Ok(GeneralName::X400Address(tagged_object.try_into_tagged(false)?)),
-                Self::DIRECTORY_NAME => Ok(GeneralName::DirectoryName(X509Name::get_tagged(tagged_object, false)?)),
+                Self::DIRECTORY_NAME => Ok(GeneralName::DirectoryName(tagged_object.try_into_tagged(false)?)),
                 Self::EDI_PARTY_NAME => {
                     let sequence = tagged_object.try_into_tagged(false)?;
                     Ok(GeneralName::EdiPartyName(EdiPartyName::from_sequence(sequence)?))
