@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 use std::ops::Index;
 use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1TaggedObject};
 use crate::asn1::asn1_universal_type::Asn1UniversalType;
@@ -35,13 +36,11 @@ impl Index<usize> for Asn1Sequence {
         &self.elements[index]
     }
 }
-
 impl From<Asn1Sequence> for Vec<Asn1Object> {
     fn from(value: Asn1Sequence) -> Self {
         value.elements
     }
 }
-
 impl IntoIterator for Asn1Sequence {
     type Item = Asn1Object;
     type IntoIter = std::vec::IntoIter<Asn1Object>;
@@ -50,7 +49,13 @@ impl IntoIterator for Asn1Sequence {
         self.elements.into_iter()
     }
 }
-
+impl Hash for Asn1Sequence {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for element in self.elements.iter() {
+            element.hash(state)
+        }
+    }
+}
 
 impl TryFromTagged for Asn1Sequence {
     fn try_from_tagged(tagged: Asn1TaggedObject, declared_explicit: bool) -> Result<Self>

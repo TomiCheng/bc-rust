@@ -1,11 +1,12 @@
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
 use crate::asn1::{asn1_tags, Asn1String, EncodingType};
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
 use crate::Result;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct Asn1Utf8String {
     content: String,
 }

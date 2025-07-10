@@ -3,6 +3,7 @@ use crate::asn1::try_from_tagged::TryFromTagged;
 use crate::asn1::{Asn1Object, Asn1TaggedObject};
 use crate::{BcError, Result};
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug)]
 pub struct Asn1OctetString {
@@ -42,6 +43,11 @@ impl Display for Asn1OctetString {
             write!(f, "{:02X}", byte)?;
         }
         Ok(())
+    }
+}
+impl Hash for Asn1OctetString {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        todo!();
     }
 }
 impl TryFromTagged for Asn1OctetString {

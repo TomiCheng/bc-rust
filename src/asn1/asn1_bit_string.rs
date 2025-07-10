@@ -1,3 +1,4 @@
+use std::hash::{Hash, Hasher};
 use crate::{BcError, Result};
 use crate::asn1::{Asn1Object, Asn1TaggedObject, EncodingType};
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
@@ -115,7 +116,11 @@ impl TryFromTagged for Asn1BitString {
         tagged.try_from_base_universal(declared_explicit, Asn1BitStringMetadata)
     }
 }
-
+impl Hash for Asn1BitString {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        todo!();
+    }
+}
 struct Asn1BitStringMetadata;
 impl Asn1UniversalType<Asn1BitString> for Asn1BitStringMetadata  {
     fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1BitString> {

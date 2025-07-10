@@ -3,7 +3,7 @@ use crate::asn1::asn1_tags::{PRIVATE, UNIVERSAL};
 use crate::{BcError, Result};
 use crate::asn1::asn1_universal_type::Asn1UniversalType;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct Asn1TaggedObject {
     explicitness: u8,
     tag_class: u8,

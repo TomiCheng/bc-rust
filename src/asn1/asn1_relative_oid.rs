@@ -2,11 +2,12 @@ use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{RELATIVE_OID, UNIVERSAL};
 use crate::asn1::oid_tokenizer::OidTokenizer;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
-use crate::asn1::EncodingType;
+use crate::asn1::{EncodingType};
 use crate::math::BigInteger;
 use crate::{BcError, Result};
 use std::cell::OnceCell;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::io::Write;
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 
@@ -86,6 +87,11 @@ impl Asn1RelativeOid {
 impl PartialEq for Asn1RelativeOid {
     fn eq(&self, other: &Self) -> bool {
         &self.contents == &other.contents
+    }
+}
+impl Hash for Asn1RelativeOid {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        todo!();
     }
 }
 impl Asn1EncodingInternal for Asn1RelativeOid {
