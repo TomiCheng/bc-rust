@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use crate::asn1::{Asn1Boolean, Asn1ObjectIdentifier, Asn1OctetString, Asn1Sequence, Asn1TaggedObject};
-use crate::asn1::x509::X509Extension;
-use crate::{define_oid, Result};
 use crate::asn1::try_from_tagged::{TryFromTagged, TryIntoTagged};
+use crate::asn1::x509::X509Extension;
+use crate::asn1::{Asn1Boolean, Asn1ObjectIdentifier, Asn1OctetString, Asn1Sequence, Asn1TaggedObject};
+use crate::{Result, define_oid};
+use std::collections::HashMap;
 
 pub struct X509Extensions {
     ordering: Vec<Asn1ObjectIdentifier>,
@@ -42,10 +42,10 @@ impl X509Extensions {
         self.ordering.iter()
     }
     /// return the extension represented by the object identifier passed in.
-    /// 
+    ///
     /// # Arguments
     /// * `oid` - The object identifier of the extension to retrieve.
-    /// 
+    ///
     /// # Returns
     /// * `Option<&X509Extension>` - Returns an `Option` containing a reference to the `X509Extension` if it exists, or `None` if it does not.
     pub fn get_extension(&self, oid: &Asn1ObjectIdentifier) -> Option<&X509Extension> {
@@ -58,7 +58,6 @@ impl TryFromTagged for X509Extensions {
         Self::from_sequence(sequence)
     }
 }
-
 
 define_oid!(SUBJECT_KEY_IDENTIFIER, "2.5.29.14", "Subject Key Identifier");
 define_oid!(KEY_USAGE, "2.5.29.15", "Key Usage");

@@ -1,5 +1,5 @@
+use crate::asn1::Asn1String;
 use std::hash::{Hash, Hasher};
-use crate::asn1::{Asn1String};
 
 #[derive(Debug, Clone)]
 pub struct Asn1T61String {

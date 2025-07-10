@@ -1,6 +1,6 @@
 use crate::asn1::asn1_encoding::Asn1Encoding;
-use crate::asn1::{asn1_tags, Asn1Write};
 use crate::asn1::asn1_write::{get_length_of_contents, get_length_of_encoding_dl};
+use crate::asn1::{Asn1Write, asn1_tags};
 
 pub(crate) struct ConstructedDlEncoding {
     tag_class: u8,
@@ -16,7 +16,7 @@ impl ConstructedDlEncoding {
             tag_class,
             tag_no,
             encodings,
-            contents_length
+            contents_length,
         }
     }
 }

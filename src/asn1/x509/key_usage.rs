@@ -1,5 +1,5 @@
-use crate::asn1::{Asn1BitString, Asn1Object};
 use crate::Result;
+use crate::asn1::{Asn1BitString, Asn1Object};
 
 /// The KeyUsage object.
 /// ```text
@@ -17,7 +17,7 @@ use crate::Result;
 ///       decipherOnly            (8) }
 /// ```
 pub struct KeyUsage {
-    content: Asn1BitString
+    content: Asn1BitString,
 }
 
 impl KeyUsage {

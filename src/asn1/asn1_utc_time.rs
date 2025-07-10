@@ -1,8 +1,8 @@
-use std::fmt::Formatter;
-use std::fmt::Display;
-use std::hash::{Hash, Hasher};
-use chrono::{DateTime, Datelike, NaiveDateTime, SubsecRound, TimeZone, Utc};
 use crate::{BcError, Result};
+use chrono::{DateTime, Datelike, NaiveDateTime, SubsecRound, TimeZone, Utc};
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug)]
 pub struct Asn1UtcTime {
@@ -40,10 +40,7 @@ impl Asn1UtcTime {
     /// let date_time1 = asn1_utc_time.to_date_time(2049).unwrap();
     /// assert_eq!(date_time.trunc_subsecs(0), date_time1);
     /// ```
-    pub fn with_date_time<Tz: TimeZone>(
-        date_time: DateTime<Tz>,
-        two_digit_year_max: i32,
-    ) -> Result<Self> {
+    pub fn with_date_time<Tz: TimeZone>(date_time: DateTime<Tz>, two_digit_year_max: i32) -> Result<Self> {
         let utc_date_time = date_time.to_utc();
         let utc_date_time = utc_date_time.trunc_subsecs(0);
 
@@ -101,7 +98,6 @@ impl Display for Asn1UtcTime {
     }
 }
 
-
 fn from_str(s: &str) -> Result<DateTime<Utc>> {
     match s.len() {
         11 => parse_utc(s, "%Y%m%d%H%M%Z"),
@@ -150,7 +146,6 @@ fn validate(date_time: &DateTime<Utc>, two_digit_year_max: i32) -> Result<()> {
     }
     Err(BcError::with_invalid_argument("out of range"))
 }
-
 
 #[cfg(test)]
 mod tests {

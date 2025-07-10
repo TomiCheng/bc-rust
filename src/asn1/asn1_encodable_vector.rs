@@ -1,14 +1,12 @@
-use std::ops::Index;
-use crate::asn1::{Asn1Object};
 use crate::Result;
+use crate::asn1::Asn1Object;
+use std::ops::Index;
 
 pub struct Asn1EncodableVector {
     elements: Vec<Asn1Object>,
 }
 
-impl Asn1EncodableVector {
-
-}
+impl Asn1EncodableVector {}
 
 impl Asn1EncodableVector {
     const DEFAULT_CAPACITY: usize = 10;

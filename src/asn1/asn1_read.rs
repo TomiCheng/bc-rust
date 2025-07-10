@@ -1,9 +1,13 @@
-use std::io::Read;
-use crate::asn1::{asn1_tags, Asn1BitString, Asn1BmpString, Asn1Boolean, Asn1EncodableVector, Asn1GeneralizedTime, Asn1Ia5String, Asn1Integer, Asn1Null, Asn1Object, Asn1ObjectIdentifier, Asn1OctetString, Asn1PrintableString, Asn1RelativeOid, Asn1Sequence, Asn1Set, Asn1TaggedObject, Asn1UtcTime, Asn1Utf8String};
-use crate::{BcError, Result};
 use crate::asn1::asn1_tags::{FLAGS, PRIVATE};
 use crate::asn1::definite_length_read::DefiniteLengthRead;
+use crate::asn1::{
+    Asn1BitString, Asn1BmpString, Asn1Boolean, Asn1EncodableVector, Asn1GeneralizedTime, Asn1Ia5String, Asn1Integer, Asn1Null, Asn1Object,
+    Asn1ObjectIdentifier, Asn1OctetString, Asn1PrintableString, Asn1RelativeOid, Asn1Sequence, Asn1Set, Asn1TaggedObject, Asn1UtcTime,
+    Asn1Utf8String, asn1_tags,
+};
 use crate::util::io::streams::read_fully;
+use crate::{BcError, Result};
+use std::io::Read;
 
 pub struct Asn1Read<'a> {
     reader: &'a mut dyn Read,
@@ -17,7 +21,7 @@ impl<'a> Asn1Read<'a> {
 
     pub fn read_object(&mut self) -> Result<Option<Asn1Object>> {
         let tag_header = self.read_u8();
-        
+
         if let Err(_) = tag_header {
             return Ok(None);
         }
@@ -102,7 +106,10 @@ impl<'a> Asn1Read<'a> {
             }
 
             if length >= self.limit && !is_parsing {
-                return Err(BcError::with_invalid_format(format!("out of bounds length found: {} >= {}", length, self.limit)));
+                return Err(BcError::with_invalid_format(format!(
+                    "out of bounds length found: {} >= {}",
+                    length, self.limit
+                )));
             }
             Ok(Some(length))
         }
@@ -120,17 +127,21 @@ impl<'a> Asn1Read<'a> {
             return Self::read_tagged_object_dl(tag_class, tag_no, is_constructed, &mut def_reader);
         }
         match tag_no as u8 {
-            asn1_tags::SEQUENCE => Ok(Asn1Object::from(Asn1Sequence::from_vector(Self::read_vector_from_definite_length_read(&mut def_reader)?)?)),
-            asn1_tags::SET => Ok(Asn1Object::from(Asn1Set::from_vector(Self::read_vector_from_definite_length_read(&mut def_reader)?)?)),
-            _ => Err(BcError::with_io_error(format!("unknown tag 0x{:X} encountered", tag_no)),)
+            asn1_tags::SEQUENCE => Ok(Asn1Object::from(Asn1Sequence::from_vector(Self::read_vector_from_definite_length_read(
+                &mut def_reader,
+            )?)?)),
+            asn1_tags::SET => Ok(Asn1Object::from(Asn1Set::from_vector(Self::read_vector_from_definite_length_read(
+                &mut def_reader,
+            )?)?)),
+            _ => Err(BcError::with_io_error(format!("unknown tag 0x{:X} encountered", tag_no))),
         }
     }
-    
+
     fn create_primitive_der_object(tag_no: u8, reader: &mut DefiniteLengthRead) -> Result<Asn1Object> {
         match tag_no {
             asn1_tags::BMP_STRING => {
                 return Ok(create_der_bmp_string(reader)?.into());
-            },
+            }
             asn1_tags::OBJECT_IDENTIFIER => {
                 let bytes = reader.read_fully()?;
                 return Ok(Asn1Object::ObjectIdentifier(Asn1ObjectIdentifier::create_primitive(bytes)?));
@@ -172,9 +183,13 @@ impl<'a> Asn1Read<'a> {
     pub(crate) fn read_tagged_object_dl(tag_class: u8, tag_no: u32, is_constructed: bool, def_reader: &mut DefiniteLengthRead) -> Result<Asn1Object> {
         if !is_constructed {
             let contents_octets = def_reader.read_fully()?;
-            return Ok(Asn1Object::from(Asn1TaggedObject::create_primitive(tag_class, tag_no as u8, &contents_octets)?));
+            return Ok(Asn1Object::from(Asn1TaggedObject::create_primitive(
+                tag_class,
+                tag_no as u8,
+                &contents_octets,
+            )?));
         }
-        
+
         let contents_elements = Self::read_vector_from_definite_length_read(def_reader)?;
         Asn1TaggedObject::crate_constructed_dl(tag_class, tag_no as u8, contents_elements)
     }
@@ -194,30 +209,32 @@ fn create_der_bmp_string(def_in: &mut DefiniteLengthRead) -> Result<Asn1BmpStrin
             return Err(BcError::with_end_of_stream("EOF encountered in middle of BMPString"));
         }
 
-        chars[index] = u16::from_be_bytes(buffer[0..2].try_into().unwrap()); index += 1;
-        chars[index] = u16::from_be_bytes(buffer[2..4].try_into().unwrap()); index += 1;
-        chars[index] = u16::from_be_bytes(buffer[4..6].try_into().unwrap()); index += 1;
-        chars[index] = u16::from_be_bytes(buffer[6..8].try_into().unwrap()); index += 1;
+        chars[index] = u16::from_be_bytes(buffer[0..2].try_into().unwrap());
+        index += 1;
+        chars[index] = u16::from_be_bytes(buffer[2..4].try_into().unwrap());
+        index += 1;
+        chars[index] = u16::from_be_bytes(buffer[4..6].try_into().unwrap());
+        index += 1;
+        chars[index] = u16::from_be_bytes(buffer[6..8].try_into().unwrap());
+        index += 1;
 
         remaining_bytes -= 8;
     }
     if remaining_bytes > 0 {
-
         if read_fully(def_in, &mut buffer[..remaining_bytes])? != remaining_bytes {
             return Err(BcError::with_end_of_stream("EOF encountered in middle of BMPString"));
         }
 
         let mut buffer_index = 0;
         loop {
-
             chars[index] = u16::from_be_bytes(buffer[buffer_index..(buffer_index + 2)].try_into().unwrap());
             index += 1;
             buffer_index += 2;
 
-           if buffer_index >= remaining_bytes {
-               break;
-           }
-        };
+            if buffer_index >= remaining_bytes {
+                break;
+            }
+        }
     }
 
     if def_in.remaining() != 0 || chars.len() != index {
@@ -226,4 +243,3 @@ fn create_der_bmp_string(def_in: &mut DefiniteLengthRead) -> Result<Asn1BmpStrin
 
     Ok(Asn1BmpString::new(String::from_utf16(&chars)?))
 }
-

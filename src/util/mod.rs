@@ -1,6 +1,6 @@
-pub(crate) mod pack;
 pub mod encoders;
-mod memoable;
 pub mod io;
+mod memoable;
+pub(crate) mod pack;
 
 pub use memoable::Memoable;

@@ -1,11 +1,11 @@
-use std::hash::Hash;
+use crate::Result;
+use crate::asn1::EncodingType;
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{BOOLEAN, UNIVERSAL};
-use crate::asn1::EncodingType;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
-use crate::Result;
 use std::fmt;
-use crate::asn1::asn1_encodable::Asn1EncodingInternal;
+use std::hash::Hash;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Asn1Boolean {
@@ -27,20 +27,12 @@ impl Asn1Boolean {
         self.value
     }
     fn get_content(&self, _: EncodingType) -> Vec<u8> {
-        if self.value {
-            vec![0xffu8]
-        } else {
-            vec![0x00u8]
-        }
+        if self.value { vec![0xffu8] } else { vec![0x00u8] }
     }
 }
 impl fmt::Display for Asn1Boolean {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.value {
-            write!(f, "TRUE")
-        } else {
-            write!(f, "FALSE")
-        }
+        if self.value { write!(f, "TRUE") } else { write!(f, "FALSE") }
     }
 }
 impl Asn1EncodingInternal for Asn1Boolean {
@@ -107,11 +99,11 @@ mod tests {
     fn test_parse_asn1_object() {
         let buffer = vec![0x01, 0x01, 0xFF];
         let mut slice = buffer.as_slice();
-        let mut asn1_read = Asn1Read::new(&mut slice,3);
+        let mut asn1_read = Asn1Read::new(&mut slice, 3);
         let asn1_object = asn1_read.read_object().unwrap().unwrap();
 
         assert!(asn1_object.is_boolean());
-        
+
         let value = asn1_object.as_boolean().unwrap();
         assert!(value.is_true());
     }

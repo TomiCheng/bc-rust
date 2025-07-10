@@ -1,5 +1,5 @@
-use crate::asn1::Asn1TaggedObject;
 use crate::BcError;
+use crate::asn1::Asn1TaggedObject;
 
 pub(crate) trait TryFromTagged {
     /// Attempts to convert a tagged ASN.1 object into a specific type.

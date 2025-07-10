@@ -1,7 +1,7 @@
-use crate::asn1::{asn1_tags, Asn1EncodableVector, Asn1Object, Asn1OctetString, Asn1Sequence};
 use crate::asn1::asn1_tags::{PRIVATE, UNIVERSAL};
-use crate::{BcError, Result};
 use crate::asn1::asn1_universal_type::Asn1UniversalType;
+use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1OctetString, Asn1Sequence, asn1_tags};
+use crate::{BcError, Result};
 
 #[derive(Clone, Debug, Hash)]
 pub struct Asn1TaggedObject {
@@ -17,7 +17,7 @@ impl Asn1TaggedObject {
     const PARSED_IMPLICIT: u8 = 4;
     pub(crate) fn new(explicitness: u8, tag_class: u8, tag_no: u8, object: Asn1Object) -> Result<Self> {
         if tag_class == UNIVERSAL || (tag_class & PRIVATE) != tag_class {
-            return Err(BcError::with_invalid_argument(format!("invalid tag class: {}", tag_class)));  
+            return Err(BcError::with_invalid_argument(format!("invalid tag class: {}", tag_class)));
         }
         Ok(Self {
             explicitness,
@@ -36,26 +36,48 @@ impl Asn1TaggedObject {
         }
     }
     pub(crate) fn with_context_specific(explicitness: bool, tag_no: u8, object: Asn1Object) -> Result<Self> {
-        Self::new(if  explicitness { Self::DECLARED_EXPLICIT } else { Self::DECLARED_IMPLICIT }, asn1_tags::CONTEXT_SPECIFIC, tag_no, object)
+        Self::new(
+            if explicitness {
+                Self::DECLARED_EXPLICIT
+            } else {
+                Self::DECLARED_IMPLICIT
+            },
+            asn1_tags::CONTEXT_SPECIFIC,
+            tag_no,
+            object,
+        )
     }
     pub(crate) fn create_primitive(tag_class: u8, tag_no: u8, contents_octets: &[u8]) -> Result<Self> {
-        Asn1TaggedObject::new(Self::PARSED_IMPLICIT, tag_class, tag_no, 
-                              Asn1Object::from(Asn1OctetString::with_contents(contents_octets)))
+        Asn1TaggedObject::new(
+            Self::PARSED_IMPLICIT,
+            tag_class,
+            tag_no,
+            Asn1Object::from(Asn1OctetString::with_contents(contents_octets)),
+        )
     }
     pub(crate) fn crate_constructed_dl(tag_class: u8, tag_no: u8, vector: Asn1EncodableVector) -> Result<Asn1Object> {
         let maybe_explicit = vector.len() == 1;
         if maybe_explicit {
-            Ok(Asn1Object::from(Asn1TaggedObject::new(Self::PARSED_EXPLICIT, tag_class, tag_no, vector[0].clone())?))
-        }  else {
+            Ok(Asn1Object::from(Asn1TaggedObject::new(
+                Self::PARSED_EXPLICIT,
+                tag_class,
+                tag_no,
+                vector[0].clone(),
+            )?))
+        } else {
             let sequence = Asn1Object::from(Asn1Sequence::from_vector(vector)?);
-            Ok(Asn1Object::from(Asn1TaggedObject::new(Self::PARSED_IMPLICIT, tag_class, tag_no, sequence)?))
+            Ok(Asn1Object::from(Asn1TaggedObject::new(
+                Self::PARSED_IMPLICIT,
+                tag_class,
+                tag_no,
+                sequence,
+            )?))
         }
-        
     }
     pub fn has_tag(&self, tag_class: u8, tag_no: u8) -> bool {
         self.tag_class == tag_class && self.tag_no == tag_no
     }
-    pub fn has_tag_class(&self,tag_class: u8) -> bool {
+    pub fn has_tag_class(&self, tag_class: u8) -> bool {
         self.tag_class == tag_class
     }
     pub(crate) fn has_context_tag(&self) -> bool {
@@ -71,7 +93,7 @@ impl Asn1TaggedObject {
         &self.object
     }
     pub fn tag_no(&self) -> u8 {
-       self.tag_no 
+        self.tag_no
     }
     pub fn tag_class(&self) -> u8 {
         self.tag_class
@@ -83,12 +105,12 @@ impl Asn1TaggedObject {
         Ok(*self.object)
     }
 
-
-
     //
 
-    pub(crate) fn try_from_base_universal<TMetadata, TResult>(self, declared_explicit: bool,  metadata: TMetadata) -> Result<TResult>
-    where TMetadata: Asn1UniversalType<TResult> {
+    pub(crate) fn try_from_base_universal<TMetadata, TResult>(self, declared_explicit: bool, metadata: TMetadata) -> Result<TResult>
+    where
+        TMetadata: Asn1UniversalType<TResult>,
+    {
         if declared_explicit {
             if !self.is_explicit() {
                 return Err(BcError::with_invalid_operation("object implicit - explicit expected."));
@@ -108,8 +130,8 @@ impl Asn1TaggedObject {
                 } else {
                     metadata.implicit_primitive((*self.object).try_into()?)
                 }
-            },
-            _ => metadata.checked_cast(*self.object)
+            }
+            _ => metadata.checked_cast(*self.object),
         }
     }
     fn rebuild_constructed(self) -> Asn1Sequence {

@@ -1,6 +1,6 @@
+use crate::asn1::Asn1Write;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_write::get_length_of_encoding_dl;
-use crate::asn1::Asn1Write;
 
 pub(crate) struct PrimitiveEncodingSuffixed {
     tag_class: u8,

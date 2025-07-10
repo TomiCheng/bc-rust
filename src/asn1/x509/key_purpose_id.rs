@@ -1,6 +1,6 @@
 use crate::asn1::Asn1ObjectIdentifier;
 pub struct KeyPurposeId {
-    content: Asn1ObjectIdentifier
+    content: Asn1ObjectIdentifier,
 }
 
 impl KeyPurposeId {

@@ -1,4 +1,3 @@
-
 pub(crate) fn be_to_u32_low(bs: &[u8]) -> u32 {
     let len = bs.len();
     debug_assert!(1 <= len && len <= 4);

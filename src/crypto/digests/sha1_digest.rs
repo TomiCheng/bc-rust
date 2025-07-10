@@ -1,8 +1,8 @@
+use crate::Result;
 use crate::crypto::Digest;
 use crate::crypto::digests::general_digest::{DigestImpl, GeneralDigest};
 use crate::util::Memoable;
 use crate::util::pack::{be_to_u32, u32_to_be_bytes};
-use crate::Result;
 
 const DIGEST_LENGTH: usize = 20;
 
@@ -198,7 +198,7 @@ impl DigestImpl for Sha1DigestImpl {
 
         self.x_offset = 0;
         self.x[0..16].fill(0);
-    }   
+    }
 }
 impl Memoable for Sha1DigestImpl {
     fn copy(&self) -> Self {
@@ -289,12 +289,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let messages = vec![
-            "",
-            "a",
-            "abc",
-            "abcdefghijklmnopqrstuvwxyz"
-        ];
+        let messages = vec!["", "a", "abc", "abcdefghijklmnopqrstuvwxyz"];
 
         let digests = vec![
             "da39a3ee5e6b4b0d3255bfef95601890afd80709",

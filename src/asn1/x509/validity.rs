@@ -1,5 +1,5 @@
+use crate::asn1::x509::Time;
 use crate::asn1::{Asn1Object, Asn1Sequence};
-use crate::asn1::x509::{Time};
 use crate::{BcError, Result};
 pub struct Validity {
     not_before: Time,
@@ -8,10 +8,7 @@ pub struct Validity {
 
 impl Validity {
     pub fn new(not_before: Time, not_after: Time) -> Self {
-        Validity {
-            not_before,
-            not_after,
-        }
+        Validity { not_before, not_after }
     }
     fn from_sequence(sequence: Asn1Sequence) -> Result<Self> {
         if sequence.len() != 2 {

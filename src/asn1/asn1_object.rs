@@ -1,9 +1,9 @@
-use std::hash::Hash;
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::*;
 use crate::{BcError, Result};
+use std::hash::Hash;
 use std::io::Read;
-use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 
 #[derive(Clone, Debug, Hash)]
 pub enum Asn1Object {
@@ -205,7 +205,7 @@ macro_rules! impl_from_for_asn1object {
                     }
                 }
             }
-        
+
         )*
     };
 }

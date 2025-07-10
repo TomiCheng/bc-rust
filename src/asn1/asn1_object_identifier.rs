@@ -1,16 +1,16 @@
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{OBJECT_IDENTIFIER, UNIVERSAL};
+use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::asn1::oid_tokenizer::OidTokenizer;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
+use crate::asn1::try_from_tagged::TryFromTagged;
 use crate::asn1::{Asn1Object, EncodingType, asn1_relative_oid};
 use crate::math::BigInteger;
 use crate::{BcError, Result};
 use std::fmt;
 use std::hash::Hash;
 use std::sync::OnceLock;
-use crate::asn1::asn1_encodable::Asn1EncodingInternal;
-use crate::asn1::asn1_universal_type::Asn1UniversalType;
-use crate::asn1::try_from_tagged::TryFromTagged;
 
 #[derive(Clone, Debug, Eq)]
 pub struct Asn1ObjectIdentifier {
@@ -19,19 +19,13 @@ pub struct Asn1ObjectIdentifier {
 }
 impl Asn1ObjectIdentifier {
     pub fn new(contents: Vec<u8>, identifier: OnceLock<String>) -> Self {
-        Asn1ObjectIdentifier {
-            contents,
-            identifier,
-        }
+        Asn1ObjectIdentifier { contents, identifier }
     }
     pub fn with_str(identifier: &str) -> Result<Self> {
         check_identifier(identifier)?;
         let contents = parse_identifier(identifier)?;
         check_contents_length(contents.len())?;
-        Ok(Asn1ObjectIdentifier::new(
-            contents,
-            OnceLock::from(identifier.to_string()),
-        ))
+        Ok(Asn1ObjectIdentifier::new(contents, OnceLock::from(identifier.to_string())))
     }
     pub fn try_parse(identifier: &str) -> Option<Self> {
         if identifier.is_empty() {
@@ -40,10 +34,7 @@ impl Asn1ObjectIdentifier {
         if identifier.len() <= MAX_IDENTIFIER_LENGTH && is_valid_identifier(identifier) {
             let contents = parse_identifier(identifier);
             if let Ok(c) = contents {
-                return Some(Asn1ObjectIdentifier::new(
-                    c,
-                    OnceLock::from(identifier.to_string()),
-                ));
+                return Some(Asn1ObjectIdentifier::new(c, OnceLock::from(identifier.to_string())));
             }
         }
         None
@@ -56,14 +47,11 @@ impl Asn1ObjectIdentifier {
         if let Some(object_identifier) = asn1_object.as_object_identifier() {
             Ok(object_identifier.clone())
         } else {
-            Err(BcError::with_invalid_cast(
-                "Expected an octet string for Asn1ObjectIdentifier",
-            ))
+            Err(BcError::with_invalid_cast("Expected an octet string for Asn1ObjectIdentifier"))
         }
     }
     pub fn id(&self) -> &String {
-        self.identifier
-            .get_or_init(|| parse_contents(self.contents.as_ref()))
+        self.identifier.get_or_init(|| parse_contents(self.contents.as_ref()))
     }
     pub fn branch(&self, branch_id: &str) -> Result<Self> {
         asn1_relative_oid::check_identifier(branch_id)?;
@@ -86,9 +74,7 @@ impl Asn1ObjectIdentifier {
             identifier: OnceLock::new(),
             contents,
         };
-        result
-            .identifier
-            .get_or_init(|| format!("{}.{}", root_id, branch_id));
+        result.identifier.get_or_init(|| format!("{}.{}", root_id, branch_id));
         Ok(result)
     }
     pub fn on(&self, stem: &Self) -> bool {
@@ -135,15 +121,11 @@ const MAX_CONTENTS_LENGTH: usize = 4096;
 const MAX_IDENTIFIER_LENGTH: usize = MAX_CONTENTS_LENGTH * 4 + 1;
 pub(crate) fn check_identifier(identifier: &str) -> Result<()> {
     if identifier.len() > MAX_IDENTIFIER_LENGTH {
-        return Err(BcError::with_invalid_argument(
-            "exceeded relative OID contents length limit",
-        ));
+        return Err(BcError::with_invalid_argument("exceeded relative OID contents length limit"));
     }
 
     if !is_valid_identifier(identifier) {
-        return Err(BcError::with_invalid_argument(
-            "string is not a valid relative OID",
-        ));
+        return Err(BcError::with_invalid_argument("string is not a valid relative OID"));
     }
 
     Ok(())
@@ -176,9 +158,7 @@ fn is_valid_identifier(s: &str) -> bool {
 fn parse_identifier(identifier: &str) -> Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut tokenizer = OidTokenizer::new(identifier);
-    let token = tokenizer
-        .next()
-        .ok_or(BcError::with_invalid_format("not found first token"))?;
+    let token = tokenizer.next().ok_or(BcError::with_invalid_format("not found first token"))?;
 
     if !token.chars().all(|c| c >= '0' || c <= '9') {
         return Err(BcError::with_invalid_format("token must be 0 - 9"));
@@ -186,24 +166,16 @@ fn parse_identifier(identifier: &str) -> Result<Vec<u8>> {
 
     let first = i64::from_str_radix(token, 10)? * 40;
 
-    let token = tokenizer
-        .next()
-        .ok_or(BcError::with_invalid_format("not found second token"))?;
+    let token = tokenizer.next().ok_or(BcError::with_invalid_format("not found second token"))?;
 
     if !token.chars().all(|c| c >= '0' || c <= '9') {
         return Err(BcError::with_invalid_format("token must be 0 - 9"));
     }
 
     if token.len() <= 18 {
-        asn1_relative_oid::write_field_with_i64(
-            &mut result,
-            first + i64::from_str_radix(token, 10)?,
-        )?;
+        asn1_relative_oid::write_field_with_i64(&mut result, first + i64::from_str_radix(token, 10)?)?;
     } else {
-        asn1_relative_oid::write_field_with_big_integer(
-            &mut result,
-            &BigInteger::with_string(token)?.add(&BigInteger::with_i64(first)),
-        )?;
+        asn1_relative_oid::write_field_with_big_integer(&mut result, &BigInteger::with_string(token)?.add(&BigInteger::with_i64(first)))?;
     }
 
     for token in tokenizer {
@@ -213,19 +185,14 @@ fn parse_identifier(identifier: &str) -> Result<Vec<u8>> {
         if token.len() <= 18 {
             asn1_relative_oid::write_field_with_i64(&mut result, i64::from_str_radix(token, 10)?)?;
         } else {
-            asn1_relative_oid::write_field_with_big_integer(
-                &mut result,
-                &BigInteger::with_string(token)?,
-            )?;
+            asn1_relative_oid::write_field_with_big_integer(&mut result, &BigInteger::with_string(token)?)?;
         }
     }
     Ok(result)
 }
 pub(crate) fn check_contents_length(length: usize) -> Result<()> {
     if length > MAX_IDENTIFIER_LENGTH {
-        return Err(BcError::with_invalid_argument(
-            "exceeded OID identifier length limit",
-        ));
+        return Err(BcError::with_invalid_argument("exceeded OID identifier length limit"));
     }
     Ok(())
 }
@@ -318,10 +285,7 @@ mod tests {
         expected.push('.');
         expected.push_str(branch);
 
-        let binding = Asn1ObjectIdentifier::with_str(stem)
-            .unwrap()
-            .branch(branch)
-            .unwrap();
+        let binding = Asn1ObjectIdentifier::with_str(stem).unwrap().branch(branch).unwrap();
         let actual = binding.id();
         assert_eq!(&expected, actual);
     }
@@ -348,9 +312,7 @@ mod tests {
     #[test]
     fn record_check_value() {
         check_valid("0.1");
-        check_valid(
-            "1.1.127.32512.8323072.2130706432.545460846592.139637976727552.35747322042253312.9151314442816847872",
-        );
+        check_valid("1.1.127.32512.8323072.2130706432.545460846592.139637976727552.35747322042253312.9151314442816847872");
         check_valid("1.2.123.12345678901.1.1.1");
         check_valid("2.25.196556539987194312349856245628873852187.1");
         check_valid("0.0");

@@ -65,7 +65,7 @@ impl GeneralName {
                 Self::EDI_PARTY_NAME => {
                     let sequence = tagged_object.try_into_tagged(false)?;
                     Ok(GeneralName::EdiPartyName(EdiPartyName::from_sequence(sequence)?))
-                },
+                }
                 Self::UNIFORM_RESOURCE_IDENTIFIER => Ok(GeneralName::UniformResourceIdentifier(tagged_object.try_into_tagged(false)?)),
                 Self::IP_ADDRESS => Ok(GeneralName::IpAddress(tagged_object.try_into_tagged(false)?)),
                 Self::REGISTERED_ID => Ok(GeneralName::RegisteredId(tagged_object.try_into_tagged(false)?)),

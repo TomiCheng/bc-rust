@@ -1,22 +1,22 @@
 //! base implementation of MD4 family style digest as outlined in
 //! "Handbook of Applied Cryptography", pages 344-347.
 
-use crate::util::Memoable;
 use crate::Result;
+use crate::util::Memoable;
 
 const BYTE_LENGTH: usize = 64;
 
 pub(crate) trait DigestImpl {
     fn process_word(&mut self, word: &[u8]);
     fn process_length(&mut self, bit_length: usize);
-    fn process_block(&mut self); 
+    fn process_block(&mut self);
 }
 
 pub(crate) struct GeneralDigest<TDigestImpl: DigestImpl + Memoable> {
     x: [u8; 4],
     x_offset: usize,
     byte_count: usize,
-    digest_impl: TDigestImpl
+    digest_impl: TDigestImpl,
 }
 
 impl<TDigestImpl: DigestImpl + Memoable> GeneralDigest<TDigestImpl> {
@@ -25,7 +25,7 @@ impl<TDigestImpl: DigestImpl + Memoable> GeneralDigest<TDigestImpl> {
             x: [0; 4],
             x_offset: 0,
             byte_count: 0,
-            digest_impl
+            digest_impl,
         }
     }
     pub(crate) fn update(&mut self, input: u8) {
@@ -43,7 +43,7 @@ impl<TDigestImpl: DigestImpl + Memoable> GeneralDigest<TDigestImpl> {
         if input.is_empty() {
             return;
         }
-        
+
         let mut slice = input;
 
         // fill the current word
@@ -74,7 +74,7 @@ impl<TDigestImpl: DigestImpl + Memoable> GeneralDigest<TDigestImpl> {
                 self.x_offset = 0;
             }
         }
-        
+
         self.byte_count += input.len();
     }
     pub(crate) fn finish(&mut self) {

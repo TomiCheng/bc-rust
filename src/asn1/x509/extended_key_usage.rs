@@ -1,6 +1,6 @@
-use std::collections::HashSet;
-use crate::asn1::{Asn1Object, Asn1ObjectIdentifier, Asn1Sequence};
 use crate::Result;
+use crate::asn1::{Asn1Object, Asn1ObjectIdentifier, Asn1Sequence};
+use std::collections::HashSet;
 pub struct ExtendedKeyUsage {
     usage_table: HashSet<Asn1ObjectIdentifier>,
 }

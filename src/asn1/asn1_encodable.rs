@@ -1,7 +1,7 @@
-use std::io::Write;
+use crate::Result;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::{Asn1Write, EncodingType};
-use crate::Result;
+use std::io::Write;
 
 pub(crate) trait Asn1EncodingInternal {
     fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding>;
@@ -20,7 +20,9 @@ pub trait Asn1Encodable {
 }
 
 impl<T> Asn1Encodable for T
-where T: Asn1EncodingInternal {
+where
+    T: Asn1EncodingInternal,
+{
     fn encode_to(&self, writer: &mut dyn Write, encoding_type: EncodingType) -> Result<usize> {
         let mut asn1_writer = Asn1Write::new(writer, encoding_type);
         let asn1_encoding = self.get_encoding(encoding_type);

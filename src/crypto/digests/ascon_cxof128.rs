@@ -1,6 +1,6 @@
-use crate::{BcError, Result};
 use crate::crypto::{Digest, Xof};
 use crate::util::pack::{le_to_u64, u64_to_le};
+use crate::{BcError, Result};
 
 const RATE: usize = 8;
 /// Ascon-CXOF128 was introduced in NIST Special Publication (SP) 800-232 (Initial Public Draft).
@@ -23,7 +23,7 @@ pub struct AsconCxof128 {
     s3: u64,
     s4: u64,
     buffer_index: usize,
-    squeezing: bool
+    squeezing: bool,
 }
 
 impl AsconCxof128 {
@@ -41,7 +41,7 @@ impl AsconCxof128 {
             s3: 0,
             s4: 0,
             buffer_index: 0,
-            squeezing: false
+            squeezing: false,
         };
         result.reset();
         result
@@ -138,7 +138,11 @@ impl Digest for AsconCxof128 {
             return Err(BcError::with_invalid_operation("attempt to absorb while squeezing"));
         }
         self.buffer[self.buffer_index] = input;
-        if { self.buffer_index += 1; self.buffer_index } == RATE {
+        if {
+            self.buffer_index += 1;
+            self.buffer_index
+        } == RATE
+        {
             self.s0 ^= le_to_u64(&self.buffer[0..8]);
             self.p12();
             self.buffer_index = 0;
@@ -182,7 +186,7 @@ impl Digest for AsconCxof128 {
     fn do_final(&mut self, output: &mut [u8]) -> Result<usize> {
         let digest_size = self.get_digest_size();
         if output.len() < digest_size {
-            return Err(BcError::with_output_length("output buffer too small"))
+            return Err(BcError::with_output_length("output buffer too small"));
         }
         Ok(self.output_final(output))
     }
@@ -244,13 +248,13 @@ impl Xof for AsconCxof128 {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-    use std::io::{BufRead, BufReader};
-    use rand::RngCore;
+    use crate::crypto::Xof;
     use crate::crypto::digests::ascon_cxof128::AsconCxof128;
     use crate::crypto::digests::test_digest;
-    use crate::crypto::Xof;
     use crate::util::encoders::hex::to_decode_with_str;
+    use rand::RngCore;
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
 
     #[test]
     fn test_output_xof_ascon_cxof128() {
@@ -324,11 +328,7 @@ mod tests {
             xof.output_final(&mut data);
         }
     }
-    fn impl_test_vector_xof<TXof: Xof>(random_source: &mut dyn RngCore,
-                                       xof: &mut TXof,
-                                       count: u32,
-                                       msg: &[u8],
-                                       expected: &[u8]) {
+    fn impl_test_vector_xof<TXof: Xof>(random_source: &mut dyn RngCore, xof: &mut TXof, count: u32, msg: &[u8], expected: &[u8]) {
         let output_length = expected.len();
         let mut output = vec![0u8; output_length];
         {
@@ -351,4 +351,3 @@ mod tests {
         assert!(test_digest::test_digest_reset(xof));
     }
 }
-

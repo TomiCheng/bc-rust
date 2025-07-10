@@ -784,9 +784,7 @@ mod tests {
         assert_eq!(values[0], "Melbourne");
     }
     #[test]
-    fn test_general_subjects() {
-        
-    }
+    fn test_general_subjects() {}
     // TODO: Add more tests for X509Name
 
     fn do_test_encoding_printable_string(oid: &Asn1ObjectIdentifier, value: &str) {

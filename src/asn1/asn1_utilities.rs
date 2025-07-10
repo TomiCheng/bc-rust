@@ -1,5 +1,5 @@
-use crate::{BcError, Result};
 use crate::asn1::{Asn1Object, Asn1TaggedObject, asn1_tags};
+use crate::{BcError, Result};
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
@@ -15,7 +15,7 @@ use std::vec::IntoIter;
 // {
 //     read_optional_tagged(sequence, sequence_position, asn1_tags::CONTEXT_SPECIFIC, tag_no, state, metadata)
 // }
-// 
+//
 // pub(crate) fn read_optional_tagged<TResult, TMetadata>(
 //     sequence: &Asn1Sequence,
 //     sequence_position: usize,
@@ -36,7 +36,7 @@ use std::vec::IntoIter;
 //     }
 //     Ok((None, sequence_position))
 // }
-// 
+//
 // //
 // pub(crate) fn try_get_optional_tagged<TResult, TMetadata>(
 //     element: &Asn1Object,
@@ -88,14 +88,14 @@ where
     func(tagged, state)
 }
 
-
-pub(crate) fn try_from_choice_tagged<TResult, TFunc>(
-    tagged: Asn1TaggedObject,
-    declared_explicit: bool,
-    func: TFunc) -> Result<TResult>
-where TFunc: FnOnce(Asn1Object) -> Result<TResult> {
+pub(crate) fn try_from_choice_tagged<TResult, TFunc>(tagged: Asn1TaggedObject, declared_explicit: bool, func: TFunc) -> Result<TResult>
+where
+    TFunc: FnOnce(Asn1Object) -> Result<TResult>,
+{
     if !declared_explicit {
-        return Err(BcError::with_invalid_argument("Implicit tagging cannot be used with untagged choice type (X.680 30.6, 30.8)."));
+        return Err(BcError::with_invalid_argument(
+            "Implicit tagging cannot be used with untagged choice type (X.680 30.6, 30.8).",
+        ));
     }
     func(try_from_explicit_context_base_object(tagged)?)
 }

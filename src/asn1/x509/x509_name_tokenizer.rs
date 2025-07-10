@@ -9,9 +9,11 @@ pub struct X509NameTokenizer<'a> {
 
 impl<'a> X509NameTokenizer<'a> {
     fn new(value: &'a str, separator: char) -> Self {
-        X509NameTokenizer { value, separator,
+        X509NameTokenizer {
+            value,
+            separator,
             index: if value.chars().count() < 1 { 0 } else { -1 },
-            count: value.chars().count()
+            count: value.chars().count(),
         }
     }
     pub fn with_str(value: &'a str) -> Self {
@@ -36,7 +38,11 @@ impl<'a> X509NameTokenizer<'a> {
         let mut escaped = false;
         let begin_index = (self.index + 1) as usize;
 
-        while { self.index += 1; self.index } < self.count as isize {
+        while {
+            self.index += 1;
+            self.index
+        } < self.count as isize
+        {
             let c = self.value.chars().nth(self.index as usize).unwrap();
             if escaped {
                 escaped = false;

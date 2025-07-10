@@ -1,5 +1,5 @@
-use std::io::Read;
 use crate::Result;
+use std::io::Read;
 
 pub fn read_fully(reader: &mut dyn Read, buffer: &mut [u8]) -> Result<usize> {
     let mut total_read = 0;

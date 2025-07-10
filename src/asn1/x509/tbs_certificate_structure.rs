@@ -1,8 +1,8 @@
 use crate::asn1::asn1_utilities::read_optional_context_iter;
+use crate::asn1::try_from_tagged::TryFromTagged;
 use crate::asn1::x509::{AlgorithmIdentifier, SubjectPublicKeyInfo, Validity, X509Extensions, X509Name};
 use crate::asn1::{Asn1BitString, Asn1Integer, Asn1Object, Asn1Sequence};
 use crate::{BcError, Result};
-use crate::asn1::try_from_tagged::TryFromTagged;
 
 /// The TbsCertificate object.
 /// ```text

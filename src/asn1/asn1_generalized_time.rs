@@ -1,7 +1,7 @@
+use crate::{BcError, Result};
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use std::fmt;
 use std::hash::Hash;
-use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
-use crate::{BcError, Result};
 /// GeneralizedTime ASN.1 type
 #[derive(Clone, Debug)]
 pub struct Asn1GeneralizedTime {
@@ -155,20 +155,14 @@ fn from_str(s: &str) -> Result<DateTime<Utc>> {
             _ => Err(BcError::with_invalid_argument("invalid length")),
         },
         Some(index) if index == v.len() - 5 => match v.len() {
-            15 => parse_time_zone(
-                &(v[0..v.len() - 5].to_string() + "00" + &v[(v.len() - 5)..]),
-                "%Y%m%d%H%M%z",
-            ),
+            15 => parse_time_zone(&(v[0..v.len() - 5].to_string() + "00" + &v[(v.len() - 5)..]), "%Y%m%d%H%M%z"),
             17 => parse_time_zone(&v, "%Y%m%d%H%M%z"),
             19 => parse_time_zone(&v, "%Y%m%d%H%M%S%z"),
             21..=27 => parse_time_zone(&v, "%Y%m%d%H%M%S%.f%z"),
             _ => Err(BcError::with_invalid_argument("invalid length")),
         },
         Some(index) if index == v.len() - 3 => match v.len() {
-            13 => parse_time_zone(
-                &(v[0..v.len() - 3].to_string() + "00" + &v[(v.len() - 3)..]),
-                "%Y%m%d%H%M%#z",
-            ),
+            13 => parse_time_zone(&(v[0..v.len() - 3].to_string() + "00" + &v[(v.len() - 3)..]), "%Y%m%d%H%M%#z"),
             15 => parse_time_zone(&v, "%Y%m%d%H%M%#z"),
             17 => parse_time_zone(&v, "%Y%m%d%H%M%S%#z"),
             19..=23 => parse_time_zone(&v, "%Y%m%d%H%M%S%.f%#z"),
@@ -197,10 +191,7 @@ fn parse_time_zone(s: &str, fmt: &str) -> Result<DateTime<Utc>> {
 }
 
 fn index_of_sign(s: &str, start_index: usize) -> Option<usize> {
-    let result = s
-        .chars()
-        .skip(start_index)
-        .position(|x| x == '+' || x == '-');
+    let result = s.chars().skip(start_index).position(|x| x == '+' || x == '-');
     if let Some(index) = result {
         return Some(index + start_index);
     }
@@ -239,7 +230,7 @@ mod tests {
             "20020122122220.0001Z",
             "20020122122220.0001-1000",
             "20020122122220.0001+00",
-            "20020122122220.0001+1000"
+            "20020122122220.0001+1000",
         ];
 
         for index in 0..inputs.len() {

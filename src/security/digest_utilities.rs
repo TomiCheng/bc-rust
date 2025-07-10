@@ -1,5 +1,5 @@
-use crate::crypto::Digest;
 use crate::Result;
+use crate::crypto::Digest;
 
 pub fn do_final(digest: &mut dyn Digest, input: &[u8]) -> Result<Vec<u8>> {
     digest.block_update(input)?;

@@ -1,9 +1,9 @@
-use crate::crypto::Digest;
 use crate::Result;
+use crate::crypto::Digest;
 
 #[derive(Clone)]
 pub struct NullDigest {
-    buffer: Vec<u8>
+    buffer: Vec<u8>,
 }
 
 impl Digest for NullDigest {

@@ -1,9 +1,9 @@
-use crate::asn1::{Asn1Object, Asn1ObjectIdentifier};
 use crate::Result;
+use crate::asn1::{Asn1Object, Asn1ObjectIdentifier};
 
 pub struct AlgorithmIdentifier {
     algorithm: Asn1ObjectIdentifier,
-    parameters: Option<Asn1Object>
+    parameters: Option<Asn1Object>,
 }
 
 impl AlgorithmIdentifier {
@@ -30,12 +30,8 @@ impl TryFrom<Asn1Object> for AlgorithmIdentifier {
             }
 
             let mut iter = sequence.into_iter();
-            let algorithm =  iter.next().unwrap().try_into()?;
-            let parameters = if len == 2 {
-                Some(iter.next().unwrap())
-            } else {
-                None
-            };
+            let algorithm = iter.next().unwrap().try_into()?;
+            let parameters = if len == 2 { Some(iter.next().unwrap()) } else { None };
             Ok(AlgorithmIdentifier { algorithm, parameters })
         } else {
             Err(crate::BcError::with_invalid_cast("Expected a sequence for AlgorithmIdentifier"))

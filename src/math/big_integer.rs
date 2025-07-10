@@ -1,12 +1,12 @@
+use crate::math::raw::internal_mod::{inverse_u32, inverse_u64};
+use crate::util::pack::{be_to_u32_buffer, be_to_u32_low, le_to_u32_low, u32_to_be_bytes};
+use crate::{BcError, Result};
 use rand::prelude::*;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::ops::Neg;
 use std::sync::{LazyLock, OnceLock};
-use crate::util::pack::{be_to_u32_buffer, be_to_u32_low, le_to_u32_low, u32_to_be_bytes};
-use crate::{BcError, Result};
-use crate::math::raw::internal_mod::{inverse_u32, inverse_u64};
 
 const I_MASK: i64 = 0xFFFFFFFF;
 const U_I_MASK: u64 = 0xFFFFFFFF;
@@ -362,11 +362,7 @@ impl BigInteger {
         if buffer.is_empty() {
             return BigInteger::new(0, vec![]);
         }
-        let result = if big_endian {
-            init_be(buffer)
-        } else {
-            init_le(buffer)
-        };
+        let result = if big_endian { init_be(buffer) } else { init_le(buffer) };
         Self::new(result.0, result.1)
     }
     pub fn with_sign_buffer(sign: i8, buffer: &[u8]) -> Result<Self> {
@@ -379,14 +375,14 @@ impl BigInteger {
     ///
     /// # Returns
     /// A `BigInteger` instance.
-    /// 
+    ///
     /// # Errors
     /// Returns `Error` if the sign is invalid.
     pub fn with_sign_buffer_big_endian(sign: i8, buffer: &[u8], big_endian: bool) -> Result<Self> {
         if sign < -1 || sign > 1 {
             return Err(BcError::with_invalid_argument("Sign must be -1, 0, or 1"));
         }
-        
+
         if sign == 0 {
             return Ok((*ZERO).clone());
         }
@@ -441,22 +437,22 @@ impl BigInteger {
                 chunk = CHUNK_2;
                 r = &(*RADIX_2);
                 re = &(*RADIX_2E);
-            },
+            }
             8 => {
                 chunk = CHUNK_8;
                 r = &(*RADIX_8);
                 re = &(*RADIX_8E);
-            },
+            }
             10 => {
                 chunk = CHUNK_10;
                 r = &(*RADIX_10);
                 re = &(*RADIX_10E);
-            },
+            }
             16 => {
                 chunk = CHUNK_16;
                 r = &(*RADIX_16);
                 re = &(*RADIX_16E);
-            },
+            }
             _ => {
                 return Err(BcError::with_invalid_argument("Radix must be 2, 8, 10, or 16"));
             }
@@ -499,19 +495,13 @@ impl BigInteger {
                 match radix {
                     2 => {
                         if i > 1 {
-                            return Err(BcError::with_invalid_argument(format!(
-                                "Bad character in radix 2 string: {}",
-                                s
-                            )));
+                            return Err(BcError::with_invalid_argument(format!("Bad character in radix 2 string: {}", s)));
                         }
                         b = b.shift_left(1);
                     }
                     8 => {
                         if i > 8 {
-                            return Err(BcError::with_invalid_argument(format!(
-                                "Bad character in radix 8 string: {}",
-                                s
-                            )));
+                            return Err(BcError::with_invalid_argument(format!("Bad character in radix 8 string: {}", s)));
                         }
                         b = b.shift_left(3);
                     }
@@ -616,7 +606,7 @@ impl BigInteger {
                 Ok(Self::with_u32(2))
             } else {
                 Ok(Self::with_u32(3))
-            }
+            };
         }
 
         let n_bytes = get_bytes_length(size_in_bits);
@@ -654,7 +644,6 @@ impl BigInteger {
                 }
             }
         }
-
     }
     pub fn with_probable_prime(bit_length: usize, random: &mut dyn RngCore) -> Result<Self> {
         Self::with_random_certainty(bit_length, 100, random)
@@ -755,11 +744,7 @@ impl BigInteger {
         }
         let n = self.magnitude.len();
         let v = self.magnitude[n - 1] as i32;
-        if self.sign < 0 {
-            v.wrapping_neg()
-        } else {
-            v
-        }
+        if self.sign < 0 { v.wrapping_neg() } else { v }
     }
     /// Returns the value of the `BigInteger` as an `i64`.
     pub fn as_i64(&self) -> i64 {
@@ -771,11 +756,7 @@ impl BigInteger {
         if n > 1 {
             v |= ((self.magnitude[n - 2] as i64) & I_MASK) << 32;
         }
-        if self.sign < 0 {
-            v.wrapping_neg()
-        } else {
-            v
-        }
+        if self.sign < 0 { v.wrapping_neg() } else { v }
     }
     /// Returns the value of the `BigInteger` as an `i128`.
     pub fn as_i128(&self) -> i128 {
@@ -786,18 +767,14 @@ impl BigInteger {
         for &value in &self.magnitude {
             result = (result << 32) | value as i128;
         }
-        if self.sign < 0 {
-            -result
-        } else {
-            result
-        }
+        if self.sign < 0 { -result } else { result }
     }
     pub fn to_string(&self) -> String {
         self.to_string_radix(10).unwrap()
     }
     pub fn to_string_radix(&self, radix: u32) -> Result<String> {
         if !(radix == 2 || radix == 8 || radix == 10 || radix == 16) {
-            return Err(BcError::with_invalid_argument("Radix must be 2, 8, 10, or 16"))
+            return Err(BcError::with_invalid_argument("Radix must be 2, 8, 10, or 16"));
         }
 
         if self.sign == 0 {
@@ -889,13 +866,13 @@ impl BigInteger {
         self.to_vec_with_signed(true)
     }
     // operators
-    
+
     /// Returns the bit length of the `BigInteger`.
-    /// 
+    ///
     /// This method calculates and caches the number of bits required to represent the value.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * `usize` - The number of bits required to represent the current value.
     /// # Example
     /// ```rust
@@ -952,15 +929,15 @@ impl BigInteger {
     /// # Example
     /// ```rust
     /// use bc_rust::math::BigInteger;
-    /// 
+    ///
     /// let big_int = BigInteger::with_u32(42);
     /// let negated = big_int.negate();
     /// assert_eq!(negated.as_i32(), -42);
-    /// 
+    ///
     /// let big_int_neg = BigInteger::with_i32(-42);
     /// let negated_neg = big_int_neg.negate();
     /// assert_eq!(negated_neg.as_i32(), 42);
-    /// 
+    ///
     /// let big_int_zero = BigInteger::with_u32(0);
     /// let negated_zero = big_int_zero.negate();
     /// assert_eq!(negated_zero.as_i32(), 0);
@@ -983,21 +960,17 @@ impl BigInteger {
     /// assert_eq!(abs_val.as_i32(), 42);
     /// ```
     pub fn abs(&self) -> Self {
-        if self.sign >= 0 {
-            self.clone()
-        } else {
-            self.negate()
-        }
+        if self.sign >= 0 { self.clone() } else { self.negate() }
     }
     /// Increments the value of the `BigInteger` by one and returns the result as a new `BigInteger`.
     ///
     /// If the value is zero, returns a new `BigInteger` representing one.
     /// If the value is negative, decrements the magnitude.
     /// If the value is positive, increments the magnitude.
-    /// 
+    ///
     /// # Returns
     /// A new `BigInteger` instance with the incremented value.
-    /// 
+    ///
     /// # Example
     /// ```rust
     /// use bc_rust::math::BigInteger;
@@ -1072,7 +1045,7 @@ impl BigInteger {
     /// let sum_zero = big_int1.add(&big_int_zero);
     /// assert_eq!(sum_zero.as_u32(), 42); // 42 + 0 = 42
     /// ```
-    pub fn add(&self, other:&Self) -> Self {
+    pub fn add(&self, other: &Self) -> Self {
         if self.sign == 0 {
             other.clone()
         } else if other.sign == 0 {
@@ -1108,17 +1081,13 @@ impl BigInteger {
         } else if self.sign == 0 {
             return other.negate();
         } else if self.sign != other.sign {
-            return self.add(&other.negate())
+            return self.add(&other.negate());
         }
         let compare = compare_no_leading_zeros(self.magnitude.as_slice(), other.magnitude.as_slice());
         if compare == 0 {
             return (*ZERO).clone();
         }
-        let (bi, li) = if compare < 0 {
-            (other, self)
-        } else {
-            (self, other)
-        };
+        let (bi, li) = if compare < 0 { (other, self) } else { (self, other) };
         let magnitude = do_sub_big_lil(bi.magnitude.as_slice(), li.magnitude.as_slice());
         Self::with_check_magnitude(self.sign * (compare as i8), magnitude, true)
     }
@@ -1150,20 +1119,12 @@ impl BigInteger {
 
         if other.quick_pow2_check() {
             let result = self.shift_left((other.abs().bit_length() - 1) as isize);
-            return if other.sign > 0 {
-                result
-            } else {
-                result.negate()
-            };
+            return if other.sign > 0 { result } else { result.negate() };
         }
 
         if self.quick_pow2_check() {
             let result = other.shift_left((self.abs().bit_length() - 1) as isize);
-            return if self.sign > 0 {
-                result
-            } else {
-                result.negate()
-            };
+            return if self.sign > 0 { result } else { result.negate() };
         }
         let res_length = self.magnitude.len() + other.magnitude.len();
         let mut res = vec![0u32; res_length];
@@ -1222,15 +1183,15 @@ impl BigInteger {
 
         if other.quick_pow2_check() {
             let result = self.abs().shift_right((other.abs().bit_length() - 1) as isize);
-            return if other.sign == self.sign {
-                Ok(result)
-            } else {
-                Ok(result.negate())
-            }
+            return if other.sign == self.sign { Ok(result) } else { Ok(result.negate()) };
         }
 
         let mut mag = self.magnitude.to_vec();
-        Ok(Self::with_check_magnitude(self.sign * other.sign, divide(&mut mag, &other.magnitude), true))
+        Ok(Self::with_check_magnitude(
+            self.sign * other.sign,
+            divide(&mut mag, &other.magnitude),
+            true,
+        ))
     }
     /// Returns the remainder of division of `self` by `division` as a `Result`.
     ///
@@ -1331,11 +1292,7 @@ impl BigInteger {
             let e = other.abs().bit_length() - 1;
             let quotient = self.abs().shift_right(e as isize);
 
-            let divide = if self.sign == other.sign {
-                quotient
-            } else {
-                quotient.negate()
-            };
+            let divide = if self.sign == other.sign { quotient } else { quotient.negate() };
 
             let remainder = Self::with_check_magnitude(self.sign, self.last_n_bits(e), true);
             return Ok((divide, remainder));
@@ -1343,7 +1300,10 @@ impl BigInteger {
 
         let mut remainder = self.magnitude.clone();
         let quotient = divide(&mut remainder, &other.magnitude);
-        Ok((Self::with_check_magnitude(self.sign * other.sign, quotient, true), Self::with_check_magnitude(self.sign, remainder, true)))
+        Ok((
+            Self::with_check_magnitude(self.sign * other.sign, quotient, true),
+            Self::with_check_magnitude(self.sign, remainder, true),
+        ))
     }
     /// Calculates the mathematical modulus of `self` with respect to `other`.
     ///
@@ -1374,11 +1334,7 @@ impl BigInteger {
         }
 
         let biggie = self.remainder(other)?;
-        if biggie.sign >= 0 {
-            Ok(biggie)
-        } else {
-            Ok(biggie.add(other))
-        }
+        if biggie.sign >= 0 { Ok(biggie) } else { Ok(biggie.add(other)) }
     }
     pub fn mod_inverse(&self, modulus: &Self) -> Result<Self> {
         if self.sign <= 0 {
@@ -1402,7 +1358,6 @@ impl BigInteger {
         Ok(x)
     }
     pub fn mod_pow(&self, e: &Self, m: &Self) -> Result<Self> {
-
         if m.sign <= 0 {
             return Err(BcError::with_invalid_argument("Modulus must be positive"));
         }
@@ -1666,16 +1621,8 @@ impl BigInteger {
         let a_start = (result_mag.len() - a_mag.len()) as isize;
         let b_start = (result_mag.len() - b_mag.len()) as isize;
         for i in 0..result_mag.len() {
-            let mut a_word = if (i as isize) >= a_start {
-                a_mag[i - a_start as usize]
-            } else {
-                0u32
-            };
-            let mut b_word = if (i as isize) >= b_start {
-                b_mag[i - b_start as usize]
-            } else {
-                0u32
-            };
+            let mut a_word = if (i as isize) >= a_start { a_mag[i - a_start as usize] } else { 0u32 };
+            let mut b_word = if (i as isize) >= b_start { b_mag[i - b_start as usize] } else { 0u32 };
             if self.sign < 0 {
                 a_word = !a_word;
             }
@@ -1758,16 +1705,8 @@ impl BigInteger {
         let b_start = result_mag.len() - b_mag.len();
 
         for i in 0..result_mag.len() {
-            let mut a_word = if i >= a_start {
-                a_mag[i - a_start]
-            } else {
-                0u32
-            };
-            let mut b_word = if i >= b_start {
-                b_mag[i - b_start]
-            } else {
-                0u32
-            };
+            let mut a_word = if i >= a_start { a_mag[i - a_start] } else { 0u32 };
+            let mut b_word = if i >= b_start { b_mag[i - b_start] } else { 0u32 };
 
             if self.sign < 0 {
                 a_word = !a_word;
@@ -1876,7 +1815,6 @@ impl BigInteger {
         r2
     }
     pub fn flip_bit(&self, n: usize) -> Self {
-
         if self.sign > 0 && n < (self.bit_length() - 1) {
             return self.flip_existing_bit(n);
         }
@@ -1963,11 +1901,7 @@ impl BigInteger {
         }
 
         if n as usize >= self.bit_length() {
-            return if self.sign < 0 {
-                (*ONE).negate()
-            } else {
-                (*ZERO).clone()
-            }
+            return if self.sign < 0 { (*ONE).negate() } else { (*ZERO).clone() };
         }
 
         let result_length = (self.bit_length() - (n as usize) + 31) >> 5;
@@ -1994,7 +1928,6 @@ impl BigInteger {
         self.is_probable_prime_with_randomly_selected(certainty, false)
     }
     pub fn next_probable_prime(&self) -> Result<Self> {
-
         if self.sign < 0 {
             return Err(BcError::with_invalid_argument("Negative numbers cannot be prime"));
         }
@@ -2010,21 +1943,12 @@ impl BigInteger {
         Ok(n)
     }
     pub fn max(&self, value: &Self) -> Self {
-        if self < value {
-            value.clone()
-        } else {
-            self.clone()
-        }
+        if self < value { value.clone() } else { self.clone() }
     }
 
     pub fn min(&self, value: &Self) -> Self {
-        if self < value {
-            self.clone()
-        } else {
-            value.clone()
-        }
+        if self < value { self.clone() } else { value.clone() }
     }
-
 
     pub(crate) fn is_probable_prime_with_randomly_selected(&self, certainty: i32, randomly_selected: bool) -> Result<bool> {
         if certainty <= 0 {
@@ -2040,11 +1964,7 @@ impl BigInteger {
             return Ok(false);
         }
 
-        Ok(n.check_probable_prime(
-            certainty,
-            &mut rand::rng(),
-            randomly_selected,
-        )?)
+        Ok(n.check_probable_prime(certainty, &mut rand::rng(), randomly_selected)?)
     }
 
     fn add_to_magnitude(&self, other: &[u32]) -> Self {
@@ -2151,9 +2071,7 @@ impl BigInteger {
 
         // NOTE: Avoid conversion to/from Montgomery form and check for R/-R as a result instead
 
-        let mont_radix = (*ONE)
-            .shift_left((32 * n.magnitude.len()) as isize)
-            .remainder(&n)?;
+        let mont_radix = (*ONE).shift_left((32 * n.magnitude.len()) as isize).remainder(&n)?;
         let minus_mont_radix = n.subtract(&mont_radix);
 
         let mut y_accum = vec![0u32; n.magnitude.len() + 1];
@@ -2266,13 +2184,7 @@ impl BigInteger {
         odd_powers[0] = z_val.clone();
 
         let mut z_squared = z_val.clone();
-        square_monty(
-            y_acc_m,
-            &mut z_squared,
-            &m.magnitude,
-            m_dash,
-            small_monty_modulus,
-        );
+        square_monty(y_acc_m, &mut z_squared, &m.magnitude, m_dash, small_monty_modulus);
 
         for i in 1..num_powers {
             odd_powers[i] = odd_powers[i - 1].clone();
@@ -2303,13 +2215,7 @@ impl BigInteger {
             mul_t = window & 0xFF;
             let bits = last_zeros as i32 + bit_len(mul_t) as i32;
             for _ in 0..bits {
-                square_monty(
-                    y_acc_m,
-                    &mut y_val,
-                    &m.magnitude,
-                    m_dash,
-                    small_monty_modulus,
-                );
+                square_monty(y_acc_m, &mut y_val, &m.magnitude, m_dash, small_monty_modulus);
             }
 
             multiply_monty(
@@ -2325,13 +2231,7 @@ impl BigInteger {
         }
 
         for _ in 0..last_zeros {
-            square_monty(
-                y_acc_m,
-                &mut y_val,
-                &m.magnitude,
-                m_dash,
-                small_monty_modulus,
-            );
+            square_monty(y_acc_m, &mut y_val, &m.magnitude, m_dash, small_monty_modulus);
         }
 
         if convert {
@@ -2455,12 +2355,7 @@ impl BigInteger {
             for _ in 0..bits {
                 y = Self::reduce_barrett(&y.square(), m, &mr, &yu);
             }
-            y = Self::reduce_barrett(
-                &(y.multiply(&odd_powers[(mul_t >> 1) as usize])),
-                m,
-                &mr,
-                &yu,
-            );
+            y = Self::reduce_barrett(&(y.multiply(&odd_powers[(mul_t >> 1) as usize])), m, &mr, &yu);
             last_zeros = window >> 8;
         }
 
@@ -2837,7 +2732,7 @@ fn calc_bit_length(sign: i8, magnitude: &[u32]) -> usize {
         }
         index += 1;
     }
-    
+
     // a bit of length for everything after the first int
     let mut bit_length = 32 * ((magnitude.len() - index) - 1);
 
@@ -2879,11 +2774,7 @@ fn strip_prefix_value<T: PartialEq>(buffer: &[T], v: T) -> &[T] {
             break;
         }
     }
-    if find {
-        &buffer[pos..]
-    } else {
-        &buffer[pos..0]
-    }
+    if find { &buffer[pos..] } else { &buffer[pos..0] }
 }
 /// returns x = x - y - we assume x is >= y
 fn subtract(x: &mut [u32], y: &[u32]) {
@@ -2901,10 +2792,10 @@ fn subtract(x: &mut [u32], y: &[u32]) {
         }] as i64
             & I_MASK)
             - (y[{
-            iv -= 1;
-            iv as usize
-        }] as i64
-            & I_MASK)
+                iv -= 1;
+                iv as usize
+            }] as i64
+                & I_MASK)
             + borrow as i64;
         x[it as usize] = m as u32;
         borrow = (m >> 63) as i32;
@@ -3051,8 +2942,7 @@ fn make_magnitude_le(buffer: &[u8]) -> Vec<u32> {
 
     for i in 1..count {
         pos -= C_BYTES_PRE_INT;
-        magnitude[i] =
-            u32::from_le_bytes(sub_slice[pos..(pos + C_BYTES_PRE_INT)].try_into().unwrap());
+        magnitude[i] = u32::from_le_bytes(sub_slice[pos..(pos + C_BYTES_PRE_INT)].try_into().unwrap());
     }
     magnitude
 }
@@ -3082,11 +2972,7 @@ fn strip_suffix_value(buffer: &[u8], v: u8) -> &[u8] {
             break;
         }
     }
-    if find {
-        &buffer[..pos]
-    } else {
-        &buffer[pos..pos]
-    }
+    if find { &buffer[..pos] } else { &buffer[pos..pos] }
 }
 fn is_equal_magnitude(x: &[u32], y: &[u32]) -> bool {
     if x.len() != y.len() {
@@ -3208,8 +3094,7 @@ fn multiply(x: &mut [u32], y: &[u32], z: &[u32]) {
 
         if a != 0 {
             for j in (0..y.len()).rev() {
-                val += a.wrapping_mul(y[j] as i64 & I_MASK)
-                    + (x[(x_base + j as isize) as usize] as i64 & I_MASK);
+                val += a.wrapping_mul(y[j] as i64 & I_MASK) + (x[(x_base + j as isize) as usize] as i64 & I_MASK);
                 x[(x_base + j as isize) as usize] = val as u32;
                 val = ((val as u64) >> 32) as i64;
             }
@@ -3271,9 +3156,7 @@ fn divide(x: &mut [u32], y: &[u32]) -> Vec<u32> {
         }
         count = vec![0u32; i_count.len()];
         loop {
-            if c_bit_length < x_bit_length
-                || compare_no_leading_zeros(&x[x_start..], &c[c_start..]) >= 0
-            {
+            if c_bit_length < x_bit_length || compare_no_leading_zeros(&x[x_start..], &c[c_start..]) >= 0 {
                 subtract(&mut x[x_start..], &c[c_start..]);
                 add_magnitudes(&mut count, &i_count);
                 while x[x_start] == 0 {
@@ -3411,9 +3294,7 @@ fn remainder(x: &mut [u32], y: &[u32]) {
             c.copy_from_slice(&y[y_start..]);
         }
         loop {
-            if c_bit_length < x_bit_length
-                || compare_no_leading_zeros(&x[x_start..], &c[c_start..]) >= 0
-            {
+            if c_bit_length < x_bit_length || compare_no_leading_zeros(&x[x_start..], &c[c_start..]) >= 0 {
                 subtract(&mut x[x_start..], &c[c_start..]);
                 while x[x_start] == 0 {
                     x_start += 1;
@@ -3513,9 +3394,7 @@ fn square_monty(a: &mut [u32], x: &mut [u32], m: &[u32], m_dash: u32, small_mont
     for i in (0..=n - 2).rev() {
         let a0 = a[n as usize];
         let t = a0.wrapping_mul(m_dash) as u64;
-        let mut carry = t
-            .wrapping_mul(m[(n - 1) as usize] as u64)
-            .wrapping_add(a0 as u64);
+        let mut carry = t.wrapping_mul(m[(n - 1) as usize] as u64).wrapping_add(a0 as u64);
         debug_assert!(carry as u32 == 0);
         carry >>= 32;
 
@@ -3902,9 +3781,7 @@ mod tests {
         for i in 0..100 {
             let bit = i + rand::random_range(0..64);
             //println!("{}", bit);
-            let odd = BigInteger::with_random(bit, &mut random)
-                .set_bit(bit + 1)
-                .set_bit(0);
+            let odd = BigInteger::with_random(bit, &mut random).set_bit(bit + 1).set_bit(0);
             let pow2 = (*ONE).shift_left(bit as isize);
 
             assert_eq!(bit + 2, odd.bit_length(), "t1");
@@ -3942,126 +3819,48 @@ mod tests {
             assert_eq!(*ZERO, pow2.clear_bit(i as usize));
 
             let right = minus_pow2.clear_bit(i as usize);
-            assert_eq!(
-                minus_pow2.shift_left(1),
-                right,
-                "i = {}, minus_pow2 = {:?}",
-                i,
-                minus_pow2
-            );
+            assert_eq!(minus_pow2.shift_left(1), right, "i = {}, minus_pow2 = {:?}", i, minus_pow2);
 
             let big_i = BigInteger::with_i32(i as i32);
             let neg_i = big_i.negate();
 
             for j in 0..10 {
-                assert_eq!(
-                    big_i.and_not(&(*ONE).shift_left(j)),
-                    big_i.clear_bit(j as usize),
-                    "i = {}, j = {}",
-                    i,
-                    j
-                );
-                assert_eq!(
-                    neg_i.and_not(&(*ONE).shift_left(j)),
-                    neg_i.clear_bit(j as usize),
-                    "i = {}, j = {}",
-                    i,
-                    j
-                );
+                assert_eq!(big_i.and_not(&(*ONE).shift_left(j)), big_i.clear_bit(j as usize), "i = {}, j = {}", i, j);
+                assert_eq!(neg_i.and_not(&(*ONE).shift_left(j)), neg_i.clear_bit(j as usize), "i = {}, j = {}", i, j);
             }
         }
     }
 
     #[test]
     fn test_compare_to() {
-        assert_eq!(
-            Some(Ordering::Equal),
-            (*MINUS_TWO).partial_cmp(&(*MINUS_TWO))
-        );
-        assert_eq!(
-            Some(Ordering::Less),
-            (*MINUS_TWO).partial_cmp(&(*MINUS_ONE))
-        );
-        assert_eq!(
-            Some(Ordering::Less),
-            (*MINUS_TWO).partial_cmp(&(*ZERO))
-        );
-        assert_eq!(
-            Some(Ordering::Less),
-            (*MINUS_TWO).partial_cmp(&(*ONE))
-        );
-        assert_eq!(
-            Some(Ordering::Less),
-            (*MINUS_TWO).partial_cmp(&(*TWO))
-        );
+        assert_eq!(Some(Ordering::Equal), (*MINUS_TWO).partial_cmp(&(*MINUS_TWO)));
+        assert_eq!(Some(Ordering::Less), (*MINUS_TWO).partial_cmp(&(*MINUS_ONE)));
+        assert_eq!(Some(Ordering::Less), (*MINUS_TWO).partial_cmp(&(*ZERO)));
+        assert_eq!(Some(Ordering::Less), (*MINUS_TWO).partial_cmp(&(*ONE)));
+        assert_eq!(Some(Ordering::Less), (*MINUS_TWO).partial_cmp(&(*TWO)));
 
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*MINUS_ONE).partial_cmp(&(*MINUS_TWO))
-        );
-        assert_eq!(
-            Some(Ordering::Equal),
-            (*MINUS_ONE).partial_cmp(&(*MINUS_ONE))
-        );
-        assert_eq!(
-            Some(Ordering::Less),
-            (*MINUS_ONE).partial_cmp(&(*ZERO))
-        );
-        assert_eq!(
-            Some(Ordering::Less),
-            (*MINUS_ONE).partial_cmp(&(*ONE))
-        );
-        assert_eq!(
-            Some(Ordering::Less),
-            (*MINUS_ONE).partial_cmp(&(*TWO))
-        );
+        assert_eq!(Some(Ordering::Greater), (*MINUS_ONE).partial_cmp(&(*MINUS_TWO)));
+        assert_eq!(Some(Ordering::Equal), (*MINUS_ONE).partial_cmp(&(*MINUS_ONE)));
+        assert_eq!(Some(Ordering::Less), (*MINUS_ONE).partial_cmp(&(*ZERO)));
+        assert_eq!(Some(Ordering::Less), (*MINUS_ONE).partial_cmp(&(*ONE)));
+        assert_eq!(Some(Ordering::Less), (*MINUS_ONE).partial_cmp(&(*TWO)));
 
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*ZERO).partial_cmp(&(*MINUS_TWO))
-        );
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*ZERO).partial_cmp(&(*MINUS_ONE))
-        );
-        assert_eq!(
-            Some(Ordering::Equal),
-            (*ZERO).partial_cmp(&(*ZERO))
-        );
+        assert_eq!(Some(Ordering::Greater), (*ZERO).partial_cmp(&(*MINUS_TWO)));
+        assert_eq!(Some(Ordering::Greater), (*ZERO).partial_cmp(&(*MINUS_ONE)));
+        assert_eq!(Some(Ordering::Equal), (*ZERO).partial_cmp(&(*ZERO)));
         assert_eq!(Some(Ordering::Less), (*ZERO).partial_cmp(&(*ONE)));
         assert_eq!(Some(Ordering::Less), (*ZERO).partial_cmp(&(*TWO)));
 
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*ONE).partial_cmp(&(*MINUS_TWO))
-        );
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*ONE).partial_cmp(&(*MINUS_ONE))
-        );
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*ONE).partial_cmp(&(*ZERO))
-        );
+        assert_eq!(Some(Ordering::Greater), (*ONE).partial_cmp(&(*MINUS_TWO)));
+        assert_eq!(Some(Ordering::Greater), (*ONE).partial_cmp(&(*MINUS_ONE)));
+        assert_eq!(Some(Ordering::Greater), (*ONE).partial_cmp(&(*ZERO)));
         assert_eq!(Some(Ordering::Equal), (*ONE).partial_cmp(&(*ONE)));
         assert_eq!(Some(Ordering::Less), (*ONE).partial_cmp(&(*TWO)));
 
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*TWO).partial_cmp(&(*MINUS_TWO))
-        );
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*TWO).partial_cmp(&(*MINUS_ONE))
-        );
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*TWO).partial_cmp(&(*ZERO))
-        );
-        assert_eq!(
-            Some(Ordering::Greater),
-            (*TWO).partial_cmp(&(*ONE))
-        );
+        assert_eq!(Some(Ordering::Greater), (*TWO).partial_cmp(&(*MINUS_TWO)));
+        assert_eq!(Some(Ordering::Greater), (*TWO).partial_cmp(&(*MINUS_ONE)));
+        assert_eq!(Some(Ordering::Greater), (*TWO).partial_cmp(&(*ZERO)));
+        assert_eq!(Some(Ordering::Greater), (*TWO).partial_cmp(&(*ONE)));
         assert_eq!(Some(Ordering::Equal), (*TWO).partial_cmp(&(*TWO)));
     }
 
@@ -4103,32 +3902,16 @@ mod tests {
                 "divisor = {}",
                 divisor
             );
-            assert_eq!(
-                expected.negate(),
-                big_product.negate().divide(&BigInteger::with_i32(divisor)).unwrap()
-            );
-            assert_eq!(
-                expected.negate(),
-                big_product.divide(&BigInteger::with_i32(divisor).negate()).unwrap()
-            );
-            assert_eq!(
-                expected,
-                big_product
-                    .negate()
-                    .divide(&BigInteger::with_i32(divisor).negate()).unwrap()
-            );
+            assert_eq!(expected.negate(), big_product.negate().divide(&BigInteger::with_i32(divisor)).unwrap());
+            assert_eq!(expected.negate(), big_product.divide(&BigInteger::with_i32(divisor).negate()).unwrap());
+            assert_eq!(expected, big_product.negate().divide(&BigInteger::with_i32(divisor).negate()).unwrap());
 
             let expected = BigInteger::with_i32((product + 1) / divisor);
 
-            assert_eq!(
-                expected,
-                big_product_plus.divide(&BigInteger::with_i32(divisor)).unwrap()
-            );
+            assert_eq!(expected, big_product_plus.divide(&BigInteger::with_i32(divisor)).unwrap());
             assert_eq!(
                 expected.negate(),
-                big_product_plus
-                    .negate()
-                    .divide(&BigInteger::with_i32(divisor)).unwrap()
+                big_product_plus.negate().divide(&BigInteger::with_i32(divisor)).unwrap()
             );
             assert_eq!(
                 expected.negate(),
@@ -4136,9 +3919,7 @@ mod tests {
             );
             assert_eq!(
                 expected,
-                big_product_plus
-                    .negate()
-                    .divide(&BigInteger::with_i32(divisor).negate()).unwrap()
+                big_product_plus.negate().divide(&BigInteger::with_i32(divisor).negate()).unwrap()
             );
         }
     }
@@ -4163,13 +3944,7 @@ mod tests {
             let b = BigInteger::with_random(64 + rand::random_range(0..64), &mut random);
             let b_shift = b.shift_right(shift);
 
-            assert_eq!(
-                b_shift,
-                b.divide(&a).unwrap(),
-                "shift = {}, b = {:?}",
-                shift,
-                b.to_string_radix(16)
-            );
+            assert_eq!(b_shift, b.divide(&a).unwrap(), "shift = {}, b = {:?}", shift, b.to_string_radix(16));
             assert_eq!(
                 b_shift.negate(),
                 b.divide(&a.negate()).unwrap(),
@@ -4202,13 +3977,7 @@ mod tests {
         let b = BigInteger::with_i64(0x2504b470dc188499);
         let b_shift = b.shift_right(shift);
 
-        assert_eq!(
-            b_shift,
-            b.divide(&a).unwrap(),
-            "shift = {}, b = {:?}",
-            shift,
-            b.to_string_radix(16)
-        );
+        assert_eq!(b_shift, b.divide(&a).unwrap(), "shift = {}, b = {:?}", shift, b.to_string_radix(16));
         assert_eq!(
             b_shift.negate(),
             b.divide(&a.negate()).unwrap(),
@@ -4264,68 +4033,20 @@ mod tests {
             let b_mod = b.and(&a.subtract(&(*ONE)));
 
             qr = b.divide_and_remainder(&a).unwrap();
-            assert_eq!(
-                b_shift,
-                qr.0,
-                "shift = {}, b = {:?}",
-                shift,
-                b.to_string_radix(16)
-            );
-            assert_eq!(
-                b_mod,
-                qr.1,
-                "shift = {}, b = {:?}",
-                shift,
-                b.to_string_radix(16)
-            );
+            assert_eq!(b_shift, qr.0, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
+            assert_eq!(b_mod, qr.1, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
 
             qr = b.divide_and_remainder(&a.negate()).unwrap();
-            assert_eq!(
-                b_shift.negate(),
-                qr.0,
-                "shift = {}, b = {:?}",
-                shift,
-                b.to_string_radix(16)
-            );
-            assert_eq!(
-                b_mod,
-                qr.1,
-                "shift = {}, b = {:?}",
-                shift,
-                b.to_string_radix(16)
-            );
+            assert_eq!(b_shift.negate(), qr.0, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
+            assert_eq!(b_mod, qr.1, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
 
             qr = b.negate().divide_and_remainder(&a).unwrap();
-            assert_eq!(
-                b_shift.negate(),
-                qr.0,
-                "shift = {}, b = {:?}",
-                shift,
-                b.to_string_radix(16)
-            );
-            assert_eq!(
-                b_mod.negate(),
-                qr.1,
-                "shift = {}, b = {:?}",
-                shift,
-                b.to_string_radix(16)
-            );
+            assert_eq!(b_shift.negate(), qr.0, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
+            assert_eq!(b_mod.negate(), qr.1, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
 
             qr = b.negate().divide_and_remainder(&a.negate()).unwrap();
-            assert_eq!(
-                b_shift,
-                qr.0,
-                "shift = {}, b = {:?}",
-                shift,
-                b.to_string_radix(16)
-            );
-            assert_eq!(
-                b_mod.negate(),
-                qr.1,
-                "shift = {}, b = {:?}",
-                shift,
-                b.to_string_radix(16)
-            );
+            assert_eq!(b_shift, qr.0, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
+            assert_eq!(b_mod.negate(), qr.1, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
         }
     }
 
@@ -4341,11 +4062,7 @@ mod tests {
                 let pos = rand::random_range(0..256);
 
                 let a = a.flip_bit(pos);
-                let b = if b.test_bit(pos) {
-                    b.clear_bit(pos)
-                } else {
-                    b.set_bit(pos)
-                };
+                let b = if b.test_bit(pos) { b.clear_bit(pos) } else { b.set_bit(pos) };
 
                 assert_eq!(a, b);
             }
@@ -4356,31 +4073,14 @@ mod tests {
             let minus_pow2 = pow2.negate();
 
             assert_eq!(*ZERO, pow2.flip_bit(i as usize));
-            assert_eq!(
-                minus_pow2.shift_left(1),
-                minus_pow2.flip_bit(i as usize),
-                "i = {}",
-                i
-            );
+            assert_eq!(minus_pow2.shift_left(1), minus_pow2.flip_bit(i as usize), "i = {}", i);
 
             let big_i = BigInteger::with_i32(i as i32);
             let neg_i = big_i.negate();
 
             for j in 0..10 {
-                assert_eq!(
-                    big_i.xor(&(*ONE).shift_left(j)),
-                    big_i.flip_bit(j as usize),
-                    "i = {}, j = {}",
-                    i,
-                    j
-                );
-                assert_eq!(
-                    neg_i.xor(&(*ONE).shift_left(j)),
-                    neg_i.flip_bit(j as usize),
-                    "i = {}, j = {}",
-                    i,
-                    j
-                );
+                assert_eq!(big_i.xor(&(*ONE).shift_left(j)), big_i.flip_bit(j as usize), "i = {}, j = {}", i, j);
+                assert_eq!(neg_i.xor(&(*ONE).shift_left(j)), neg_i.flip_bit(j as usize), "i = {}, j = {}", i, j);
             }
         }
     }
@@ -4448,34 +4148,16 @@ mod tests {
 
         for e in MERSENNE_PRIME_EXPONENTS {
             assert!(
-                &(*TWO)
-                    .pow(e as u32).unwrap()
-                    .subtract(&(*ONE))
-                    .is_probable_prime(100).unwrap(),
+                &(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).is_probable_prime(100).unwrap(),
                 "e = {}",
                 e
             );
-            assert!(&(*TWO)
-                .pow(e as u32).unwrap()
-                .subtract(&(*ONE))
-                .negate()
-                .is_probable_prime(100).unwrap());
+            assert!(&(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).negate().is_probable_prime(100).unwrap());
         }
 
         for e in NON_PRIME_EXPONENTS {
-            assert!(
-                !(&(*TWO)
-                    .pow(e as u32).unwrap()
-                    .subtract(&(*ONE))
-                    .is_probable_prime(100).unwrap())
-            );
-            assert!(
-                !(&(*TWO)
-                    .pow(e as u32).unwrap()
-                    .subtract(&(*ONE))
-                    .negate()
-                    .is_probable_prime(100).unwrap())
-            );
+            assert!(!(&(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).is_probable_prime(100).unwrap()));
+            assert!(!(&(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).negate().is_probable_prime(100).unwrap()));
         }
     }
 
@@ -4591,8 +4273,6 @@ mod tests {
 
             assert_eq!(a.mod_pow(&b, &m).unwrap().mod_inverse(&m).unwrap(), a.mod_pow(&b.negate(), &m).unwrap());
         }
-
-
     }
 
     #[test]
@@ -4711,10 +4391,8 @@ mod tests {
     #[test]
     fn test_remainder() {
         for rep in 0..10 {
-            let a =
-                BigInteger::with_random_certainty(100 - rep, 0, &mut rand::rng()).unwrap();
-            let b =
-                BigInteger::with_random_certainty(100 + rep, 0, &mut rand::rng()).unwrap();
+            let a = BigInteger::with_random_certainty(100 - rep, 0, &mut rand::rng()).unwrap();
+            let b = BigInteger::with_random_certainty(100 + rep, 0, &mut rand::rng()).unwrap();
             let c = BigInteger::with_random_certainty(10 + rep, 0, &mut rand::rng()).unwrap();
             let d = a.multiply(&b).add(&c);
             let e = d.remainder(&a).unwrap();
@@ -4769,20 +4447,8 @@ mod tests {
             let b = a.shift_left(shift as isize);
             let c = neg_a.shift_left(shift as isize);
 
-            assert_eq!(
-                a.bit_count(),
-                b.bit_count(),
-                "1. i = {}, shift = {}",
-                i,
-                shift
-            );
-            assert_eq!(
-                neg_a.bit_count() + shift,
-                c.bit_count(),
-                "2. i = {}, shift = {}",
-                i,
-                shift
-            );
+            assert_eq!(a.bit_count(), b.bit_count(), "1. i = {}, shift = {}", i, shift);
+            assert_eq!(neg_a.bit_count() + shift, c.bit_count(), "2. i = {}, shift = {}", i, shift);
             assert_eq!(a.bit_length() + shift, b.bit_length());
             assert_eq!(neg_a.bit_length() + shift, c.bit_length());
 
@@ -4899,8 +4565,7 @@ mod tests {
             let mut x = BigInteger::with_random(i, &mut random).set_bit(i - 1);
             let mut b = x.to_vec_unsigned();
             assert_eq!(b.len(), (i + 7) / 8);
-            let mut y =
-                BigInteger::with_sign_buffer(1, &b).expect("Failed to create BigInteger from buffer");
+            let mut y = BigInteger::with_sign_buffer(1, &b).expect("Failed to create BigInteger from buffer");
             assert_eq!(x, y);
 
             x = x.negate();
@@ -4915,18 +4580,8 @@ mod tests {
     fn test_to_string() {
         let s = "1234567890987654321";
         assert_eq!(s, &BigInteger::with_string(s).unwrap().to_string());
-        assert_eq!(
-            s,
-            &BigInteger::with_string_radix(s, 10)
-                .unwrap()
-                .to_string_radix(10).unwrap()
-        );
-        assert_eq!(
-            s,
-            &BigInteger::with_string_radix(s, 16)
-                .unwrap()
-                .to_string_radix(16).unwrap()
-        );
+        assert_eq!(s, &BigInteger::with_string_radix(s, 10).unwrap().to_string_radix(10).unwrap());
+        assert_eq!(s, &BigInteger::with_string_radix(s, 16).unwrap().to_string_radix(16).unwrap());
 
         let mut random = rand::rng();
         for i in 0..100 {

@@ -1,9 +1,9 @@
-use crate::asn1::{Asn1Object, Asn1Sequence};
-use crate::asn1::x509::GeneralName;
 use crate::BcError;
 use crate::Result;
+use crate::asn1::x509::GeneralName;
+use crate::asn1::{Asn1Object, Asn1Sequence};
 pub struct GeneralNames {
-    names: Vec<GeneralName>
+    names: Vec<GeneralName>,
 }
 
 impl GeneralNames {
@@ -18,7 +18,7 @@ impl GeneralNames {
         }
         Ok(Self::new(names))
     }
-    
+
     pub fn into_iter(self) -> std::vec::IntoIter<GeneralName> {
         self.names.into_iter()
     }

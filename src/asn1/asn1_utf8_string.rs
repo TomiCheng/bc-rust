@@ -1,10 +1,10 @@
-use std::fmt::Display;
-use std::hash::{Hash};
-use crate::asn1::{asn1_tags, Asn1String, EncodingType};
+use crate::Result;
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
-use crate::Result;
+use crate::asn1::{Asn1String, EncodingType, asn1_tags};
+use std::fmt::Display;
+use std::hash::Hash;
 
 #[derive(Clone, Debug, Hash)]
 pub struct Asn1Utf8String {
@@ -41,6 +41,10 @@ impl From<Asn1Utf8String> for String {
 }
 impl Asn1EncodingInternal for Asn1Utf8String {
     fn get_encoding(&self, _: EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(asn1_tags::UNIVERSAL, asn1_tags::UTF8_STRING, self.content.as_bytes().to_vec()))
+        Box::new(PrimitiveEncoding::new(
+            asn1_tags::UNIVERSAL,
+            asn1_tags::UTF8_STRING,
+            self.content.as_bytes().to_vec(),
+        ))
     }
 }

@@ -1,14 +1,14 @@
-use std::hash::{Hash, Hasher};
-use std::ops::Index;
-use crate::asn1::{asn1_tags, Asn1EncodableVector, Asn1Object, Asn1TaggedObject, EncodingType};
+use crate::Result;
+use crate::asn1::EncodingType::Der;
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::asn1::asn1_write::get_contents_encodings;
 use crate::asn1::constructed_dl_encoding::ConstructedDlEncoding;
-use crate::asn1::EncodingType::Der;
 use crate::asn1::try_from_tagged::TryFromTagged;
-use crate::Result;
+use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1TaggedObject, EncodingType, asn1_tags};
+use std::hash::{Hash, Hasher};
+use std::ops::Index;
 
 #[derive(Clone, Debug)]
 pub struct Asn1Sequence {
@@ -71,7 +71,11 @@ impl TryFromTagged for Asn1Sequence {
 }
 impl Asn1EncodingInternal for Asn1Sequence {
     fn get_encoding(&self, _: EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(ConstructedDlEncoding::new(asn1_tags::UNIVERSAL, asn1_tags::SEQUENCE, get_contents_encodings(Der, &self.elements)))
+        Box::new(ConstructedDlEncoding::new(
+            asn1_tags::UNIVERSAL,
+            asn1_tags::SEQUENCE,
+            get_contents_encodings(Der, &self.elements),
+        ))
     }
 }
 

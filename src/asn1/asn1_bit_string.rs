@@ -1,6 +1,3 @@
-use std::hash::{Hash, Hasher};
-use crate::{BcError, Result};
-use crate::asn1::{Asn1Object, Asn1TaggedObject, EncodingType};
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{BIT_STRING, UNIVERSAL};
@@ -8,6 +5,9 @@ use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
 use crate::asn1::primitive_encoding_suffixed::PrimitiveEncodingSuffixed;
 use crate::asn1::try_from_tagged::TryFromTagged;
+use crate::asn1::{Asn1Object, Asn1TaggedObject, EncodingType};
+use crate::{BcError, Result};
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Asn1BitString {
@@ -22,14 +22,20 @@ impl Asn1BitString {
         if contents.is_empty() && pad_bits > 0 {
             return Err(BcError::with_invalid_argument("if 'content' is empty, 'pad_bits' must be 0"));
         }
-        Ok(Self { contents: contents.to_vec(), pad_bits })
+        Ok(Self {
+            contents: contents.to_vec(),
+            pad_bits,
+        })
     }
     pub fn with_named_bits(value: u32) -> Self {
         if value == 0 {
-            return Asn1BitString { contents: vec![], pad_bits: 0 };
+            return Asn1BitString {
+                contents: vec![],
+                pad_bits: 0,
+            };
         }
         let bits = 32 - u32::leading_zeros(value) as usize;
-        let bytes = (bits + 7) / 8 ;
+        let bytes = (bits + 7) / 8;
         debug_assert!(0 < bytes && bytes <= 4);
 
         let mut contents = vec![0u8; bytes];
@@ -40,12 +46,12 @@ impl Asn1BitString {
         }
         debug_assert!((named_bits & 0xFF) != 0);
         contents[bytes - 1] = named_bits as u8;
-        
+
         let mut pad_bits = 0;
         while named_bits & (1 << pad_bits) == 0 {
             pad_bits += 1;
         }
-        
+
         debug_assert!(pad_bits < 8);
         Asn1BitString { contents, pad_bits }
     }
@@ -53,11 +59,11 @@ impl Asn1BitString {
         if contents.is_empty() {
             return Err(BcError::with_invalid_argument("truncated BIT STRING detected"));
         }
-        
+
         let length = contents.len();
         let pad_bits = contents[0];
         let contents = contents[1..].to_vec();
-        
+
         if pad_bits > 0 {
             if pad_bits > 7 || length < 2 {
                 return Err(BcError::with_invalid_argument("invalid pad bits detected"));
@@ -93,25 +99,16 @@ impl Asn1EncodingInternal for Asn1BitString {
             let last_der = last_ber & (0xFF << self.pad_bits);
             if last_ber != last_der {
                 contents[self.contents.len()] = last_der;
-                return Box::new(PrimitiveEncodingSuffixed::new(
-                    UNIVERSAL,
-                    BIT_STRING,
-                    contents,
-                    last_der,
-                ));
+                return Box::new(PrimitiveEncodingSuffixed::new(UNIVERSAL, BIT_STRING, contents, last_der));
             }
         }
-        Box::new(PrimitiveEncoding::new(
-            UNIVERSAL,
-            BIT_STRING,
-            contents,
-        ))
+        Box::new(PrimitiveEncoding::new(UNIVERSAL, BIT_STRING, contents))
     }
 }
 impl TryFromTagged for Asn1BitString {
     fn try_from_tagged(tagged: Asn1TaggedObject, declared_explicit: bool) -> std::result::Result<Self, BcError>
     where
-        Self: Sized
+        Self: Sized,
     {
         tagged.try_from_base_universal(declared_explicit, Asn1BitStringMetadata)
     }
@@ -122,7 +119,7 @@ impl Hash for Asn1BitString {
     }
 }
 struct Asn1BitStringMetadata;
-impl Asn1UniversalType<Asn1BitString> for Asn1BitStringMetadata  {
+impl Asn1UniversalType<Asn1BitString> for Asn1BitStringMetadata {
     fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1BitString> {
         asn1_object.try_into()
     }
@@ -130,21 +127,21 @@ impl Asn1UniversalType<Asn1BitString> for Asn1BitStringMetadata  {
 
 #[cfg(test)]
 mod tests {
-    use crate::asn1::{Asn1BitString, Asn1Encodable, Asn1Object};
     use crate::asn1::EncodingType::{Ber, Der};
+    use crate::asn1::{Asn1BitString, Asn1Encodable, Asn1Object};
     use crate::util::encoders::hex::to_decode_with_str;
 
     #[test]
     fn test_zero_length_strings() {
         let s1 = Asn1BitString::with_pad_bits(&vec![], 0).unwrap();
         s1.to_vec();
-         
+
         let buffer = s1.get_encoded(Ber).unwrap();
         assert_eq!(buffer, vec![0x03, 0x01, 0x00]);
-        
+
         assert!(Asn1BitString::with_pad_bits(&vec![], 1).is_err());
         assert!(Asn1BitString::with_pad_bits(&vec![0], 8).is_err());
-        
+
         let s2 = Asn1BitString::with_named_bits(0);
         let buffer2 = s2.get_encoded(Ber).unwrap();
         assert_eq!(buffer2, buffer);
@@ -168,9 +165,9 @@ mod tests {
     }
     fn check_encoding(der_data: &Vec<u8>, dl_data: &Vec<u8>) {
         let asn1_object = Asn1Object::with_bytes(dl_data).unwrap();
-        
+
         assert_ne!(der_data, &asn1_object.get_encoded(Ber).unwrap());
-        
+
         assert!(asn1_object.is_bit_string());
         let bit_string = asn1_object.as_bit_string().unwrap();
         let der_buffer = bit_string.get_encoded(Der).unwrap();

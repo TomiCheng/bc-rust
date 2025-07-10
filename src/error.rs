@@ -1,15 +1,13 @@
-
+use chrono::ParseError;
 use std::error::Error;
 use std::fmt::{Debug, Formatter};
 use std::num::ParseIntError;
-use std::string::{FromUtf16Error, FromUtf8Error};
-use chrono::ParseError;
+use std::string::{FromUtf8Error, FromUtf16Error};
 
 pub struct BcError {
     error: Box<dyn Error + Send + Sync>,
     kind: ErrorKind,
 }
-
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {

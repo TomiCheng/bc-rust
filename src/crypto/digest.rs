@@ -1,4 +1,3 @@
-
 use crate::Result;
 
 /// Base trait for a message digest.

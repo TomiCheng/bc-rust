@@ -1,7 +1,7 @@
+use crate::Result;
+use crate::asn1::Asn1Write;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_write::get_length_of_encoding_dl;
-use crate::asn1::Asn1Write;
-use crate::Result;
 
 pub(crate) struct PrimitiveEncoding {
     tag_class: u8,
