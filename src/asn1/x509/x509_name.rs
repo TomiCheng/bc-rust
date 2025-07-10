@@ -241,12 +241,12 @@ impl X509Name {
             return Ok(Asn1ObjectIdentifier::with_str(&name[4..])?);
         }
 
-        if let Some(r) = Asn1ObjectIdentifier::try_parse(name) {
-            return Ok(r);
-        }
-
         if let Some(r) = lookup.get(&name.to_lowercase()) {
             return Ok(r.clone());
+        }
+
+        if let Some(r) = Asn1ObjectIdentifier::try_parse(name) {
+            return Ok(r);
         }
 
         Err(BcError::with_invalid_argument(format!(
@@ -484,7 +484,7 @@ impl Asn1Encodable for X509Name {
 fn append_value(buffer: &mut String, oid_symbols: &Symbols, oid: &Asn1ObjectIdentifier, value: &str) {
     buffer.push_str(oid_symbols.get(oid).unwrap_or(oid.id()));
     buffer.push('=');
-    escape_dn_string(value, buffer)
+    buffer.push_str(&escape_dn_string(value));
 }
 static DEFAULT_SYMBOLS: LazyLock<Symbols> = LazyLock::new(|| {
     let mut symbols = Symbols::new();
@@ -535,9 +535,9 @@ static DEFAULT_LOOKUP: LazyLock<HashMap<String, Asn1ObjectIdentifier>> = LazyLoc
     lookup.insert("o".to_owned(), ORGANIZATION_NAME.clone());
     lookup.insert("t".to_owned(), TITLE.clone());
     lookup.insert("ou".to_owned(), ORGANIZATIONAL_UNIT_NAME.clone());
-    lookup.insert("cn".to_owned(), COUNTRY_NAME.clone());
+    lookup.insert("cn".to_owned(), COMMON_NAME.clone());
     lookup.insert("l".to_owned(), LOCALITY_NAME.clone());
-    lookup.insert("st".to_owned(), STREET.clone());
+    lookup.insert("st".to_owned(), STATE_OR_PROVINCE_NAME.clone());
     lookup.insert("sn".to_owned(), SURNAME.clone());
     lookup.insert("serialnumber".to_owned(), SERIAL_NUMBER.clone());
     lookup.insert("street".to_owned(), STREET.clone());
@@ -580,9 +580,7 @@ mod tests {
     use crate::asn1::EncodingType::Ber;
     use crate::asn1::pkcs::pkcs_object_identifiers::PKCS9_AT_EMAIL_ADDRESS;
     use crate::asn1::x500::style::ietf_utilities::asn1_object_to_string;
-    use crate::asn1::x509::x509_object_identifiers::{
-        COMMON_NAME, COUNTRY_NAME, DATE_OF_BIRTH, DC, DN_QUALIFIER, LOCALITY_NAME, ORGANIZATION_NAME, SERIAL_NUMBER, STREET,
-    };
+    use crate::asn1::x509::x509_object_identifiers::*;
     use crate::asn1::x509::{X509Name, x509_name};
     use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1Utf8String};
     use crate::util::encoders::hex::to_decode_with_str;
@@ -784,7 +782,33 @@ mod tests {
         assert_eq!(values[0], "Melbourne");
     }
     #[test]
-    fn test_general_subjects() {}
+    fn test_general_subjects() {
+        const SUBJECT: [&str; 12] = [
+            "C=AU,ST=Victoria,L=South Melbourne,O=Connect 4 Pty Ltd,OU=Webserver Team,CN=www2.connect4.com.au,E=webmaster@connect4.com.au",
+            "C=AU,ST=Victoria,L=South Melbourne,O=Connect 4 Pty Ltd,OU=Certificate Authority,CN=Connect 4 CA,E=webmaster@connect4.com.au",
+            "C=AU,ST=QLD,CN=SSLeay/rsa test cert",
+            "C=US,O=National Aeronautics and Space Administration,SERIALNUMBER=16+CN=Steve Schoch",
+            "E=cooke@issl.atl.hp.com,C=US,OU=Hewlett Packard Company (ISSL),CN=Paul A. Cooke",
+            "O=Sun Microsystems Inc,CN=store.sun.com",
+            "unstructuredAddress=192.168.1.33,unstructuredName=pixfirewall.ciscopix.com,CN=pixfirewall.ciscopix.com",
+            "CN=*.canal-plus.com,OU=Provided by TBS INTERNET https://www.tbs-certificats.com/,OU=\\ CANAL \\+,O=CANAL\\+DISTRIBUTION,L=issy les moulineaux,ST=Hauts de Seine,C=FR",
+            "O=Bouncy Castle,CN=www.bouncycastle.org\\ ",
+            "O=Bouncy Castle,CN=c:\\\\fred\\\\bob",
+            concat!("C=0,O=1,OU=2,T=3,CN=4,SERIALNUMBER=5,STREET=6,SERIALNUMBER=7,L=8,ST=9,SURNAME=10,GIVENNAME=11,INITIALS=12,",
+            "GENERATION=13,UniqueIdentifier=14,BusinessCategory=15,PostalCode=16,DN=17,Pseudonym=18,PlaceOfBirth=19,",
+            "Gender=20,CountryOfCitizenship=21,CountryOfResidence=22,NameAtBirth=23,PostalAddress=24,2.5.4.54=25,",
+            "TelephoneNumber=26,Name=27,E=28,unstructuredName=29,unstructuredAddress=30,E=31,DC=32,UID=33"),
+            "C=DE,L=Berlin,O=Wohnungsbaugenossenschaft \\\"Humboldt-Universit酹\\\" eG,CN=transfer.wbg-hub.de",
+        ];
+
+        for s in SUBJECT {
+            let name = X509Name::with_str(s).unwrap();
+            let buffer = name.get_encoded(Ber).unwrap();
+            let name: X509Name = Asn1Object::with_bytes(&buffer).unwrap().try_into().unwrap();
+            let decode_subject = name.to_string();
+            assert_eq!(s, decode_subject);
+        }
+    }
     // TODO: Add more tests for X509Name
 
     fn do_test_encoding_printable_string(oid: &Asn1ObjectIdentifier, value: &str) {

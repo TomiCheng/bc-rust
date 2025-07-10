@@ -220,6 +220,7 @@ fn parse_contents(contents: &[u8]) -> String {
                 }
                 result.push_str(".");
                 result.push_str(&value.to_string());
+                value = 0;
             } else {
                 value <<= 7;
             }
@@ -372,5 +373,9 @@ mod tests {
         check_expected("1.2.3.4.5.6", "1.2.3.4.5.6", false);
         check_expected("1.2.3.4.5.6", "1.2.3.4.5.6.7", true);
         check_expected("1.2.3.4.5.6", "1.2.3.4.5.6.7.8", true);
+    }
+    #[test]
+    fn test_01() {
+        check_valid("2.5.4.54");
     }
 }

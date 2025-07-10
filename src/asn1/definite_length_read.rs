@@ -53,7 +53,9 @@ impl<'a> Read for DefiniteLengthRead<'a> {
         if self.remaining == 0 {
             return Ok(0);
         }
-        let length = self.reader.read(buf)?;
+        let len = self.remaining.min(buf.len());
+
+        let length = self.reader.read(&mut buf[..len])?;
         self.remaining -= length;
         Ok(length)
     }

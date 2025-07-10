@@ -114,7 +114,7 @@ impl TryFromTagged for Asn1BitString {
     }
 }
 impl Hash for Asn1BitString {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, _state: &mut H) {
         todo!();
     }
 }

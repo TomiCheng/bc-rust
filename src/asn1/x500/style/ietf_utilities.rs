@@ -18,58 +18,59 @@ pub fn asn1_object_to_string(value: &Asn1Object) -> Result<String> {
         str.push_str(&to_hex_string(value.get_encoded(Der)?.as_slice()));
     }
 
-    let mut buffer = String::new();
-    escape_dn_string(&str, &mut buffer);
+    let buffer = escape_dn_string(&str);
     Ok(buffer)
 }
-pub(crate) fn escape_dn_string(str: &str, buffer: &mut String) {
-    let mut chars = str.chars().peekable();
-    let mut first = true;
-    let mut end_space = 0;
-    while let Some(c) = chars.next() {
-        let next_c = chars.peek();
+pub(crate) fn escape_dn_string(str: &str) -> String {
+    let count = str.chars().count();
+    let f_space = str.chars().take_while(|c| *c == ' ').count();
+    let r_space = count - str.chars().rev().take_while(|c| *c == ' ').count();
+    let mut buffer = String::new();
+    let mut chars = str.char_indices();
+    let mut c1 = None;
+    let mut c2 = None;
+    while let Some((i, c)) = chars.next() {
+        if i == 0 {
+            c1 = Some(c);
+        }
+        if i == 1 {
+            c2 = Some(c);
+        }
 
-        if c == '\\' && next_c == Some(&'#') {
-            buffer.push_str("\\#");
-            chars.next(); // consume the '#'
+        if c1 == Some('\\') && c2 == Some('#') {
+            buffer.push(c1.unwrap());
+            buffer.push(c2.unwrap());
+            continue;
+        }
+
+        if i < f_space && c == ' ' {
+            buffer.push('\\');
+            buffer.push(c);
+            continue;
+        }
+
+        if i >= r_space && c == ' ' {
+            buffer.push('\\');
+            buffer.push(c);
             continue;
         }
 
         if c == ',' || c == '"' || c == '\\' || c == '+' || c == '=' || c == '<' || c == '>' || c == ';' {
             buffer.push('\\');
-        }
-
-        if first && c == ' ' {
-            buffer.push('\\');
             buffer.push(c);
             continue;
-        } else {
-            first = false;
-        }
-
-        if c == ' ' {
-            end_space += 1;
-            continue;
-        }
-
-        if end_space > 0 {
-            buffer.push_str(&" ".repeat(end_space));
-            end_space = 0;
         }
 
         buffer.push(c);
     }
-
-    if end_space > 0 {
-        buffer.push_str(&"\\ ".repeat(end_space));
-    }
+    buffer
 }
 pub(crate) fn unescape(elt: &str) -> String {
     if elt.is_empty() {
         return elt.to_string();
     }
 
-    if elt.find('\\').is_none() || elt.find('"').is_none() {
+    if elt.find('\\').is_none() && elt.find('"').is_none() {
         return elt.trim().to_string();
     }
 

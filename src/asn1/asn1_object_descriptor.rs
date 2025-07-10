@@ -1,9 +1,4 @@
-use std::hash::{Hash, Hasher};
+use std::hash::{Hash};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct Asn1ObjectDescriptor {}
-impl Hash for Asn1ObjectDescriptor {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        todo!();
-    }
-}

@@ -1,12 +1,15 @@
 use crate::Result;
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
+use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_universal_type::Asn1UniversalType;
+use crate::asn1::primitive_encoding::PrimitiveEncoding;
 use crate::asn1::try_from_tagged::TryFromTagged;
-use crate::asn1::{Asn1Object, Asn1OctetString, Asn1String, Asn1TaggedObject};
+use crate::asn1::{Asn1Object, Asn1OctetString, Asn1String, Asn1TaggedObject, EncodingType, asn1_tags};
 
 /// IA5String object - this is an Ascii string.
 #[derive(Clone, Debug, Hash)]
 pub struct Asn1Ia5String {
-    contents: String,
+    content: String,
 }
 
 impl Asn1Ia5String {
@@ -14,7 +17,7 @@ impl Asn1Ia5String {
         if !Self::is_ia5_string(&contents) {
             return Err(crate::BcError::with_invalid_argument("Invalid IA5String content"));
         }
-        Ok(Asn1Ia5String { contents })
+        Ok(Asn1Ia5String { content: contents })
     }
     pub fn with_str(s: &str) -> Result<Self> {
         Asn1Ia5String::new(s.to_string())
@@ -30,7 +33,7 @@ impl Asn1Ia5String {
 
 impl Asn1String for Asn1Ia5String {
     fn to_asn1_string(&self) -> Result<String> {
-        Ok(self.contents.clone())
+        Ok(self.content.clone())
     }
 }
 impl TryFromTagged for Asn1Ia5String {
@@ -41,7 +44,15 @@ impl TryFromTagged for Asn1Ia5String {
         tagged.try_from_base_universal(declared_explicit, Asn1Ia5StringMetadata)
     }
 }
-
+impl Asn1EncodingInternal for Asn1Ia5String {
+    fn get_encoding(&self, _: EncodingType) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(
+            asn1_tags::UNIVERSAL,
+            asn1_tags::IA5_STRING,
+            self.content.as_bytes().to_vec(),
+        ))
+    }
+}
 struct Asn1Ia5StringMetadata;
 impl Asn1UniversalType<Asn1Ia5String> for Asn1Ia5StringMetadata {
     fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1Ia5String> {

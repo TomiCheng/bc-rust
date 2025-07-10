@@ -1,4 +1,3 @@
-use crate::Result;
 use crate::asn1::Asn1Object;
 use std::ops::Index;
 
@@ -26,10 +25,6 @@ impl Asn1EncodableVector {
     }
     pub(crate) fn len(&self) -> usize {
         self.elements.len()
-    }
-    pub(crate) fn optional_tagged(&mut self, is_explicit: bool, tag_no: u8, asn1_object: &Asn1Object) -> Result<()> {
-        //self.elements.push(Asn1Object::from(Asn1TaggedObject::with_context_specific(is_explicit, tag_no, asn1_object.clone())))
-        todo!()
     }
 }
 

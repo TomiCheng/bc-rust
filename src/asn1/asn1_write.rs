@@ -77,7 +77,7 @@ impl<'a> Asn1Write<'a> {
             pos -= 1;
             pos as usize
         }] = (count | 0x80) as u8;
-        length += self.writer.write(&stack[(pos as usize)..(pos as usize + count)])?;
+        length += self.writer.write(&stack[(pos as usize)..(pos as usize + count + 1)])?;
         Ok(length)
     }
     pub(crate) fn write(&mut self, bytes: &[u8]) -> Result<usize> {
@@ -109,9 +109,8 @@ pub(crate) fn get_length_of_identifier(tag_no: u8) -> usize {
     }
     let mut length = 2;
     let mut tag_no = tag_no;
-    while tag_no > 0 {
+    while { tag_no >>= 7; tag_no } > 0 {
         length += 1;
-        tag_no >>= 7;
     }
     length
 }
@@ -121,9 +120,8 @@ pub(crate) fn get_length_of_dl(contents_length: usize) -> usize {
     }
     let mut length = 2;
     let mut contents_length = contents_length;
-    while contents_length > 0 {
+    while { contents_length >>= 8; contents_length } > 0 {
         length += 1;
-        contents_length >>= 8;
     }
     length
 }

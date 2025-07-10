@@ -173,7 +173,7 @@ impl Asn1EncodingInternal for Asn1Object {
             Asn1Object::PrintableString(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::T61String(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::VideotexString(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::Ia5String(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::Ia5String(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::UtcTime(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::GeneralizedTime(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::GraphicString(obj) => obj.get_encoding(encoding_type),

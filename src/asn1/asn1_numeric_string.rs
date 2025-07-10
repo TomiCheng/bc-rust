@@ -1,9 +1,5 @@
-use std::hash::{Hash, Hasher};
+use std::hash::{Hash};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct Asn1NumericString {}
-impl Hash for Asn1NumericString {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        todo!();
-    }
-}
+

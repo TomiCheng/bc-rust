@@ -77,7 +77,7 @@ where
 
 pub(crate) fn read_context_iter<TResult, TState, TFunc>(
     iter: &mut Peekable<IntoIter<Asn1Object>>,
-    tag_no: u8,
+    _tag_no: u8,
     state: TState,
     func: TFunc,
 ) -> Result<TResult>

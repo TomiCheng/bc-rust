@@ -286,5 +286,7 @@ mod tests {
             }
         }
     }
-    fn check_attribute_certificate(id: usize, certificate_buffer: &[u8]) {}
+    fn check_attribute_certificate(_id: usize, _certificate_buffer: &[u8]) {
+        todo!()
+    }
 }

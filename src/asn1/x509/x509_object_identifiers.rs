@@ -34,6 +34,7 @@ define_oid!(INITIALS, ATTRIBUTE_TYPE, "43", "initials");
 define_oid!(GENERATION, ATTRIBUTE_TYPE, "44", "generation");
 define_oid!(UNIQUE_IDENTIFIER, ATTRIBUTE_TYPE, "45", "unique identifier");
 define_oid!(DN_QUALIFIER, ATTRIBUTE_TYPE, "46", "DN qualifier");
+define_oid!(DMD_NAME, ATTRIBUTE_TYPE, "54", "RFC 2256 dmdName");
 define_oid!(PSEUDONYM, ATTRIBUTE_TYPE, "65", "pseudonym");
 define_oid!(ROLE, ATTRIBUTE_TYPE, "72", "role");
 define_oid!(ORGANIZATION_IDENTIFIER, ATTRIBUTE_TYPE, "97", "");
@@ -84,7 +85,7 @@ define_oid!(CRL_ACCESS_METHOD, ID_AD, "1", "");
 define_oid!(ID_CE, "2.5.29", "");
 define_oid!(NAME_AT_BIRTH, "1.3.36.8.3.14", "ISIS-MTT NameAtBirth - DirectoryString(SIZE(1..64)");
 define_oid!(DC, "0.9.2342.19200300.100.1.25", "others");
-define_oid!(UID, "0.9.2342.19200300.100.1.25", "LDAP User id.");
+define_oid!(UID, "0.9.2342.19200300.100.1.1", "LDAP User id.");
 define_oid!(
     JURISDICTION_L,
     "1.3.6.1.4.1.311.60.2.1.1",
