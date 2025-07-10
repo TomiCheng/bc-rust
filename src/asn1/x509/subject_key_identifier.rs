@@ -12,6 +12,9 @@ impl SubjectKeyIdentifier {
     pub fn with_octet_string(octet_string: Asn1OctetString) -> Result<Self> {
         Ok(Self::new(octet_string.into_vec()))
     }
+    pub fn key_identifier(&self) -> &[u8] {
+        &self.key_identifier
+    }
 }
 impl TryFrom<Asn1Object> for SubjectKeyIdentifier {
     type Error = BcError;

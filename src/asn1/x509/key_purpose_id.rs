@@ -7,4 +7,7 @@ impl KeyPurposeId {
     pub fn new(content: Asn1ObjectIdentifier) -> Self {
         Self { content }
     }
+    pub fn content(&self) -> &Asn1ObjectIdentifier {
+        &self.content
+    }
 }
