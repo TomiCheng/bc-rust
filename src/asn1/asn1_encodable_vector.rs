@@ -20,7 +20,7 @@ impl Asn1EncodableVector {
             elements: Vec::with_capacity(initial_capacity),
         }
     }
-    pub(crate) fn add(&mut self, element: Asn1Object) {
+    pub(crate) fn push(&mut self, element: Asn1Object) {
         self.elements.push(element);
     }
     pub(crate) fn get_elements(&self) -> &[Asn1Object] {

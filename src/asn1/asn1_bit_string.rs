@@ -89,12 +89,14 @@ impl Asn1BitString {
 }
 impl Asn1EncodingInternal for Asn1BitString {
     fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
+        self.get_encoding_implicit(encoding_type, UNIVERSAL, BIT_STRING)
+    }
+    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
         let mut contents = vec![0u8; 1 + self.contents.len()];
         contents[0] = self.pad_bits;
         contents[1..].copy_from_slice(&self.contents);
 
         if encoding_type == EncodingType::Der && self.pad_bits != 0 {
-            // let last = self.contents.len();
             let last_ber = self.contents[self.contents.len() - 1];
             let last_der = last_ber & (0xFF << self.pad_bits);
             if last_ber != last_der {
@@ -102,7 +104,7 @@ impl Asn1EncodingInternal for Asn1BitString {
                 return Box::new(PrimitiveEncodingSuffixed::new(UNIVERSAL, BIT_STRING, contents, last_der));
             }
         }
-        Box::new(PrimitiveEncoding::new(UNIVERSAL, BIT_STRING, contents))
+        Box::new(PrimitiveEncoding::new(tag_class, tag_no, contents))
     }
 }
 impl TryFromTagged for Asn1BitString {

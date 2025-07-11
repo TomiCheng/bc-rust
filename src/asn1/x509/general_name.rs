@@ -114,3 +114,12 @@ impl TryFromTagged for GeneralName {
         try_from_choice_tagged(tagged, declared_explicit, GeneralName::try_from)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::asn1::x509::GeneralName;
+
+    fn check_ip_address_encoding(input_ipv4: &str) {
+
+    }
+}

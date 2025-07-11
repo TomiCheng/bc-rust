@@ -60,10 +60,13 @@ impl fmt::Display for Asn1PrintableString {
     }
 }
 impl Asn1EncodingInternal for Asn1PrintableString {
-    fn get_encoding(&self, _: EncodingType) -> Box<dyn Asn1Encoding> {
+    fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
+        self.get_encoding_implicit(encoding_type, asn1_tags::UNIVERSAL, asn1_tags::PRINTABLE_STRING)
+    }
+    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
         Box::new(PrimitiveEncoding::new(
-            asn1_tags::UNIVERSAL,
-            asn1_tags::PRINTABLE_STRING,
+            tag_class,
+            tag_no,
             self.contents.as_bytes().to_vec(),
         ))
     }

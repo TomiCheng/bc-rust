@@ -81,8 +81,15 @@ impl Hash for Asn1RelativeOid {
     }
 }
 impl Asn1EncodingInternal for Asn1RelativeOid {
-    fn get_encoding(&self, _: EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(UNIVERSAL, RELATIVE_OID, self.contents.clone()))
+    fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
+        self.get_encoding_implicit(encoding_type, UNIVERSAL, RELATIVE_OID)
+    }
+    fn get_encoding_implicit(&self, _encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(
+            tag_class,
+            tag_no,
+            self.contents.clone(),
+        ))
     }
 }
 impl fmt::Display for Asn1RelativeOid {

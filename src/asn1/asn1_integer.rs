@@ -83,7 +83,14 @@ impl Display for Asn1Integer {
 }
 impl Asn1EncodingInternal for Asn1Integer {
     fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(UNIVERSAL, INTEGER, self.get_content(encoding_type)))
+        self.get_encoding_implicit(encoding_type, UNIVERSAL, INTEGER)
+    }
+    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(
+            tag_class,
+            tag_no,
+            self.get_content(encoding_type),
+        ))
     }
 }
 impl TryFromTagged for Asn1Integer {

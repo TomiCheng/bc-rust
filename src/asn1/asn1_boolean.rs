@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::asn1::EncodingType;
+use crate::asn1::{asn1_tags, EncodingType};
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{BOOLEAN, UNIVERSAL};
@@ -37,7 +37,10 @@ impl fmt::Display for Asn1Boolean {
 }
 impl Asn1EncodingInternal for Asn1Boolean {
     fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
-        Box::new(PrimitiveEncoding::new(UNIVERSAL, BOOLEAN, self.get_content(encoding_type)))
+        self.get_encoding_implicit(encoding_type, UNIVERSAL, BOOLEAN)
+    }
+    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
+        Box::new(PrimitiveEncoding::new(tag_class, tag_no, self.get_content(encoding_type)))
     }
 }
 

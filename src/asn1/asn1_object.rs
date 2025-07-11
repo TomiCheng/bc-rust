@@ -74,6 +74,9 @@ impl Asn1Object {
     pub fn is_generalized_time(&self) -> bool {
         matches!(self, Asn1Object::GeneralizedTime(_))
     }
+    pub fn is_octet_string(&self) -> bool {
+        matches!(self, Asn1Object::OctetString(_))
+    }
     pub fn as_boolean(&self) -> Option<&Asn1Boolean> {
         match self {
             Asn1Object::Boolean(obj) => Some(obj),
@@ -159,7 +162,7 @@ impl Asn1EncodingInternal for Asn1Object {
             Asn1Object::Boolean(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Integer(obj) => obj.get_encoding(encoding_type),
             Asn1Object::BitString(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::OctetString(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::OctetString(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::Null(obj) => obj.get_encoding(encoding_type),
             Asn1Object::ObjectIdentifier(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::ObjectDescriptor(obj) => obj.get_encoding(encoding_type),
@@ -181,6 +184,33 @@ impl Asn1EncodingInternal for Asn1Object {
             // Asn1Object::GeneralString(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::UniversalString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::BmpString(obj) => obj.get_encoding(encoding_type),
+            _ => {
+                todo!("Encoding not implemented for {:?}", self);
+            }
+        }
+    }
+
+    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
+        match self {
+            Asn1Object::Boolean(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::Integer(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::BitString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::OctetString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            // Asn1Object::Null(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::ObjectIdentifier(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            // Asn1Object::ObjectDescriptor(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            // Asn1Object::External(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            // Asn1Object::Enumerated(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::Utf8String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::RelativeOid(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::Sequence(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::Set(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            // Asn1Object::NumericString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::PrintableString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            // Asn1Object::T61String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            // Asn1Object::VideotexString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::Ia5String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            // Asn1Object::UtcTime(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             _ => {
                 todo!("Encoding not implemented for {:?}", self);
             }

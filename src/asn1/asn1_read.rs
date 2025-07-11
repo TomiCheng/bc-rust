@@ -173,7 +173,7 @@ impl<'a> Asn1Read<'a> {
     fn read_vector(&mut self) -> Result<Asn1EncodableVector> {
         let mut vector = Asn1EncodableVector::empty();
         while let Some(o) = self.read_object()? {
-            vector.add(o);
+            vector.push(o);
         }
         Ok(vector)
     }

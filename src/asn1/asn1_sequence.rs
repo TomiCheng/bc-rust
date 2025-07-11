@@ -74,10 +74,13 @@ impl TryFromTagged for Asn1Sequence {
 }
 impl Asn1EncodingInternal for Asn1Sequence {
     fn get_encoding(&self, _: EncodingType) -> Box<dyn Asn1Encoding> {
+        self.get_encoding_implicit(Der, asn1_tags::UNIVERSAL, asn1_tags::SEQUENCE)
+    }
+    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
         Box::new(ConstructedDlEncoding::new(
-            asn1_tags::UNIVERSAL,
-            asn1_tags::SEQUENCE,
-            get_contents_encodings(Der, &self.elements),
+            tag_class,
+            tag_no,
+            get_contents_encodings(encoding_type, &self.elements),
         ))
     }
 }
@@ -87,5 +90,9 @@ struct Asn1SequenceMetadata;
 impl Asn1UniversalType<Asn1Sequence> for Asn1SequenceMetadata {
     fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1Sequence> {
         asn1_object.try_into()
+    }
+
+    fn implicit_constructed(&self, sequence: Asn1Sequence) -> Result<Asn1Sequence> {
+        Ok(sequence)
     }
 }

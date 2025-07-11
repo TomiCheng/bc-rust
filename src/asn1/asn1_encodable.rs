@@ -5,6 +5,7 @@ use std::io::Write;
 
 pub(crate) trait Asn1EncodingInternal {
     fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding>;
+    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding>;
 }
 
 pub trait Asn1Encodable {

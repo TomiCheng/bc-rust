@@ -46,6 +46,7 @@ mod primitive_encoding_suffixed;
 mod try_from_tagged;
 pub mod x500;
 pub mod x509;
+mod tagged_encoding;
 
 pub use asn1_bit_string::Asn1BitString;
 pub use asn1_bmp_string::Asn1BmpString;
