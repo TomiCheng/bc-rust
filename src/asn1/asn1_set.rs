@@ -5,9 +5,10 @@ use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_write::get_contents_encodings;
 use crate::asn1::constructed_dl_encoding::ConstructedDlEncoding;
 use crate::asn1::constructed_il_encoding::ConstructedIlEncoding;
-use crate::asn1::{Asn1EncodableVector, Asn1Object, EncodingType, asn1_tags};
+use crate::asn1::{Asn1EncodableVector, Asn1Object, EncodingType, asn1_tags, Asn1Encodable};
 use std::hash::{Hash, Hasher};
-#[derive(Clone, Debug)]
+use std::collections::HashMap;
+#[derive(Clone, Debug, PartialEq)]
 pub struct Asn1Set {
     elements: Vec<Asn1Object>,
 }
@@ -25,10 +26,23 @@ impl Asn1Set {
         if let Ok(set) = ans1_object.try_into() {
             return Ok(set);
         }
-        todo!()
+        Err(crate::BcError::with_invalid_format("Invalid Asn1Set format"))
     }
     pub fn get_elements(&self) -> &[Asn1Object] {
         &self.elements
+    }
+    fn create_sorted_der_encodings(&self) -> Vec<Box<dyn Asn1Encoding>> {
+        let mut map = HashMap::new();
+        for element in self.elements.iter() {
+            let encoding = element.get_encoding(Der);
+            let buffer  = element.get_der_encoded().unwrap_or_else(|_| vec![0u8; 0]);
+            map.insert(buffer, encoding);
+        }
+
+        let mut pairs: Vec<_> = map.into_iter().collect();
+        pairs.sort_by(|(a, _), (b, _)| a.cmp(b));
+        let values = pairs.into_iter().map(|(_, encoding)| encoding).collect();
+        values
     }
 }
 impl IntoIterator for Asn1Set {
@@ -62,7 +76,7 @@ impl Asn1EncodingInternal for Asn1Set {
             Der => Box::new(ConstructedDlEncoding::new(
                 asn1_tags::UNIVERSAL,
                 asn1_tags::SET,
-                get_contents_encodings(encoding_type, &self.elements),
+                self.create_sorted_der_encodings(),
             )),
         }
     }

@@ -76,7 +76,7 @@ impl PartialEq for Asn1RelativeOid {
     }
 }
 impl Hash for Asn1RelativeOid {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, _state: &mut H) {
         todo!();
     }
 }

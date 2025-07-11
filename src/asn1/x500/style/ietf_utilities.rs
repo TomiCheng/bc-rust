@@ -27,21 +27,29 @@ pub(crate) fn escape_dn_string(str: &str) -> String {
     let r_space = count - str.chars().rev().take_while(|c| *c == ' ').count();
     let mut buffer = String::new();
     let mut chars = str.char_indices();
-    let mut c1 = None;
-    let mut c2 = None;
+    let mut c1 = false;
+    let mut c2 = false;
     while let Some((i, c)) = chars.next() {
-        if i == 0 {
-            c1 = Some(c);
-        }
-        if i == 1 {
-            c2 = Some(c);
-        }
-
-        if c1 == Some('\\') && c2 == Some('#') {
-            buffer.push(c1.unwrap());
-            buffer.push(c2.unwrap());
+        if i == 0 && c == '\\' {
+            c1 = true;
             continue;
         }
+        if i == 1 && c == '#' {
+            c2 = true;
+            continue;
+        }
+
+        if c1 && c2 {
+            buffer.push_str("\\#");
+            c1 = false;
+            c2 = false;
+        }
+
+        // if c1 == Some('\\') && c2 == Some('#') {
+        //     buffer.push(c1.unwrap());
+        //     buffer.push(c2.unwrap());
+        //     continue;
+        // }
 
         if i < f_space && c == ' ' {
             buffer.push('\\');

@@ -5,7 +5,7 @@ use crate::{BcError, Result};
 use std::fmt::Display;
 use std::hash::{Hash};
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 pub struct Asn1OctetString {
     contents: Vec<u8>,
 }

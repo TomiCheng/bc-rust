@@ -3,7 +3,7 @@ use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1OctetString, Asn1Sequence, asn1_tags};
 use crate::{BcError, Result};
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 pub struct Asn1TaggedObject {
     explicitness: u8,
     tag_class: u8,
@@ -35,18 +35,18 @@ impl Asn1TaggedObject {
             object: Box::new(asn1_object),
         }
     }
-    pub(crate) fn with_context_specific(explicitness: bool, tag_no: u8, object: Asn1Object) -> Result<Self> {
-        Self::new(
-            if explicitness {
-                Self::DECLARED_EXPLICIT
-            } else {
-                Self::DECLARED_IMPLICIT
-            },
-            asn1_tags::CONTEXT_SPECIFIC,
-            tag_no,
-            object,
-        )
-    }
+    // pub(crate) fn with_context_specific(explicitness: bool, tag_no: u8, object: Asn1Object) -> Result<Self> {
+    //     Self::new(
+    //         if explicitness {
+    //             Self::DECLARED_EXPLICIT
+    //         } else {
+    //             Self::DECLARED_IMPLICIT
+    //         },
+    //         asn1_tags::CONTEXT_SPECIFIC,
+    //         tag_no,
+    //         object,
+    //     )
+    // }
     pub(crate) fn create_primitive(tag_class: u8, tag_no: u8, contents_octets: &[u8]) -> Result<Self> {
         Asn1TaggedObject::new(
             Self::PARSED_IMPLICIT,
