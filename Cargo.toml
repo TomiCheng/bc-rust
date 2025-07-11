@@ -9,3 +9,4 @@ base64= "0.22.1"
 [dependencies]
 chrono = "0"
 rand = "0"
+clap = { version = "4.5.41", features = ["derive"] }

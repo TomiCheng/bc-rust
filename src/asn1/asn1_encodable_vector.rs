@@ -9,7 +9,10 @@ impl Asn1EncodableVector {}
 
 impl Asn1EncodableVector {
     const DEFAULT_CAPACITY: usize = 10;
-    pub fn new() -> Self {
+    pub fn new(elements: Vec<Asn1Object>) -> Self {
+        Asn1EncodableVector { elements }
+    }
+    pub fn empty() -> Self {
         Self::with_capacity(Self::DEFAULT_CAPACITY)
     }
     pub(crate) fn with_capacity(initial_capacity: usize) -> Self {

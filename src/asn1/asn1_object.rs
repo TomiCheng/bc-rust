@@ -5,7 +5,7 @@ use crate::{BcError, Result};
 use std::hash::Hash;
 use std::io::Read;
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 pub enum Asn1Object {
     Boolean(Asn1Boolean),
     Integer(Asn1Integer),

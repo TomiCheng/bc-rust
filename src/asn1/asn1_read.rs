@@ -127,12 +127,9 @@ impl<'a> Asn1Read<'a> {
             return Self::read_tagged_object_dl(tag_class, tag_no, is_constructed, &mut def_reader);
         }
         match tag_no as u8 {
-            asn1_tags::SEQUENCE => Ok(Asn1Object::from(Asn1Sequence::from_vector(Self::read_vector_from_definite_length_read(
-                &mut def_reader,
-            )?)?)),
-            asn1_tags::SET => Ok(Asn1Object::from(Asn1Set::from_vector(Self::read_vector_from_definite_length_read(
-                &mut def_reader,
-            )?)?)),
+            asn1_tags::SEQUENCE => Ok(Asn1Sequence::from_vector(Self::read_vector_from_definite_length_read(&mut def_reader,)?)?.into()),
+            asn1_tags::SET => Ok(Asn1Set::from_vector(Self::read_vector_from_definite_length_read(&mut def_reader,)?)?.into()),
+            // TODO
             _ => Err(BcError::with_io_error(format!("unknown tag 0x{:X} encountered", tag_no))),
         }
     }
@@ -174,7 +171,7 @@ impl<'a> Asn1Read<'a> {
         sub_reader.read_vector()
     }
     fn read_vector(&mut self) -> Result<Asn1EncodableVector> {
-        let mut vector = Asn1EncodableVector::new();
+        let mut vector = Asn1EncodableVector::empty();
         while let Some(o) = self.read_object()? {
             vector.add(o);
         }

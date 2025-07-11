@@ -6,7 +6,7 @@ use crate::asn1::{Asn1String, EncodingType, asn1_tags};
 use std::fmt::Display;
 use std::hash::Hash;
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 pub struct Asn1Utf8String {
     content: String,
 }

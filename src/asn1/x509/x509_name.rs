@@ -373,7 +373,7 @@ impl X509Name {
         v.to_string()
     }
     fn decode_object(s: &str) -> Result<Asn1Object> {
-        let buffer = to_decode_with_str(s)?;
+        let buffer = to_decode_with_str(&s[1..])?;
         Asn1Object::with_bytes(&buffer)
     }
     fn strip_internal_space(s: &str) -> String {
@@ -577,13 +577,13 @@ static DEFAULT_LOOKUP: LazyLock<HashMap<String, Asn1ObjectIdentifier>> = LazyLoc
 #[cfg(test)]
 mod tests {
     use crate::Result;
-    use crate::asn1::EncodingType::Ber;
+    use crate::asn1::EncodingType::{Ber, Der};
     use crate::asn1::pkcs::pkcs_object_identifiers::PKCS9_AT_EMAIL_ADDRESS;
     use crate::asn1::x500::style::ietf_utilities::asn1_object_to_string;
     use crate::asn1::x509::x509_object_identifiers::*;
-    use crate::asn1::x509::{X509Name, x509_name};
-    use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1Utf8String};
-    use crate::util::encoders::hex::to_decode_with_str;
+    use crate::asn1::x509::{X509Name, x509_name, X509DefaultEntryConverter, X509NameEntryConverter};
+    use crate::asn1::{Asn1Encodable, Asn1EncodableVector, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1Utf8String};
+    use crate::util::encoders::hex::{to_decode_with_str, to_hex_string};
     use std::collections::HashMap;
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
@@ -782,7 +782,7 @@ mod tests {
         assert_eq!(values[0], "Melbourne");
     }
     #[test]
-    fn test_general_subjects() {
+    fn test_general_subjects_01() {
         const SUBJECT: [&str; 12] = [
             "C=AU,ST=Victoria,L=South Melbourne,O=Connect 4 Pty Ltd,OU=Webserver Team,CN=www2.connect4.com.au,E=webmaster@connect4.com.au",
             "C=AU,ST=Victoria,L=South Melbourne,O=Connect 4 Pty Ltd,OU=Certificate Authority,CN=Connect 4 CA,E=webmaster@connect4.com.au",
@@ -808,6 +808,139 @@ mod tests {
             let decode_subject = name.to_string();
             assert_eq!(s, decode_subject);
         }
+    }
+    #[test]
+    fn test_general_subjects_02() {
+        const HEX_SUBJECT: [&str; 4] = [
+            "CN=\\20Test\\20X,O=\\20Test,C=GB",
+            "CN=\\ Test X,O=\\ Test,C=GB",
+            "CN=\\20Test\\20X\\20,O=\\20Test,C=GB",
+            "CN=\\ Test X\\ ,O=\\ Test,C=GB",
+        ];
+
+        for chunk in HEX_SUBJECT.chunks(2) {
+            let subject = chunk[0];
+            let expected = chunk[1];
+
+            let name = X509Name::with_str(subject).unwrap();
+            let decoded_name: X509Name = Asn1Object::with_bytes(&name.get_encoded(Ber).unwrap()).unwrap().try_into().unwrap();
+            let decode_subject = decoded_name.to_string();
+            assert_eq!(expected, decode_subject);
+        }
+    }
+    #[test]
+    fn test_sort_01() {
+        let unsorted = X509Name::with_str("SERIALNUMBER=BBB + CN=AA").unwrap();
+        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap()).unwrap().try_into().unwrap();
+        assert_eq!("CN=AA+SERIALNUMBER=BBB", name.to_string());
+
+        let unsorted = X509Name::with_str("CN=AA + SERIALNUMBER=BBB").unwrap();
+        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap()).unwrap().try_into().unwrap();
+        assert_eq!("CN=AA+SERIALNUMBER=BBB", name.to_string());
+
+        let unsorted = X509Name::with_str("SERIALNUMBER=B + CN=AA").unwrap();
+        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap()).unwrap().try_into().unwrap();
+        assert_eq!("SERIALNUMBER=B+CN=AA", name.to_string());
+
+        let unsorted = X509Name::with_str("CN=AA + SERIALNUMBER=B").unwrap();
+        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap()).unwrap().try_into().unwrap();
+        assert_eq!("SERIALNUMBER=B+CN=AA", name.to_string());
+    }
+    #[test]
+    fn test_equality_01() {
+        test_equality(&X509Name::with_str("CN=The     Legion").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
+        test_equality(&X509Name::with_str("CN=   The Legion").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
+        test_equality(&X509Name::with_str("CN=The Legion   ").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
+        test_equality(&X509Name::with_str("CN=  The     Legion ").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
+        test_equality(&X509Name::with_str("CN=  the     legion ").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
+
+    }
+    #[test]
+    fn test_equality_02() {
+        let n1 = X509Name::with_str("SERIALNUMBER=8,O=ABC,CN=ABC Class 3 CA,C=LT").unwrap();
+        let n2 = X509Name::with_str("2.5.4.5=8,O=ABC,CN=ABC Class 3 CA,C=LT").unwrap();
+        let n3 = X509Name::with_str("2.5.4.5=#130138,O=ABC,CN=ABC Class 3 CA,C=LT").unwrap();
+        test_equality(&n1, &n2);
+        test_equality(&n2, &n3);
+        test_equality(&n3, &n1);
+    }
+    #[test]
+    fn test_equality_03() {
+        let n1 = X509Name::with_reverse_str(true, "2.5.4.5=#130138,CN=SSC Class 3 CA,O=UAB Skaitmeninio sertifikavimo centras,C=LT").unwrap();
+        let n2 = X509Name::with_reverse_str(true,"SERIALNUMBER=#130138,CN=SSC Class 3 CA,O=UAB Skaitmeninio sertifikavimo centras,C=LT").unwrap();
+        let n3: X509Name = Asn1Object::with_bytes(&to_decode_with_str("3063310b3009060355040613024c54312f302d060355040a132655414220536b6169746d656e696e696f20736572746966696b6176696d6f2063656e74726173311730150603550403130e53534320436c6173732033204341310a30080603550405130138").unwrap()).unwrap().try_into().unwrap();
+        test_equality(&n1, &n2);
+        test_equality(&n2, &n3);
+        test_equality(&n3, &n1);
+    }
+    #[test]
+    fn test_equality_04() {
+        let n1 = X509Name::with_str("SERIALNUMBER=8,O=XX,CN=ABC Class 3 CA,C=LT").unwrap();
+        let n2 = X509Name::with_str("2.5.4.5=8,O=,CN=ABC Class 3 CA,C=LT").unwrap();
+        assert!(!n1.equivalent(&n2));
+    }
+    #[test]
+    fn test_equality_05() {
+        let n1 = X509Name::with_str("").unwrap();
+        let n2 = X509Name::with_str("").unwrap();
+        test_equality(&n1, &n2);
+    }
+    #[test]
+    fn test_inequality_to_sequence_01() {
+        let name1: Asn1Object = X509Name::with_str("CN=The Legion").unwrap().into();
+        let sequence: Asn1Object = Asn1Sequence::new(Vec::new()).into();
+        assert_ne!(name1, sequence)
+    }
+    #[test]
+    fn test_inequality_to_sequence_02() {
+        let name1: Asn1Object = X509Name::with_str("CN=The Legion").unwrap().into();
+        let sequence: Asn1Object = Asn1Sequence::new(vec![Asn1Set::new(Vec::new()).into()]).into();
+        assert_ne!(name1, sequence)
+    }
+    #[test]
+    fn test_inequality_to_sequence_03() {
+        let name1: Asn1Object = X509Name::with_str("CN=The Legion").unwrap().into();
+        let v = Asn1EncodableVector::new(vec![
+            Asn1ObjectIdentifier::with_str("1.1").unwrap().into(),
+            Asn1ObjectIdentifier::with_str("1.1").unwrap().into(),
+        ]);
+        let sequence: Asn1Object = Asn1Sequence::new(vec![Asn1Set::new(vec![Asn1Set::from_vector(v).unwrap().into()]).into()]).into();
+        assert_ne!(name1, sequence);
+
+        let sequence: Asn1Sequence = sequence.try_into().unwrap();
+        assert!(X509Name::from_sequence(sequence).is_err());
+    }
+    #[test]
+    fn test_inequality_to_sequence_04() {
+        let name1: Asn1Object = X509Name::with_str("CN=The Legion").unwrap().into();
+        let sequence: Asn1Object = Asn1Sequence::new(vec![Asn1Set::new(vec![Asn1Sequence::empty().into()]).into()]).into();
+        assert_ne!(name1, sequence)
+    }
+    #[test]
+    fn test_escaped_01() {
+        let test_string = Asn1Utf8String::with_str("The Legion of the Bouncy Castle");
+        let encoded_bytes = test_string.get_encoded(Ber).unwrap();
+        let hex_encoded_string = format!("#{}", to_hex_string(&encoded_bytes));
+
+        let converter = X509DefaultEntryConverter;
+        let converted: Asn1Utf8String = converter.get_converted_value(&(*LOCALITY_NAME), &hex_encoded_string).unwrap().try_into().unwrap();
+        assert_eq!(test_string, converted);
+    }
+    #[test]
+    fn test_escaped_02() {
+        let test_string = Asn1Utf8String::with_str("The Legion of the Bouncy Castle");
+        let encoded_bytes = test_string.get_encoded(Ber).unwrap();
+        let hex_encoded_string = format!("#{}", to_hex_string(&encoded_bytes));
+
+
+        let converter = X509DefaultEntryConverter;
+        let converted: Asn1Utf8String = converter.get_converted_value(&(*LOCALITY_NAME), &format!("\\{}", &hex_encoded_string)).unwrap().try_into().unwrap();
+        assert_eq!(converted, Asn1Utf8String::with_str(&hex_encoded_string));
+    }
+    #[test]
+    fn test_weird_value_01() {
+        let n = X509Name::with_str("CN=\\#nothex#string").unwrap();
+        assert_eq!("CN=\\#nothex#string", n.to_string());
     }
     // TODO: Add more tests for X509Name
 
@@ -866,5 +999,9 @@ mod tests {
         let _ = iter.next().unwrap(); // type
         let value_object = iter.next().unwrap();
         Ok(value_object)
+    }
+    fn test_equality(n1: &X509Name, n2: &X509Name) {
+        assert!(n1.equivalent(n2));
+        assert!(n1.equivalent_in_order(n2, true));
     }
 }

@@ -7,7 +7,7 @@ use crate::asn1::try_from_tagged::TryFromTagged;
 use crate::asn1::{Asn1Object, Asn1OctetString, Asn1String, Asn1TaggedObject, EncodingType, asn1_tags};
 
 /// IA5String object - this is an Ascii string.
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 pub struct Asn1Ia5String {
     content: String,
 }

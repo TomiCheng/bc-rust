@@ -1,6 +1,6 @@
 use crate::asn1::Asn1String;
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq)]
 pub struct Asn1UniversalString {
     //content: String,
 }

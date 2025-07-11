@@ -3,7 +3,7 @@ use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1OctetString, Asn1Sequence, asn1_tags};
 use crate::{BcError, Result};
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 pub struct Asn1TaggedObject {
     explicitness: u8,
     tag_class: u8,

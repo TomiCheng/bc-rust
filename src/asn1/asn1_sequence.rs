@@ -10,7 +10,7 @@ use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1TaggedObject, EncodingTyp
 use std::hash::{Hash, Hasher};
 use std::ops::Index;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Asn1Sequence {
     elements: Vec<Asn1Object>,
 }
@@ -18,6 +18,9 @@ pub struct Asn1Sequence {
 impl Asn1Sequence {
     pub fn new(elements: Vec<Asn1Object>) -> Self {
         Asn1Sequence { elements }
+    }
+    pub fn empty() -> Self {
+        Asn1Sequence { elements: Vec::new() }
     }
     pub(crate) fn from_vector(vector: Asn1EncodableVector) -> Result<Asn1Sequence> {
         Ok(Asn1Sequence {

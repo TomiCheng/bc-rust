@@ -1,7 +1,7 @@
 use crate::asn1::Asn1String;
 use std::hash::{Hash};
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq)]
 pub struct Asn1T61String {
     //content: String,
 }
