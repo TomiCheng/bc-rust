@@ -581,7 +581,7 @@ mod tests {
     use crate::asn1::pkcs::pkcs_object_identifiers::PKCS9_AT_EMAIL_ADDRESS;
     use crate::asn1::x500::style::ietf_utilities::asn1_object_to_string;
     use crate::asn1::x509::x509_object_identifiers::*;
-    use crate::asn1::x509::{X509Name, x509_name, X509DefaultEntryConverter, X509NameEntryConverter};
+    use crate::asn1::x509::{X509DefaultEntryConverter, X509Name, X509NameEntryConverter, x509_name};
     use crate::asn1::{Asn1Encodable, Asn1EncodableVector, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1Utf8String};
     use crate::util::encoders::hex::{to_decode_with_str, to_hex_string};
     use std::collections::HashMap;
@@ -794,10 +794,12 @@ mod tests {
             "CN=*.canal-plus.com,OU=Provided by TBS INTERNET https://www.tbs-certificats.com/,OU=\\ CANAL \\+,O=CANAL\\+DISTRIBUTION,L=issy les moulineaux,ST=Hauts de Seine,C=FR",
             "O=Bouncy Castle,CN=www.bouncycastle.org\\ ",
             "O=Bouncy Castle,CN=c:\\\\fred\\\\bob",
-            concat!("C=0,O=1,OU=2,T=3,CN=4,SERIALNUMBER=5,STREET=6,SERIALNUMBER=7,L=8,ST=9,SURNAME=10,GIVENNAME=11,INITIALS=12,",
-            "GENERATION=13,UniqueIdentifier=14,BusinessCategory=15,PostalCode=16,DN=17,Pseudonym=18,PlaceOfBirth=19,",
-            "Gender=20,CountryOfCitizenship=21,CountryOfResidence=22,NameAtBirth=23,PostalAddress=24,2.5.4.54=25,",
-            "TelephoneNumber=26,Name=27,E=28,unstructuredName=29,unstructuredAddress=30,E=31,DC=32,UID=33"),
+            concat!(
+                "C=0,O=1,OU=2,T=3,CN=4,SERIALNUMBER=5,STREET=6,SERIALNUMBER=7,L=8,ST=9,SURNAME=10,GIVENNAME=11,INITIALS=12,",
+                "GENERATION=13,UniqueIdentifier=14,BusinessCategory=15,PostalCode=16,DN=17,Pseudonym=18,PlaceOfBirth=19,",
+                "Gender=20,CountryOfCitizenship=21,CountryOfResidence=22,NameAtBirth=23,PostalAddress=24,2.5.4.54=25,",
+                "TelephoneNumber=26,Name=27,E=28,unstructuredName=29,unstructuredAddress=30,E=31,DC=32,UID=33"
+            ),
             "C=DE,L=Berlin,O=Wohnungsbaugenossenschaft \\\"Humboldt-Universit酹\\\" eG,CN=transfer.wbg-hub.de",
         ];
 
@@ -848,12 +850,26 @@ mod tests {
     }
     #[test]
     fn test_equality_01() {
-        test_equality(&X509Name::with_str("CN=The     Legion").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
-        test_equality(&X509Name::with_str("CN=   The Legion").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
-        test_equality(&X509Name::with_str("CN=The Legion   ").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
-        test_equality(&X509Name::with_str("CN=  The     Legion ").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
-        test_equality(&X509Name::with_str("CN=  the     legion ").unwrap(), &X509Name::with_str("CN=The Legion").unwrap());
-
+        test_equality(
+            &X509Name::with_str("CN=The     Legion").unwrap(),
+            &X509Name::with_str("CN=The Legion").unwrap(),
+        );
+        test_equality(
+            &X509Name::with_str("CN=   The Legion").unwrap(),
+            &X509Name::with_str("CN=The Legion").unwrap(),
+        );
+        test_equality(
+            &X509Name::with_str("CN=The Legion   ").unwrap(),
+            &X509Name::with_str("CN=The Legion").unwrap(),
+        );
+        test_equality(
+            &X509Name::with_str("CN=  The     Legion ").unwrap(),
+            &X509Name::with_str("CN=The Legion").unwrap(),
+        );
+        test_equality(
+            &X509Name::with_str("CN=  the     legion ").unwrap(),
+            &X509Name::with_str("CN=The Legion").unwrap(),
+        );
     }
     #[test]
     fn test_equality_02() {
@@ -867,7 +883,11 @@ mod tests {
     #[test]
     fn test_equality_03() {
         let n1 = X509Name::with_reverse_str(true, "2.5.4.5=#130138,CN=SSC Class 3 CA,O=UAB Skaitmeninio sertifikavimo centras,C=LT").unwrap();
-        let n2 = X509Name::with_reverse_str(true,"SERIALNUMBER=#130138,CN=SSC Class 3 CA,O=UAB Skaitmeninio sertifikavimo centras,C=LT").unwrap();
+        let n2 = X509Name::with_reverse_str(
+            true,
+            "SERIALNUMBER=#130138,CN=SSC Class 3 CA,O=UAB Skaitmeninio sertifikavimo centras,C=LT",
+        )
+        .unwrap();
         let n3: X509Name = Asn1Object::with_bytes(&to_decode_with_str("3063310b3009060355040613024c54312f302d060355040a132655414220536b6169746d656e696e696f20736572746966696b6176696d6f2063656e74726173311730150603550403130e53534320436c6173732033204341310a30080603550405130138").unwrap()).unwrap().try_into().unwrap();
         test_equality(&n1, &n2);
         test_equality(&n2, &n3);
@@ -923,7 +943,11 @@ mod tests {
         let hex_encoded_string = format!("#{}", to_hex_string(&encoded_bytes));
 
         let converter = X509DefaultEntryConverter;
-        let converted: Asn1Utf8String = converter.get_converted_value(&(*LOCALITY_NAME), &hex_encoded_string).unwrap().try_into().unwrap();
+        let converted: Asn1Utf8String = converter
+            .get_converted_value(&(*LOCALITY_NAME), &hex_encoded_string)
+            .unwrap()
+            .try_into()
+            .unwrap();
         assert_eq!(test_string, converted);
     }
     #[test]
@@ -932,18 +956,67 @@ mod tests {
         let encoded_bytes = test_string.get_encoded(Ber).unwrap();
         let hex_encoded_string = format!("#{}", to_hex_string(&encoded_bytes));
 
-
         let converter = X509DefaultEntryConverter;
-        let converted: Asn1Utf8String = converter.get_converted_value(&(*LOCALITY_NAME), &format!("\\{}", &hex_encoded_string)).unwrap().try_into().unwrap();
+        let converted: Asn1Utf8String = converter
+            .get_converted_value(&(*LOCALITY_NAME), &format!("\\{}", &hex_encoded_string))
+            .unwrap()
+            .try_into()
+            .unwrap();
         assert_eq!(converted, Asn1Utf8String::with_str(&hex_encoded_string));
     }
     #[test]
     fn test_weird_value_01() {
         let n = X509Name::with_str("CN=\\#nothex#string").unwrap();
         assert_eq!("CN=\\#nothex#string", n.to_string());
-    }
-    // TODO: Add more tests for X509Name
 
+        let values = n.values_by_oid(&(*COMMON_NAME));
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0], "#nothex#string");
+    }
+    #[test]
+    fn test_weird_value_02() {
+        let n = X509Name::with_str("CN=\"a+b\"").unwrap();
+        let values = n.values_by_oid(&(*COMMON_NAME));
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0], "a+b");
+    }
+    #[test]
+    fn test_weird_value_03() {
+        let n = X509Name::with_str("CN=a\\+b").unwrap();
+        let values = n.values_by_oid(&(*COMMON_NAME));
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0], "a+b");
+        assert_eq!("CN=a\\+b", n.to_string());
+    }
+    #[test]
+    fn test_weird_value_04() {
+        let n = X509Name::with_str("CN=a\\=b").unwrap();
+        let values = n.values_by_oid(&(*COMMON_NAME));
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0], "a=b");
+        assert_eq!("CN=a\\=b", n.to_string());
+    }
+    #[test]
+    fn test_weird_value_05() {
+        let n = X509Name::with_str("TELEPHONENUMBER=\"+61999999999\"").unwrap();
+        let values = n.values_by_oid(&(*TELEPHONE_NUMBER));
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0], "+61999999999");
+    }
+    #[test]
+    fn test_weird_value_06() {
+        let n = X509Name::with_str("TELEPHONENUMBER=\\+61999999999").unwrap();
+        let values = n.values_by_oid(&(*TELEPHONE_NUMBER));
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0], "+61999999999");
+    }
+    #[test]
+    fn test_weird_value_07() {
+        let n = X509Name::with_str("TELEPHONENUMBER=\\+61999999999").unwrap();
+        let values = n.values_by_oid(&(*TELEPHONE_NUMBER));
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0], "+61999999999");
+    }
     fn do_test_encoding_printable_string(oid: &Asn1ObjectIdentifier, value: &str) {
         let converted = create_entry_value(oid, value).unwrap();
         assert!(converted.is_printable_string());
