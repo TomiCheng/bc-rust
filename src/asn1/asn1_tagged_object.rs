@@ -4,7 +4,7 @@ use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1OctetString, Asn1Sequence
 use crate::{BcError, Result};
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
-use crate::asn1::tagged_encoding::TaggedEncoding;
+use crate::asn1::tagged_der_encoding::TaggedDerEncoding;
 
 #[derive(Clone, Debug, Hash, PartialEq)]
 pub struct Asn1TaggedObject {
@@ -149,7 +149,11 @@ impl Asn1EncodingInternal for Asn1TaggedObject {
             return base_object.get_encoding_implicit(encoding_type, self.tag_class, self.tag_no);
         }
 
-        Box::new(TaggedEncoding::new(self.tag_class, self.tag_no, base_object.get_encoding(encoding_type)))
+        match encoding_type {
+            EncodingType::Der => Box::new(TaggedDerEncoding::new(self.tag_class, self.tag_no, base_object.get_encoding(encoding_type))),
+            EncodingType::Ber => Box::new(TaggedDerEncoding::new(self.tag_class, self.tag_no, base_object.get_encoding(encoding_type))),
+            EncodingType::Dl => Box::new(TaggedDerEncoding::new(self.tag_class, self.tag_no, base_object.get_encoding(encoding_type))),
+        }
     }
 
     fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
@@ -157,6 +161,6 @@ impl Asn1EncodingInternal for Asn1TaggedObject {
         if !self.is_explicit() {
             return base_object.get_encoding_implicit(encoding_type, tag_class, tag_no);
         }
-        Box::new(TaggedEncoding::new(tag_class, tag_no, base_object.get_encoding(encoding_type)))
+        Box::new(TaggedDerEncoding::new(tag_class, tag_no, base_object.get_encoding(encoding_type)))
     }
 }
