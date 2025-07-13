@@ -163,7 +163,7 @@ impl Asn1EncodingInternal for Asn1Object {
             Asn1Object::Integer(obj) => obj.get_encoding(encoding_type),
             Asn1Object::BitString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::OctetString(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::Null(obj) => obj.get_encoding(encoding_type),
+            //Asn1Object::Null(obj) => obj.get_encoding(encoding_type),
             Asn1Object::ObjectIdentifier(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::ObjectDescriptor(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::External(obj) => obj.get_encoding(encoding_type),
@@ -184,6 +184,7 @@ impl Asn1EncodingInternal for Asn1Object {
             // Asn1Object::GeneralString(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::UniversalString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::BmpString(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::Tagged(obj) => obj.get_encoding(encoding_type),
             _ => {
                 todo!("Encoding not implemented for {:?}", self);
             }

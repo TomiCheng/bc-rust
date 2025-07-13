@@ -60,7 +60,7 @@ pub fn is_valid_ipv6(address: &str) -> bool {
             }
 
             if end == 0 {
-                if pos != 1 && pos != length && double_colon_found {
+                if pos != 1 && pos != (length - 1) && double_colon_found {
                     return false; // Multiple double colons not allowed
                 }
                 double_colon_found = true;

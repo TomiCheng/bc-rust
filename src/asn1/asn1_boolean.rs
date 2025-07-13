@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::asn1::{asn1_tags, EncodingType};
+use crate::asn1::{EncodingType};
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_tags::{BOOLEAN, UNIVERSAL};
