@@ -60,11 +60,12 @@ impl Asn1Set {
         values
     }
 }
-impl Iterator for Asn1Set {
+impl IntoIterator for Asn1Set {
     type Item = Asn1Object;
+    type IntoIter = std::vec::IntoIter<Asn1Object>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.elements.pop()
+    fn into_iter(self) -> Self::IntoIter {
+        self.elements.into_iter()
     }
 }
 impl FromIterator<Asn1Object> for Asn1Set {

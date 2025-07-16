@@ -1,5 +1,5 @@
 use crate::asn1::asn1_encodable::Asn1EncodingInternal;
-use crate::asn1::{Asn1GeneralString, EncodingType};
+use crate::asn1::{EncodingType};
 use crate::asn1::asn1_encoding::Asn1Encoding;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
