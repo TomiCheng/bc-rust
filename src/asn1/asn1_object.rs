@@ -5,7 +5,7 @@ use crate::{BcError, Result};
 use std::hash::Hash;
 use std::io::Read;
 
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Asn1Object {
     Boolean(Asn1Boolean),
     Integer(Asn1Integer),
@@ -163,9 +163,9 @@ impl Asn1EncodingInternal for Asn1Object {
             Asn1Object::Integer(obj) => obj.get_encoding(encoding_type),
             Asn1Object::BitString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::OctetString(obj) => obj.get_encoding(encoding_type),
-            //Asn1Object::Null(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::Null(obj) => obj.get_encoding(encoding_type),
             Asn1Object::ObjectIdentifier(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::ObjectDescriptor(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::ObjectDescriptor(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::External(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::Enumerated(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Utf8String(obj) => obj.get_encoding(encoding_type),
@@ -174,7 +174,7 @@ impl Asn1EncodingInternal for Asn1Object {
             Asn1Object::Set(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::NumericString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::PrintableString(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::T61String(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::T61String(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::VideotexString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Ia5String(obj) => obj.get_encoding(encoding_type),
             // Asn1Object::UtcTime(obj) => obj.get_encoding(encoding_type),
@@ -197,9 +197,9 @@ impl Asn1EncodingInternal for Asn1Object {
             Asn1Object::Integer(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             Asn1Object::BitString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             Asn1Object::OctetString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            // Asn1Object::Null(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::Null(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             Asn1Object::ObjectIdentifier(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            // Asn1Object::ObjectDescriptor(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::ObjectDescriptor(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             // Asn1Object::External(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             // Asn1Object::Enumerated(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             Asn1Object::Utf8String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
@@ -208,7 +208,7 @@ impl Asn1EncodingInternal for Asn1Object {
             Asn1Object::Set(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             // Asn1Object::NumericString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             Asn1Object::PrintableString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            // Asn1Object::T61String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::T61String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             // Asn1Object::VideotexString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             Asn1Object::Ia5String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             // Asn1Object::UtcTime(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),

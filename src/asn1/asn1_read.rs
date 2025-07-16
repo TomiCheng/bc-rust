@@ -240,3 +240,34 @@ fn create_der_bmp_string(def_in: &mut DefiniteLengthRead) -> Result<Asn1BmpStrin
 
     Ok(Asn1BmpString::new(String::from_utf16(&chars)?))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_read_object_01() {
+        let data = vec![0x30, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+        let length = data.len();
+        let mut reader = Cursor::new(data);
+        let mut asn1_reader = Asn1Read::new(&mut reader, length);
+        assert!(asn1_reader.read_object().is_err());
+    }
+    #[test]
+    fn test_read_object_02() {
+        let data = vec![0x30, 0x84, 0xFF, 0xFF, 0xFF, 0xFF];
+        let length = data.len();
+        let mut reader = Cursor::new(data);
+        let mut asn1_reader = Asn1Read::new(&mut reader, length);
+        assert!(asn1_reader.read_object().is_err());
+    }
+    #[test]
+    fn test_read_object_03() {
+        let data = vec![0x30, 0x83, 0x0F, 0xFF, 0xFF];
+        let length = data.len();
+        let mut reader = Cursor::new(data);
+        let mut asn1_reader = Asn1Read::new(&mut reader, length);
+        assert!(asn1_reader.read_object().is_err());
+    }
+}

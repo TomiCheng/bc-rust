@@ -9,7 +9,7 @@ use crate::math::BigInteger;
 use crate::{BcError, Result};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct Asn1Integer {
     value: BigInteger,
 }

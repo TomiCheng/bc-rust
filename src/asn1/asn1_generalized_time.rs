@@ -3,7 +3,7 @@ use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use std::fmt;
 use std::hash::Hash;
 /// GeneralizedTime ASN.1 type
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq)]
 pub struct Asn1GeneralizedTime {
     date_time: DateTime<Utc>,
     time_string_canonical: bool,

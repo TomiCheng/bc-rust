@@ -8,7 +8,7 @@ use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::primitive_encoding::PrimitiveEncoding;
 
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Asn1OctetString {
     contents: Vec<u8>,
 }

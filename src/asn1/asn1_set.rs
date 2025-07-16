@@ -5,10 +5,13 @@ use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::asn1_write::get_contents_encodings;
 use crate::asn1::constructed_dl_encoding::ConstructedDlEncoding;
 use crate::asn1::constructed_il_encoding::ConstructedIlEncoding;
-use crate::asn1::{Asn1Encodable, Asn1EncodableVector, Asn1Object, EncodingType, asn1_tags};
+use crate::asn1::{Asn1Encodable, Asn1EncodableVector, Asn1Object, EncodingType, asn1_tags, Asn1Sequence};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-#[derive(Clone, Debug, PartialEq)]
+use crate::asn1::asn1_universal_type::Asn1UniversalType;
+use crate::asn1::try_from_tagged::TryFromTagged;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Asn1Set {
     elements: Vec<Asn1Object>,
 }
@@ -57,12 +60,22 @@ impl Asn1Set {
         values
     }
 }
-impl IntoIterator for Asn1Set {
+impl Iterator for Asn1Set {
     type Item = Asn1Object;
-    type IntoIter = std::vec::IntoIter<Asn1Object>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.elements.into_iter()
+    fn next(&mut self) -> Option<Self::Item> {
+        self.elements.pop()
+    }
+}
+impl FromIterator<Asn1Object> for Asn1Set {
+    fn from_iter<T: IntoIterator<Item = Asn1Object>>(iter: T) -> Self {
+        let elements: Vec<Asn1Object> = iter.into_iter().collect();
+        Asn1Set::new(elements)
+    }
+}
+impl TryFromTagged for Asn1Set {
+    fn try_from_tagged(tagged: crate::asn1::Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
+        tagged.try_from_base_universal(declared_explicit, Asn1SetMetadata)
     }
 }
 impl Hash for Asn1Set {
@@ -109,7 +122,17 @@ impl Asn1EncodingInternal for Asn1Set {
         }
     }
 }
+struct Asn1SetMetadata;
 
+impl Asn1UniversalType<Asn1Set> for Asn1SetMetadata {
+    fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1Set> {
+        asn1_object.try_into()
+    }
+
+    fn implicit_constructed(&self, sequence: Asn1Sequence) -> Result<Asn1Set> {
+        Ok(sequence.to_asn1_set())
+    }
+}
 #[cfg(test)]
 mod tests {
     use crate::asn1::EncodingType::Der;

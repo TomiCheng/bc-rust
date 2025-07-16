@@ -1,5 +1,5 @@
 use std::hash::{Hash};
 
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Asn1NumericString {}
 

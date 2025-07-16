@@ -8,7 +8,7 @@ use crate::asn1::{Asn1Object, Asn1OctetString, Asn1String, Asn1TaggedObject, Enc
 use crate::asn1::asn1_tags::{IA5_STRING, UNIVERSAL};
 
 /// IA5String object - this is an Ascii string.
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Asn1Ia5String {
     content: String,
 }

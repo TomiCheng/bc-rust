@@ -30,15 +30,26 @@ impl Time {
             Time::GeneralizedTime(generalized_time) => Ok(generalized_time.to_date_time()),
         }
     }
-    pub(crate) fn from_asn1_object(asn1_object: Asn1Object) -> Result<Self> {
-        match asn1_object {
-            Asn1Object::UtcTime(utc_time) => Time::from_asn1_utc_time(utc_time),
-            Asn1Object::GeneralizedTime(generalized_time) => Ok(Time::from_asn1_generalized_time(generalized_time)),
-            _ => Err(crate::BcError::with_invalid_format("Invalid time format")),
+}
+impl From<Time> for Asn1Object {
+    fn from(value: Time) -> Self {
+        match value {
+            Time::UtcTime(utc_time) => Asn1Object::UtcTime(utc_time),
+            Time::GeneralizedTime(generalized_time) => Asn1Object::GeneralizedTime(generalized_time),
         }
     }
 }
+impl TryFrom<Asn1Object> for Time {
+    type Error = crate::BcError;
 
+    fn try_from(value: Asn1Object) -> Result<Self> {
+        match value {
+            Asn1Object::UtcTime(utc_time) => Ok(Time::from_asn1_utc_time(utc_time)?),
+            Asn1Object::GeneralizedTime(generalized_time) => Ok(Time::from_asn1_generalized_time(generalized_time)),
+            _ => Err(crate::BcError::with_invalid_format("expected Asn1Object to be a time")),
+        }
+    }
+}
 impl fmt::Display for Time {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

@@ -26,7 +26,7 @@ static RADIX_10: LazyLock<BigInteger> = LazyLock::new(|| (*SMALL_CONSTANTS)[10].
 static RADIX_10E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_10).pow(CHUNK_10).unwrap());
 static RADIX_16: LazyLock<BigInteger> = LazyLock::new(|| (*SMALL_CONSTANTS)[16].clone());
 static RADIX_16E: LazyLock<BigInteger> = LazyLock::new(|| (*RADIX_16).pow(CHUNK_16).unwrap());
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq)]
 pub struct BigInteger {
     sign: i8,
     magnitude: Vec<u32>,

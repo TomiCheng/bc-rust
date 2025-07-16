@@ -6,7 +6,7 @@ use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 use crate::asn1::asn1_encoding::Asn1Encoding;
 use crate::asn1::tagged_der_encoding::TaggedDerEncoding;
 
-#[derive(Clone, Debug, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Asn1TaggedObject {
     explicitness: u8,
     tag_class: u8,

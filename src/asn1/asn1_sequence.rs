@@ -6,11 +6,11 @@ use crate::asn1::asn1_universal_type::Asn1UniversalType;
 use crate::asn1::asn1_write::get_contents_encodings;
 use crate::asn1::constructed_dl_encoding::ConstructedDlEncoding;
 use crate::asn1::try_from_tagged::TryFromTagged;
-use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1TaggedObject, EncodingType, asn1_tags};
+use crate::asn1::{Asn1EncodableVector, Asn1Object, Asn1TaggedObject, EncodingType, asn1_tags, Asn1Set};
 use std::hash::{Hash, Hasher};
 use std::ops::Index;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Asn1Sequence {
     elements: Vec<Asn1Object>,
 }
@@ -33,10 +33,9 @@ impl Asn1Sequence {
     pub fn get_elements(&self) -> &[Asn1Object] {
         &self.elements
     }
-    // pub fn get_tagged(tagged_object: Asn1TaggedObject, declared_explicit: bool) -> Result<Self> {
-    //     let metadata = Asn1SequenceMetadata::new();
-    //     metadata.get_tagged(tagged_object, declared_explicit)
-    // }
+    pub fn to_asn1_set(&self) -> Asn1Set {
+        Asn1Set::new(self.elements.clone())
+    }
 }
 impl Index<usize> for Asn1Sequence {
     type Output = Asn1Object;
