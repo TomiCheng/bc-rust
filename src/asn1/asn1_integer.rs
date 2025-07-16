@@ -223,7 +223,7 @@ mod tests {
         let buffer = vec![0x02u8, 0x04, 0x07, 0x5B, 0xCD, 0x15];
         let asn1_object = Asn1Object::from_read(&mut buffer.as_slice()).unwrap();
         assert!(asn1_object.is_integer());
-        let integer = asn1_object.as_integer().unwrap();
+        let integer = asn1_object.try_into().unwrap();
         check_i64_value(&integer, 123456789);
     }
     fn check_i64_value(obj: &Asn1Integer, n: i64) {

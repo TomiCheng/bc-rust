@@ -107,7 +107,7 @@ mod tests {
 
         assert!(asn1_object.is_boolean());
 
-        let value = asn1_object.as_boolean().unwrap();
+        let value:Asn1Boolean = asn1_object.try_into().unwrap();
         assert!(value.is_true());
     }
 }

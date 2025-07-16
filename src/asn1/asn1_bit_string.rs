@@ -9,7 +9,7 @@ use crate::asn1::{Asn1Object, Asn1TaggedObject, EncodingType};
 use crate::{BcError, Result};
 use std::hash::{Hash, Hasher};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Asn1BitString {
     contents: Vec<u8>,
     pad_bits: u8,
@@ -17,10 +17,14 @@ pub struct Asn1BitString {
 impl Asn1BitString {
     pub fn with_pad_bits(contents: &[u8], pad_bits: u8) -> Result<Self> {
         if pad_bits > 7 {
-            return Err(BcError::with_invalid_argument("Pad bits must be between 0 and 7"));
+            return Err(BcError::with_invalid_argument(
+                "Pad bits must be between 0 and 7",
+            ));
         }
         if contents.is_empty() && pad_bits > 0 {
-            return Err(BcError::with_invalid_argument("if 'content' is empty, 'pad_bits' must be 0"));
+            return Err(BcError::with_invalid_argument(
+                "if 'content' is empty, 'pad_bits' must be 0",
+            ));
         }
         Ok(Self {
             contents: contents.to_vec(),
@@ -57,7 +61,9 @@ impl Asn1BitString {
     }
     pub fn create_primitive(contents: Vec<u8>) -> Result<Self> {
         if contents.is_empty() {
-            return Err(BcError::with_invalid_argument("truncated BIT STRING detected"));
+            return Err(BcError::with_invalid_argument(
+                "truncated BIT STRING detected",
+            ));
         }
 
         let length = contents.len();
@@ -91,7 +97,12 @@ impl Asn1EncodingInternal for Asn1BitString {
     fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
         self.get_encoding_implicit(encoding_type, UNIVERSAL, BIT_STRING)
     }
-    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
+    fn get_encoding_implicit(
+        &self,
+        encoding_type: EncodingType,
+        tag_class: u8,
+        tag_no: u8,
+    ) -> Box<dyn Asn1Encoding> {
         let mut contents = vec![0u8; 1 + self.contents.len()];
         contents[0] = self.pad_bits;
         contents[1..].copy_from_slice(&self.contents);
@@ -101,25 +112,55 @@ impl Asn1EncodingInternal for Asn1BitString {
             let last_der = last_ber & (0xFF << self.pad_bits);
             if last_ber != last_der {
                 contents[self.contents.len()] = last_der;
-                return Box::new(PrimitiveEncodingSuffixed::new(UNIVERSAL, BIT_STRING, contents, last_der));
+                return Box::new(PrimitiveEncodingSuffixed::new(
+                    UNIVERSAL, BIT_STRING, contents, last_der,
+                ));
             }
         }
         Box::new(PrimitiveEncoding::new(tag_class, tag_no, contents))
     }
 }
 impl TryFromTagged for Asn1BitString {
-    fn try_from_tagged(tagged: Asn1TaggedObject, declared_explicit: bool) -> std::result::Result<Self, BcError>
+    fn try_from_tagged(
+        tagged: Asn1TaggedObject,
+        declared_explicit: bool,
+    ) -> std::result::Result<Self, BcError>
     where
         Self: Sized,
     {
         tagged.try_from_base_universal(declared_explicit, Asn1BitStringMetadata)
     }
 }
-impl Hash for Asn1BitString {
-    fn hash<H: Hasher>(&self, _state: &mut H) {
-        todo!();
+impl PartialEq for Asn1BitString {
+    fn eq(&self, other: &Self) -> bool {
+        if self.contents.len() != other.contents.len() {
+            return false;
+        }
+        if self.contents.is_empty() {
+            return true;
+        }
+
+        for i in 0..(self.contents.len() - 1) {
+            if self.contents[i] != other.contents[i] {
+                return false;
+            }
+        }
+
+        let self_last = self.contents[self.contents.len() - 1] & (0xFF << self.pad_bits);
+        let other_last = other.contents[other.contents.len() - 1] & (0xFF << other.pad_bits);
+        self_last == other_last
     }
 }
+impl Hash for Asn1BitString {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for i in 0..(self.contents.len() - 1) {
+            self.contents[i].hash(state);
+        }
+        let self_last = self.contents[self.contents.len() - 1] & (0xFF << self.pad_bits);
+        self_last.hash(state);
+    }
+}
+
 struct Asn1BitStringMetadata;
 impl Asn1UniversalType<Asn1BitString> for Asn1BitStringMetadata {
     fn checked_cast(&self, asn1_object: Asn1Object) -> Result<Asn1BitString> {
@@ -171,7 +212,7 @@ mod tests {
         assert_ne!(der_data, &asn1_object.get_encoded(Ber).unwrap());
 
         assert!(asn1_object.is_bit_string());
-        let bit_string = asn1_object.as_bit_string().unwrap();
+        let bit_string: Asn1BitString = asn1_object.try_into().unwrap();
         let der_buffer = bit_string.get_encoded(Der).unwrap();
         assert_eq!(der_data, &der_buffer);
     }

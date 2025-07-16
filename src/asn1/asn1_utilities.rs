@@ -66,7 +66,7 @@ pub(crate) fn read_optional_context_iter<TResult, TState, TFunc>(
 where
     TFunc: Fn(Asn1TaggedObject, TState) -> Result<TResult>,
 {
-    if let Some(tagged_object) = iter.peek().and_then(Asn1Object::as_tagged) {
+    if let Some(Asn1Object::Tagged(tagged_object)) = iter.peek() {
         if tagged_object.has_tag(asn1_tags::CONTEXT_SPECIFIC, tag_no) {
             let tagged: Asn1TaggedObject = iter.next().unwrap().try_into()?;
             return Ok(Some(func(tagged, state)?));

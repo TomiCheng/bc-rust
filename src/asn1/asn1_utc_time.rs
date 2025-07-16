@@ -3,6 +3,7 @@ use chrono::{DateTime, Datelike, NaiveDateTime, SubsecRound, TimeZone, Utc};
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
 
 #[derive(Clone, Debug, Eq)]
 pub struct Asn1UtcTime {
@@ -79,22 +80,28 @@ impl Asn1UtcTime {
         }
     }
 }
-
 impl PartialEq for Asn1UtcTime {
     fn eq(&self, other: &Self) -> bool {
         self.date_time == other.date_time
     }
 }
-
 impl Hash for Asn1UtcTime {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.date_time.hash(state);
     }
 }
-
 impl Display for Asn1UtcTime {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.date_time_string)
+    }
+}
+impl Asn1EncodingInternal for Asn1UtcTime {
+    fn get_encoding(&self, _encoding_type: crate::asn1::EncodingType) -> Box<dyn crate::asn1::asn1_encoding::Asn1Encoding> {
+        todo!();
+    }
+
+    fn get_encoding_implicit(&self, _encoding_type: crate::asn1::EncodingType, _tag_class: u8, _tag_no: u8) -> Box<dyn crate::asn1::asn1_encoding::Asn1Encoding> {
+        todo!();
     }
 }
 

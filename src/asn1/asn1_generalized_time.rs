@@ -2,6 +2,8 @@ use crate::{BcError, Result};
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use std::fmt;
 use std::hash::Hash;
+use crate::asn1::asn1_encodable::Asn1EncodingInternal;
+
 /// GeneralizedTime ASN.1 type
 #[derive(Clone, Debug, Eq)]
 pub struct Asn1GeneralizedTime {
@@ -107,19 +109,16 @@ impl Asn1GeneralizedTime {
         self.date_time
     }
 }
-
 impl PartialEq for Asn1GeneralizedTime {
     fn eq(&self, other: &Self) -> bool {
         self.date_time == other.date_time
     }
 }
-
 impl Hash for Asn1GeneralizedTime {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.date_time.hash(state);
     }
 }
-
 impl fmt::Display for Asn1GeneralizedTime {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.time_string_canonical {
@@ -127,6 +126,15 @@ impl fmt::Display for Asn1GeneralizedTime {
         } else {
             write!(f, "{}", to_string_canonical(&self.date_time))
         }
+    }
+}
+impl Asn1EncodingInternal for Asn1GeneralizedTime {
+    fn get_encoding(&self, _encoding_type: crate::asn1::EncodingType) -> Box<dyn crate::asn1::asn1_encoding::Asn1Encoding> {
+        todo!();
+    }
+
+    fn get_encoding_implicit(&self, _encoding_type: crate::asn1::EncodingType, _tag_class: u8, _tag_no: u8) -> Box<dyn crate::asn1::asn1_encoding::Asn1Encoding> {
+        todo!();
     }
 }
 

@@ -44,100 +44,13 @@ pub enum Asn1Object {
     Tagged(Asn1TaggedObject),
 }
 impl Asn1Object {
-    pub fn is_boolean(&self) -> bool {
-        matches!(self, Asn1Object::Boolean(_))
-    }
-    pub fn is_integer(&self) -> bool {
-        matches!(self, Asn1Object::Integer(_))
-    }
-    pub fn is_bit_string(&self) -> bool {
-        matches!(self, Asn1Object::BitString(_))
-    }
-    pub fn is_sequence(&self) -> bool {
-        matches!(self, Asn1Object::Sequence(_))
-    }
-    pub fn is_object_identifier(&self) -> bool {
-        matches!(self, Asn1Object::ObjectIdentifier(_))
-    }
-    pub fn is_relative_oid(&self) -> bool {
-        matches!(self, Asn1Object::RelativeOid(_))
-    }
-    pub fn is_universal_string(&self) -> bool {
-        matches!(self, Asn1Object::UniversalString(_))
-    }
-    pub fn is_printable_string(&self) -> bool {
-        matches!(self, Asn1Object::PrintableString(_))
-    }
-    pub fn is_ia5_string(&self) -> bool {
-        matches!(self, Asn1Object::Ia5String(_))
-    }
-    pub fn is_generalized_time(&self) -> bool {
-        matches!(self, Asn1Object::GeneralizedTime(_))
-    }
-    pub fn is_octet_string(&self) -> bool {
-        matches!(self, Asn1Object::OctetString(_))
-    }
-    pub fn as_boolean(&self) -> Option<&Asn1Boolean> {
-        match self {
-            Asn1Object::Boolean(obj) => Some(obj),
-            _ => None,
-        }
-    }
-    pub fn as_integer(&self) -> Option<&Asn1Integer> {
-        match self {
-            Asn1Object::Integer(obj) => Some(obj),
-            _ => None,
-        }
-    }
-    pub fn as_bit_string(&self) -> Option<&Asn1BitString> {
-        match self {
-            Asn1Object::BitString(obj) => Some(obj),
-            _ => None,
-        }
-    }
-    pub fn as_sequence(&self) -> Option<&Asn1Sequence> {
-        match self {
-            Asn1Object::Sequence(obj) => Some(obj),
-            _ => None,
-        }
-    }
-    pub fn as_tagged(&self) -> Option<&Asn1TaggedObject> {
-        match self {
-            Asn1Object::Tagged(obj) => Some(obj),
-            _ => None,
-        }
-    }
-    pub fn as_set(&self) -> Option<&Asn1Set> {
-        match self {
-            Asn1Object::Set(obj) => Some(obj),
-            _ => None,
-        }
-    }
-    pub fn as_printable_string(&self) -> Option<&Asn1PrintableString> {
-        match self {
-            Asn1Object::PrintableString(obj) => Some(obj),
-            _ => None,
-        }
-    }
-    pub fn as_ia5_string(&self) -> Option<&Asn1Ia5String> {
-        match self {
-            Asn1Object::Ia5String(obj) => Some(obj),
-            _ => None,
-        }
-    }
-    pub fn as_object_identifier(&self) -> Option<&Asn1ObjectIdentifier> {
-        match self {
-            Asn1Object::ObjectIdentifier(obj) => Some(obj),
-            _ => None,
-        }
-    }
     pub fn from_read(reader: &mut dyn Read) -> Result<Self> {
         let mut asn1_reader = Asn1Read::new(reader, i32::MAX as usize);
         let result = asn1_reader.read_object()?;
         if let Some(object) = result {
             Ok(object)
         } else {
-            Err(crate::BcError::with_invalid_format("No ASN.1 object found"))
+            Err(BcError::with_invalid_format("No ASN.1 object found"))
         }
     }
     pub fn with_bytes(bytes: &[u8]) -> Result<Self> {
@@ -166,60 +79,106 @@ impl Asn1EncodingInternal for Asn1Object {
             Asn1Object::Null(obj) => obj.get_encoding(encoding_type),
             Asn1Object::ObjectIdentifier(obj) => obj.get_encoding(encoding_type),
             Asn1Object::ObjectDescriptor(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::External(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::Enumerated(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::External(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::Enumerated(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Utf8String(obj) => obj.get_encoding(encoding_type),
             Asn1Object::RelativeOid(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Sequence(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Set(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::NumericString(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::NumericString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::PrintableString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::T61String(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::VideotexString(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::VideotexString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Ia5String(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::UtcTime(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::GeneralizedTime(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::GraphicString(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::VisibleString(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::GeneralString(obj) => obj.get_encoding(encoding_type),
-            // Asn1Object::UniversalString(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::UtcTime(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::GeneralizedTime(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::GraphicString(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::VisibleString(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::GeneralString(obj) => obj.get_encoding(encoding_type),
+            Asn1Object::UniversalString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::BmpString(obj) => obj.get_encoding(encoding_type),
             Asn1Object::Tagged(obj) => obj.get_encoding(encoding_type),
-            _ => {
-                todo!("Encoding not implemented for {:?}", self);
-            }
         }
     }
 
-    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
+    fn get_encoding_implicit(
+        &self,
+        encoding_type: EncodingType,
+        tag_class: u8,
+        tag_no: u8,
+    ) -> Box<dyn Asn1Encoding> {
         match self {
             Asn1Object::Boolean(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
             Asn1Object::Integer(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::BitString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::OctetString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::Null(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::ObjectIdentifier(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::ObjectDescriptor(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            // Asn1Object::External(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            // Asn1Object::Enumerated(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::Utf8String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::RelativeOid(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::Sequence(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::Set(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            // Asn1Object::NumericString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::PrintableString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::T61String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            // Asn1Object::VideotexString(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            Asn1Object::Ia5String(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            // Asn1Object::UtcTime(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
-            _ => {
-                todo!("Encoding not implemented for {:?}", self);
+            Asn1Object::BitString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
             }
+            Asn1Object::OctetString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::Null(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::ObjectIdentifier(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::ObjectDescriptor(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::External(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::Enumerated(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::Utf8String(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::RelativeOid(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::Sequence(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::Set(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::NumericString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::PrintableString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::T61String(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::VideotexString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::Ia5String(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::UtcTime(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
+            Asn1Object::GeneralizedTime(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::GraphicString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::VisibleString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::GeneralString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::UniversalString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::BmpString(obj) => {
+                obj.get_encoding_implicit(encoding_type, tag_class, tag_no)
+            }
+            Asn1Object::Tagged(obj) => obj.get_encoding_implicit(encoding_type, tag_class, tag_no),
         }
     }
 }
 macro_rules! impl_from_for_asn1object {
-    ($($t:ty => $v:ident),*) => {
+    ($($t:ty => $v:ident => $t1:ident),*) => {
         $(
             impl From<$t> for Asn1Object {
                 fn from(value: $t) -> Self {
@@ -236,24 +195,40 @@ macro_rules! impl_from_for_asn1object {
                     }
                 }
             }
-
+            impl Asn1Object {
+                pub fn $t1(&self) -> bool {
+                    matches!(self, Asn1Object::$v(_))
+                }
+            }
         )*
     };
 }
 
 impl_from_for_asn1object! {
-    Asn1Boolean => Boolean,
-    Asn1Integer => Integer,
-    Asn1BitString => BitString,
-    Asn1OctetString => OctetString,
-    Asn1Sequence => Sequence,
-    Asn1ObjectIdentifier => ObjectIdentifier,
-    Asn1Set => Set,
-    Asn1TaggedObject => Tagged,
-    Asn1RelativeOid => RelativeOid,
-    Asn1Ia5String => Ia5String,
-    Asn1BmpString => BmpString,
-    Asn1Utf8String => Utf8String,
-    Asn1GeneralizedTime => GeneralizedTime,
-    Asn1PrintableString => PrintableString
+    Asn1Boolean => Boolean => is_boolean,
+    Asn1Integer => Integer => is_integer,
+    Asn1BitString => BitString => is_bit_string,
+    Asn1OctetString => OctetString => is_octet_string,
+    Asn1Null => Null => is_null,
+    Asn1ObjectIdentifier => ObjectIdentifier => is_object_identifier,
+    Asn1ObjectDescriptor => ObjectDescriptor => is_object_descriptor,
+    Asn1External => External => is_external,
+    Asn1Enumerated => Enumerated => is_enumerated,
+    Asn1Utf8String => Utf8String => is_utf8_string,
+    Asn1RelativeOid => RelativeOid => is_relative_oid,
+    Asn1Sequence => Sequence => is_sequence,
+    Asn1Set => Set => is_set,
+    Asn1NumericString => NumericString => is_numeric_string,
+    Asn1PrintableString => PrintableString => is_printable_string,
+    Asn1T61String => T61String => is_t61_string,
+    Asn1VideotexString => VideotexString => is_videotex_string,
+    Asn1Ia5String => Ia5String => is_ia5_string,
+    Asn1UtcTime => UtcTime => is_utc_time,
+    Asn1GeneralizedTime => GeneralizedTime => is_generalized_time,
+    Asn1GraphicString => GraphicString => is_graphic_string,
+    Asn1VisibleString => VisibleString => is_visible_string,
+    Asn1GeneralString => GeneralString => is_general_string,
+    Asn1UniversalString => UniversalString => is_universal_string,
+    Asn1BmpString => BmpString => is_bmp_string,
+    Asn1TaggedObject => Tagged => is_tagged_object
 }
