@@ -1,6 +1,7 @@
 use crate::Result;
 use crate::asn1::EncodingType::Der;
 use crate::asn1::{Asn1Encodable, Asn1Object};
+use crate::asn1::x500::Rdn;
 use crate::util::encoders::hex::to_hex_string;
 
 pub fn asn1_object_to_string(value: &Asn1Object) -> Result<String> {
@@ -163,4 +164,16 @@ fn convert_hex(c: char) -> u8 {
     }
 
     0
+}
+
+pub fn equal_rdn(rdn1: &Rdn, rdn2: &Rdn) -> bool {
+    let atvs1 = rdn1.get_content();
+    let atvs2 = rdn2.get_content();
+
+    if atvs1.len() != atvs2.len() {
+        return false;
+    }
+    todo!()
+
+    //true
 }

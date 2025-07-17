@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use crate::asn1::{Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1TaggedObject};
 use crate::{BcError, Result};
 use crate::asn1::try_from_tagged::{TryFromTagged, TryIntoTagged};
@@ -20,7 +21,7 @@ impl AttributeTypeAndValue {
     pub fn new(attribute_type: Asn1ObjectIdentifier, value: Asn1Object) -> Self {
         AttributeTypeAndValue {
             attribute_type,
-            value,
+            value
         }
     }
     pub fn with_sequence(sequence: Asn1Sequence) -> Result<Self> {

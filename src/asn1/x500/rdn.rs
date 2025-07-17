@@ -39,6 +39,10 @@ impl Rdn {
             .collect::<Result<HashSet<AttributeTypeAndValue>>>()?;
         Ok(Self::new(content))
     }
+    
+    pub fn get_content(&self) -> &HashSet<AttributeTypeAndValue> {
+        &self.content
+    }
 }
 // TODO
 

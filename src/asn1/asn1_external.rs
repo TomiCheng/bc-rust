@@ -7,11 +7,11 @@ use crate::asn1::EncodingType;
 pub struct Asn1External {}
 
 impl Asn1EncodingInternal for Asn1External {
-    fn get_encoding(&self, encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
+    fn get_encoding(&self, _encoding_type: EncodingType) -> Box<dyn Asn1Encoding> {
         todo!()
     }
 
-    fn get_encoding_implicit(&self, encoding_type: EncodingType, tag_class: u8, tag_no: u8) -> Box<dyn Asn1Encoding> {
+    fn get_encoding_implicit(&self, _encoding_type: EncodingType, _tag_class: u8, _tag_no: u8) -> Box<dyn Asn1Encoding> {
         todo!()
     }
 }

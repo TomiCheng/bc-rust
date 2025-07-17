@@ -5,7 +5,10 @@ use crate::asn1::try_from_tagged::TryFromTagged;
 use crate::asn1::x500::style::ietf_utilities::{escape_dn_string, unescape};
 use crate::asn1::x509::x509_object_identifiers::*;
 use crate::asn1::x509::{X509DefaultEntryConverter, X509NameEntryConverter, X509NameTokenizer};
-use crate::asn1::{Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1TaggedObject, EncodingType};
+use crate::asn1::{
+    Asn1Encodable, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1TaggedObject,
+    EncodingType,
+};
 use crate::util::encoders::hex::{to_decode_with_str, to_hex_string};
 use crate::{BcError, GLOBAL, Result};
 use std::collections::HashMap;
@@ -37,7 +40,12 @@ pub struct X509Name {
 }
 
 impl X509Name {
-    fn new(ordering: Vec<Asn1ObjectIdentifier>, values: Vec<String>, added: Vec<bool>, converter: ConverterType) -> Self {
+    fn new(
+        ordering: Vec<Asn1ObjectIdentifier>,
+        values: Vec<String>,
+        added: Vec<bool>,
+        converter: ConverterType,
+    ) -> Self {
         X509Name {
             ordering,
             values,
@@ -46,12 +54,27 @@ impl X509Name {
         }
     }
     pub fn with_str(dir_name: &str) -> Result<Self> {
-        Self::with_reverse_lookup_str((*GLOBAL).x509_name_default_reverse(), &DEFAULT_LOOKUP, dir_name)
+        Self::with_reverse_lookup_str(
+            (*GLOBAL).x509_name_default_reverse(),
+            &DEFAULT_LOOKUP,
+            dir_name,
+        )
     }
-    pub fn with_ordering_attributes(ordering: Vec<Asn1ObjectIdentifier>, attributes: Symbols) -> Result<Self> {
-        Self::with_ordering_attributes_converter(ordering, attributes, Rc::new(X509DefaultEntryConverter))
+    pub fn with_ordering_attributes(
+        ordering: Vec<Asn1ObjectIdentifier>,
+        attributes: Symbols,
+    ) -> Result<Self> {
+        Self::with_ordering_attributes_converter(
+            ordering,
+            attributes,
+            Rc::new(X509DefaultEntryConverter),
+        )
     }
-    pub fn with_ordering_attributes_converter(ordering: Vec<Asn1ObjectIdentifier>, attributes: Symbols, converter: ConverterType) -> Result<Self> {
+    pub fn with_ordering_attributes_converter(
+        ordering: Vec<Asn1ObjectIdentifier>,
+        attributes: Symbols,
+        converter: ConverterType,
+    ) -> Result<Self> {
         let mut r_ordering = Vec::with_capacity(ordering.len());
         let mut r_values = Vec::with_capacity(ordering.len());
         let mut r_added = Vec::with_capacity(ordering.len());
@@ -75,10 +98,24 @@ impl X509Name {
     pub fn with_reverse_str(reverse: bool, dir_name: &str) -> Result<Self> {
         Self::with_reverse_lookup_str(reverse, &DEFAULT_LOOKUP, dir_name)
     }
-    pub fn with_reverse_lookup_str(reverse: bool, lookup: &LookupType, dir_name: &str) -> Result<Self> {
-        Self::with_reverse_lookup_str_converter(reverse, lookup, dir_name, Rc::new(X509DefaultEntryConverter))
+    pub fn with_reverse_lookup_str(
+        reverse: bool,
+        lookup: &LookupType,
+        dir_name: &str,
+    ) -> Result<Self> {
+        Self::with_reverse_lookup_str_converter(
+            reverse,
+            lookup,
+            dir_name,
+            Rc::new(X509DefaultEntryConverter),
+        )
     }
-    pub fn with_reverse_lookup_str_converter(reverse: bool, lookup: &LookupType, dir_name: &str, converter: ConverterType) -> Result<Self> {
+    pub fn with_reverse_lookup_str_converter(
+        reverse: bool,
+        lookup: &LookupType,
+        dir_name: &str,
+        converter: ConverterType,
+    ) -> Result<Self> {
         let mut name_tokenizer = X509NameTokenizer::with_str(dir_name);
 
         let mut result = X509Name::new(Vec::new(), Vec::new(), Vec::new(), converter.clone());
@@ -87,7 +124,9 @@ impl X509Name {
             let mut rdn_tokenizer = X509NameTokenizer::with_str_and_separator(&rdn, '+')?;
             let token = rdn_tokenizer
                 .next_token()?
-                .ok_or(BcError::with_invalid_argument("badly formatted directory string"))?;
+                .ok_or(BcError::with_invalid_argument(
+                    "badly formatted directory string",
+                ))?;
             result.add_attribute(lookup, &token, false)?;
             while let Some(token) = rdn_tokenizer.next_token()? {
                 result.add_attribute(lookup, &token, true)?;
@@ -112,14 +151,23 @@ impl X509Name {
 
         Ok(result)
     }
-    pub fn with_ordering_values(ordering: Vec<Asn1ObjectIdentifier>, values: Vec<String>) -> Result<Self> {
+    pub fn with_ordering_values(
+        ordering: Vec<Asn1ObjectIdentifier>,
+        values: Vec<String>,
+    ) -> Result<Self> {
         Self::with_ordering_values_converter(ordering, values, Rc::new(X509DefaultEntryConverter))
     }
     /// Takes two vectors one of the oids and the other of the values.
     /// The passed in converter will be used to convert the strings into their ASN.1 counterparts.
-    pub fn with_ordering_values_converter(ordering: Vec<Asn1ObjectIdentifier>, values: Vec<String>, converter: ConverterType) -> Result<Self> {
+    pub fn with_ordering_values_converter(
+        ordering: Vec<Asn1ObjectIdentifier>,
+        values: Vec<String>,
+        converter: ConverterType,
+    ) -> Result<Self> {
         if ordering.len() != values.len() {
-            return Err(BcError::with_invalid_argument("'oids' must be same length as 'values'."));
+            return Err(BcError::with_invalid_argument(
+                "'oids' must be same length as 'values'.",
+            ));
         }
 
         let mut r_ordering = Vec::with_capacity(ordering.len());
@@ -144,7 +192,9 @@ impl X509Name {
             for attribute_type_and_value in rdn_set {
                 let attribute_type_and_value: Asn1Sequence = attribute_type_and_value.try_into()?;
                 if attribute_type_and_value.len() != 2 {
-                    return Err(BcError::with_invalid_format("badly sized AttributeTypeAndValue"));
+                    return Err(BcError::with_invalid_format(
+                        "badly sized AttributeTypeAndValue",
+                    ));
                 }
                 let mut iter = attribute_type_and_value.into_iter();
                 let type_object = iter.next().unwrap();
@@ -160,7 +210,10 @@ impl X509Name {
                     }
                     values.push(v);
                 } else {
-                    values.push(format!("#{}", to_hex_string(&(value_object.get_encoded(Ber)?))));
+                    values.push(format!(
+                        "#{}",
+                        to_hex_string(&(value_object.get_encoded(Ber)?))
+                    ));
                 }
                 added.push(!first);
                 if first {
@@ -168,7 +221,12 @@ impl X509Name {
                 }
             }
         }
-        Ok(X509Name::new(ordering, values, added, Rc::new(X509DefaultEntryConverter)))
+        Ok(X509Name::new(
+            ordering,
+            values,
+            added,
+            Rc::new(X509DefaultEntryConverter),
+        ))
     }
     /// Convert the structure to a string - if reverse is `true` the
     /// `oids` and values are listed out starting with the last element
@@ -213,15 +271,24 @@ impl X509Name {
         }
         result
     }
-    fn add_attribute(&mut self, lookup: &HashMap<String, Asn1ObjectIdentifier>, token: &str, added: bool) -> Result<()> {
+    fn add_attribute(
+        &mut self,
+        lookup: &HashMap<String, Asn1ObjectIdentifier>,
+        token: &str,
+        added: bool,
+    ) -> Result<()> {
         let mut tokenizer = X509NameTokenizer::with_str_and_separator(token, '=')?;
 
         let type_token = tokenizer
             .next_token()?
-            .ok_or(BcError::with_invalid_argument("badly formatted directory string"))?;
+            .ok_or(BcError::with_invalid_argument(
+                "badly formatted directory string",
+            ))?;
         let value_token = tokenizer
             .next_token()?
-            .ok_or(BcError::with_invalid_argument("badly formatted directory string"))?;
+            .ok_or(BcError::with_invalid_argument(
+                "badly formatted directory string",
+            ))?;
 
         let oid = Self::decode_oid(type_token.trim(), lookup)?;
         let value = unescape(&value_token);
@@ -231,12 +298,17 @@ impl X509Name {
         self.added.push(added);
 
         if tokenizer.has_more_tokens() {
-            return Err(BcError::with_invalid_argument("badly formatted directory string - too many tokens"));
+            return Err(BcError::with_invalid_argument(
+                "badly formatted directory string - too many tokens",
+            ));
         }
 
         Ok(())
     }
-    fn decode_oid(name: &str, lookup: &HashMap<String, Asn1ObjectIdentifier>) -> Result<Asn1ObjectIdentifier> {
+    fn decode_oid(
+        name: &str,
+        lookup: &HashMap<String, Asn1ObjectIdentifier>,
+    ) -> Result<Asn1ObjectIdentifier> {
         if name.starts_with("OID.") || name.starts_with("oid.") {
             return Ok(Asn1ObjectIdentifier::with_str(&name[4..])?);
         }
@@ -366,7 +438,12 @@ impl X509Name {
         if v.starts_with('#') {
             if let Ok(obj) = Self::decode_object(&v) {
                 if let Some(obj_str) = obj.as_string() {
-                    v = obj_str.to_asn1_string().unwrap().to_lowercase().trim().to_string();
+                    v = obj_str
+                        .to_asn1_string()
+                        .unwrap()
+                        .to_lowercase()
+                        .trim()
+                        .to_string();
                 }
             }
         }
@@ -415,7 +492,11 @@ impl X509Name {
 }
 impl fmt::Display for X509Name {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string_with_symbols(false, &DEFAULT_SYMBOLS))
+        write!(
+            f,
+            "{}",
+            self.to_string_with_symbols(false, &DEFAULT_SYMBOLS)
+        )
     }
 }
 impl Hash for X509Name {
@@ -481,7 +562,12 @@ impl Asn1Encodable for X509Name {
         asn1_object.encode_to(writer, encoding_type)
     }
 }
-fn append_value(buffer: &mut String, oid_symbols: &Symbols, oid: &Asn1ObjectIdentifier, value: &str) {
+fn append_value(
+    buffer: &mut String,
+    oid_symbols: &Symbols,
+    oid: &Asn1ObjectIdentifier,
+    value: &str,
+) {
     buffer.push_str(oid_symbols.get(oid).unwrap_or(oid.id()));
     buffer.push('=');
     buffer.push_str(&escape_dn_string(value));
@@ -506,15 +592,27 @@ static DEFAULT_SYMBOLS: LazyLock<Symbols> = LazyLock::new(|| {
     symbols.insert(GENERATION.clone(), "GENERATION".to_owned());
     symbols.insert(DESCRIPTION.clone(), "DESCRIPTION".to_owned());
     symbols.insert(ROLE.clone(), "ROLE".to_owned());
-    symbols.insert(PKCS9_AT_UNSTRUCTURED_ADDRESS.clone(), "unstructuredAddress".to_owned());
-    symbols.insert(PKCS9_AT_UNSTRUCTURED_NAME.clone(), "unstructuredName".to_owned());
+    symbols.insert(
+        PKCS9_AT_UNSTRUCTURED_ADDRESS.clone(),
+        "unstructuredAddress".to_owned(),
+    );
+    symbols.insert(
+        PKCS9_AT_UNSTRUCTURED_NAME.clone(),
+        "unstructuredName".to_owned(),
+    );
     symbols.insert(UNIQUE_IDENTIFIER.clone(), "UniqueIdentifier".to_owned());
     symbols.insert(DN_QUALIFIER.clone(), "DN".to_owned());
     symbols.insert(PSEUDONYM.clone(), "Pseudonym".to_owned());
     symbols.insert(POSTAL_ADDRESS.clone(), "PostalAddress".to_owned());
     symbols.insert(NAME_AT_BIRTH.clone(), "NameAtBirth".to_owned());
-    symbols.insert(COUNTRY_OF_CITIZENSHIP.clone(), "CountryOfCitizenship".to_owned());
-    symbols.insert(COUNTRY_OF_RESIDENCE.clone(), "CountryOfResidence".to_owned());
+    symbols.insert(
+        COUNTRY_OF_CITIZENSHIP.clone(),
+        "CountryOfCitizenship".to_owned(),
+    );
+    symbols.insert(
+        COUNTRY_OF_RESIDENCE.clone(),
+        "CountryOfResidence".to_owned(),
+    );
     symbols.insert(GENDER.clone(), "Gender".to_owned());
     symbols.insert(PLACE_OF_BIRTH.clone(), "PlaceOfBirth".to_owned());
     symbols.insert(DATE_OF_BIRTH.clone(), "DateOfBirth".to_owned());
@@ -522,7 +620,10 @@ static DEFAULT_SYMBOLS: LazyLock<Symbols> = LazyLock::new(|| {
     symbols.insert(BUSINESS_CATEGORY.clone(), "BusinessCategory".to_owned());
     symbols.insert(TELEPHONE_NUMBER.clone(), "TelephoneNumber".to_owned());
     symbols.insert(NAME.clone(), "Name".to_owned());
-    symbols.insert(ORGANIZATION_IDENTIFIER.clone(), "organizationIdentifier".to_owned());
+    symbols.insert(
+        ORGANIZATION_IDENTIFIER.clone(),
+        "organizationIdentifier".to_owned(),
+    );
     symbols.insert(JURISDICTION_C.clone(), "jurisdictionCountry".to_owned());
     symbols.insert(JURISDICTION_ST.clone(), "jurisdictionState".to_owned());
     symbols.insert(JURISDICTION_L.clone(), "jurisdictionLocality".to_owned());
@@ -551,15 +652,27 @@ static DEFAULT_LOOKUP: LazyLock<HashMap<String, Asn1ObjectIdentifier>> = LazyLoc
     lookup.insert("generation".to_owned(), GENERATION.clone());
     lookup.insert("description".to_owned(), DESCRIPTION.clone());
     lookup.insert("role".to_owned(), ROLE.clone());
-    lookup.insert("unstructuredaddress".to_owned(), PKCS9_AT_UNSTRUCTURED_ADDRESS.clone());
-    lookup.insert("unstructuredname".to_owned(), PKCS9_AT_UNSTRUCTURED_NAME.clone());
+    lookup.insert(
+        "unstructuredaddress".to_owned(),
+        PKCS9_AT_UNSTRUCTURED_ADDRESS.clone(),
+    );
+    lookup.insert(
+        "unstructuredname".to_owned(),
+        PKCS9_AT_UNSTRUCTURED_NAME.clone(),
+    );
     lookup.insert("uniqueidentifier".to_owned(), UNIQUE_IDENTIFIER.clone());
     lookup.insert("dn".to_owned(), DN_QUALIFIER.clone());
     lookup.insert("pseudonym".to_owned(), PSEUDONYM.clone());
     lookup.insert("postaladdress".to_owned(), POSTAL_ADDRESS.clone());
     lookup.insert("nameatbirth".to_owned(), NAME_AT_BIRTH.clone());
-    lookup.insert("countryofcitizenship".to_owned(), COUNTRY_OF_CITIZENSHIP.clone());
-    lookup.insert("countryofresidence".to_owned(), COUNTRY_OF_RESIDENCE.clone());
+    lookup.insert(
+        "countryofcitizenship".to_owned(),
+        COUNTRY_OF_CITIZENSHIP.clone(),
+    );
+    lookup.insert(
+        "countryofresidence".to_owned(),
+        COUNTRY_OF_RESIDENCE.clone(),
+    );
     lookup.insert("gender".to_owned(), GENDER.clone());
     lookup.insert("placeofbirth".to_owned(), PLACE_OF_BIRTH.clone());
     lookup.insert("dateofbirth".to_owned(), DATE_OF_BIRTH.clone());
@@ -567,7 +680,10 @@ static DEFAULT_LOOKUP: LazyLock<HashMap<String, Asn1ObjectIdentifier>> = LazyLoc
     lookup.insert("businesscategory".to_owned(), BUSINESS_CATEGORY.clone());
     lookup.insert("telephonenumber".to_owned(), TELEPHONE_NUMBER.clone());
     lookup.insert("name".to_owned(), ID_AT_NAME.clone());
-    lookup.insert("organizationidentifier".to_owned(), ORGANIZATION_IDENTIFIER.clone());
+    lookup.insert(
+        "organizationidentifier".to_owned(),
+        ORGANIZATION_IDENTIFIER.clone(),
+    );
     lookup.insert("jurisdictioncountry".to_owned(), JURISDICTION_C.clone());
     lookup.insert("jurisdictionstate".to_owned(), JURISDICTION_ST.clone());
     lookup.insert("jurisdictionlocality".to_owned(), JURISDICTION_L.clone());
@@ -581,8 +697,13 @@ mod tests {
     use crate::asn1::pkcs::pkcs_object_identifiers::PKCS9_AT_EMAIL_ADDRESS;
     use crate::asn1::x500::style::ietf_utilities::asn1_object_to_string;
     use crate::asn1::x509::x509_object_identifiers::*;
-    use crate::asn1::x509::{X509DefaultEntryConverter, X509Name, X509NameEntryConverter, x509_name};
-    use crate::asn1::{Asn1Encodable, Asn1EncodableVector, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence, Asn1Set, Asn1Utf8String};
+    use crate::asn1::x509::{
+        X509DefaultEntryConverter, X509Name, X509NameEntryConverter, x509_name,
+    };
+    use crate::asn1::{
+        Asn1Encodable, Asn1EncodableVector, Asn1Object, Asn1ObjectIdentifier, Asn1Sequence,
+        Asn1Set, Asn1Utf8String,
+    };
     use crate::util::encoders::hex::{to_decode_with_str, to_hex_string};
     use std::collections::HashMap;
     use std::collections::hash_map::DefaultHasher;
@@ -617,10 +738,16 @@ mod tests {
     fn test_composite_01() {
         let mut attrs = HashMap::new();
         attrs.insert((*COMMON_NAME).clone(), "AU".to_owned());
-        attrs.insert((*ORGANIZATION_NAME).clone(), "The Legion of the Bouncy Castle".to_owned());
+        attrs.insert(
+            (*ORGANIZATION_NAME).clone(),
+            "The Legion of the Bouncy Castle".to_owned(),
+        );
         attrs.insert((*LOCALITY_NAME).clone(), "Melbourne".to_owned());
         attrs.insert((*STREET).clone(), "Victoria".to_owned());
-        attrs.insert((*PKCS9_AT_EMAIL_ADDRESS).clone(), "feedback-crypto@bouncycastle.org".to_owned());
+        attrs.insert(
+            (*PKCS9_AT_EMAIL_ADDRESS).clone(),
+            "feedback-crypto@bouncycastle.org".to_owned(),
+        );
 
         let mut order = Vec::new();
         order.push((*COMMON_NAME).clone());
@@ -650,10 +777,16 @@ mod tests {
     fn test_composite_02() {
         let mut attrs = HashMap::new();
         attrs.insert((*COMMON_NAME).clone(), "AU".to_owned());
-        attrs.insert((*ORGANIZATION_NAME).clone(), "The Legion of the Bouncy Castle".to_owned());
+        attrs.insert(
+            (*ORGANIZATION_NAME).clone(),
+            "The Legion of the Bouncy Castle".to_owned(),
+        );
         attrs.insert((*LOCALITY_NAME).clone(), "Melbourne".to_owned());
         attrs.insert((*STREET).clone(), "Victoria".to_owned());
-        attrs.insert((*PKCS9_AT_EMAIL_ADDRESS).clone(), "feedback-crypto@bouncycastle.org".to_owned());
+        attrs.insert(
+            (*PKCS9_AT_EMAIL_ADDRESS).clone(),
+            "feedback-crypto@bouncycastle.org".to_owned(),
+        );
 
         let mut order1 = Vec::new();
         order1.push((*COMMON_NAME).clone());
@@ -702,10 +835,16 @@ mod tests {
     fn test_composite_04() {
         let mut attrs = HashMap::new();
         attrs.insert((*COMMON_NAME).clone(), "AU".to_owned());
-        attrs.insert((*ORGANIZATION_NAME).clone(), "The Legion of the Bouncy Castle".to_owned());
+        attrs.insert(
+            (*ORGANIZATION_NAME).clone(),
+            "The Legion of the Bouncy Castle".to_owned(),
+        );
         attrs.insert((*LOCALITY_NAME).clone(), "Melbourne".to_owned());
         attrs.insert((*STREET).clone(), "Victoria".to_owned());
-        attrs.insert((*PKCS9_AT_EMAIL_ADDRESS).clone(), "feedback-crypto@bouncycastle.org".to_owned());
+        attrs.insert(
+            (*PKCS9_AT_EMAIL_ADDRESS).clone(),
+            "feedback-crypto@bouncycastle.org".to_owned(),
+        );
 
         let mut order1 = Vec::new();
         order1.push((*COMMON_NAME).clone());
@@ -737,7 +876,10 @@ mod tests {
     fn test_composite_05() {
         let enc = to_decode_with_str("305e310b300906035504061302415531283026060355040a0c1f546865204c6567696f6e206f662074686520426f756e637920436173746c653125301006035504070c094d656c626f75726e653011060355040b0c0a4173636f742056616c65").unwrap();
         let n: X509Name = Asn1Object::with_bytes(&enc).unwrap().try_into().unwrap();
-        assert_eq!("C=AU,O=The Legion of the Bouncy Castle,L=Melbourne+OU=Ascot Vale", n.to_string());
+        assert_eq!(
+            "C=AU,O=The Legion of the Bouncy Castle,L=Melbourne+OU=Ascot Vale",
+            n.to_string()
+        );
 
         let symbols = &(*x509_name::DEFAULT_SYMBOLS);
         assert_eq!(
@@ -745,10 +887,20 @@ mod tests {
             n.to_string_with_symbols(true, symbols)
         );
 
-        let n = X509Name::with_reverse_str(true, "L=Melbourne+OU=Ascot Vale,O=The Legion of the Bouncy Castle,C=AU").unwrap();
-        assert_eq!("C=AU,O=The Legion of the Bouncy Castle,L=Melbourne+OU=Ascot Vale", n.to_string());
+        let n = X509Name::with_reverse_str(
+            true,
+            "L=Melbourne+OU=Ascot Vale,O=The Legion of the Bouncy Castle,C=AU",
+        )
+        .unwrap();
+        assert_eq!(
+            "C=AU,O=The Legion of the Bouncy Castle,L=Melbourne+OU=Ascot Vale",
+            n.to_string()
+        );
 
-        let n = X509Name::with_str("C=AU, O=The Legion of the Bouncy Castle, L=Melbourne + OU=Ascot Vale").unwrap();
+        let n = X509Name::with_str(
+            "C=AU, O=The Legion of the Bouncy Castle, L=Melbourne + OU=Ascot Vale",
+        )
+        .unwrap();
         let enc2 = n.get_encoded(Ber).unwrap();
         assert_eq!(enc, enc2);
 
@@ -825,7 +977,10 @@ mod tests {
             let expected = chunk[1];
 
             let name = X509Name::with_str(subject).unwrap();
-            let decoded_name: X509Name = Asn1Object::with_bytes(&name.get_encoded(Ber).unwrap()).unwrap().try_into().unwrap();
+            let decoded_name: X509Name = Asn1Object::with_bytes(&name.get_encoded(Ber).unwrap())
+                .unwrap()
+                .try_into()
+                .unwrap();
             let decode_subject = decoded_name.to_string();
             assert_eq!(expected, decode_subject);
         }
@@ -833,19 +988,31 @@ mod tests {
     #[test]
     fn test_sort_01() {
         let unsorted = X509Name::with_str("SERIALNUMBER=BBB + CN=AA").unwrap();
-        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap()).unwrap().try_into().unwrap();
+        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap())
+            .unwrap()
+            .try_into()
+            .unwrap();
         assert_eq!("CN=AA+SERIALNUMBER=BBB", name.to_string());
 
         let unsorted = X509Name::with_str("CN=AA + SERIALNUMBER=BBB").unwrap();
-        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap()).unwrap().try_into().unwrap();
+        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap())
+            .unwrap()
+            .try_into()
+            .unwrap();
         assert_eq!("CN=AA+SERIALNUMBER=BBB", name.to_string());
 
         let unsorted = X509Name::with_str("SERIALNUMBER=B + CN=AA").unwrap();
-        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap()).unwrap().try_into().unwrap();
+        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap())
+            .unwrap()
+            .try_into()
+            .unwrap();
         assert_eq!("SERIALNUMBER=B+CN=AA", name.to_string());
 
         let unsorted = X509Name::with_str("CN=AA + SERIALNUMBER=B").unwrap();
-        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap()).unwrap().try_into().unwrap();
+        let name: X509Name = Asn1Object::with_bytes(&unsorted.get_encoded(Der).unwrap())
+            .unwrap()
+            .try_into()
+            .unwrap();
         assert_eq!("SERIALNUMBER=B+CN=AA", name.to_string());
     }
     #[test]
@@ -882,7 +1049,11 @@ mod tests {
     }
     #[test]
     fn test_equality_03() {
-        let n1 = X509Name::with_reverse_str(true, "2.5.4.5=#130138,CN=SSC Class 3 CA,O=UAB Skaitmeninio sertifikavimo centras,C=LT").unwrap();
+        let n1 = X509Name::with_reverse_str(
+            true,
+            "2.5.4.5=#130138,CN=SSC Class 3 CA,O=UAB Skaitmeninio sertifikavimo centras,C=LT",
+        )
+        .unwrap();
         let n2 = X509Name::with_reverse_str(
             true,
             "SERIALNUMBER=#130138,CN=SSC Class 3 CA,O=UAB Skaitmeninio sertifikavimo centras,C=LT",
@@ -924,7 +1095,10 @@ mod tests {
             Asn1ObjectIdentifier::with_str("1.1").unwrap().into(),
             Asn1ObjectIdentifier::with_str("1.1").unwrap().into(),
         ]);
-        let sequence: Asn1Object = Asn1Sequence::new(vec![Asn1Set::new(vec![Asn1Set::from_vector(v).unwrap().into()]).into()]).into();
+        let sequence: Asn1Object = Asn1Sequence::new(vec![
+            Asn1Set::new(vec![Asn1Set::from_vector(v).unwrap().into()]).into(),
+        ])
+        .into();
         assert_ne!(name1, sequence);
 
         let sequence: Asn1Sequence = sequence.try_into().unwrap();
@@ -933,7 +1107,10 @@ mod tests {
     #[test]
     fn test_inequality_to_sequence_04() {
         let name1: Asn1Object = X509Name::with_str("CN=The Legion").unwrap().into();
-        let sequence: Asn1Object = Asn1Sequence::new(vec![Asn1Set::new(vec![Asn1Sequence::empty().into()]).into()]).into();
+        let sequence: Asn1Object = Asn1Sequence::new(vec![
+            Asn1Set::new(vec![Asn1Sequence::empty().into()]).into(),
+        ])
+        .into();
         assert_ne!(name1, sequence)
     }
     #[test]
@@ -1052,7 +1229,10 @@ mod tests {
         let value_object = iter.next().unwrap();
         Ok(value_object)
     }
-    fn create_entry_value_from_string(oid: &Asn1ObjectIdentifier, value: &str) -> Result<Asn1Object> {
+    fn create_entry_value_from_string(
+        oid: &Asn1ObjectIdentifier,
+        value: &str,
+    ) -> Result<Asn1Object> {
         let mut attrs = HashMap::new();
         attrs.insert(oid.clone(), value.to_owned());
 
