@@ -861,9 +861,20 @@ impl BigInteger {
     pub fn to_vec(&self) -> Vec<u8> {
         self.to_vec_with_signed(false)
     }
-
     pub fn to_vec_unsigned(&self) -> Vec<u8> {
         self.to_vec_with_signed(true)
+    }
+    pub fn copy_to_u32_vec_signed_little_endian(&self, output: &mut [u32]) -> Result<()> {
+        self.copy_to_u32_vec_little_endian(false, output)
+    }
+    pub fn copy_to_u32_vec_unsigned_little_endian(&self, output: &mut [u32]) -> Result<()> {
+        self.copy_to_u32_vec_little_endian(true, output)
+    }
+    pub fn copy_to_u32_vec_signed_big_endian(&self, output: &mut [u32]) -> Result<()> {
+        self.copy_to_u32_vec_big_endian(false, output)
+    }
+    pub fn copy_to_u32_vec_unsigned_big_endian(&self, output: &mut [u32]) -> Result<()> {
+        self.copy_to_u32_vec_big_endian(true, output)
     }
     // operators
 
@@ -889,6 +900,12 @@ impl BigInteger {
                 calc_bit_length(self.sign, &self.magnitude)
             }
         })
+    }
+    pub fn get_length_of_u32_vec(&self) -> usize {
+        Self::get_length_u32(self.bit_length())
+    }
+    pub fn get_length_of_u32_vec_unsigned(&self) -> usize {
+        Self::get_length_u32(if self.sign < 0 { self.bit_length() + 1 } else { self.bit_length() })
     }
     /// Returns the number of set bits (ones) in the `BigInteger`.
     ///
@@ -1945,11 +1962,9 @@ impl BigInteger {
     pub fn max(&self, value: &Self) -> Self {
         if self < value { value.clone() } else { self.clone() }
     }
-
     pub fn min(&self, value: &Self) -> Self {
         if self < value { self.clone() } else { value.clone() }
     }
-
     pub(crate) fn is_probable_prime_with_randomly_selected(&self, certainty: i32, randomly_selected: bool) -> Result<bool> {
         if certainty <= 0 {
             return Ok(true);
@@ -2498,6 +2513,96 @@ impl BigInteger {
             }
         }
         bytes
+    }
+    fn get_length_u32(bits: usize) -> usize {
+        bits + size_of::<u32>() - 1 / size_of::<u32>()
+    }
+    fn copy_to_u32_vec_big_endian(&self, unsigned: bool, output: &mut [u32]) -> Result<()> {
+        if self.sign == 0 {
+            if !unsigned {
+                if output.is_empty() {
+                    return Err(BcError::with_invalid_argument("Output vector is empty"));
+                }
+                output[0] = u32::MIN;
+            }
+            return Ok(());
+        }
+
+        let bits =  if unsigned && self.sign > 0 { self.bit_length() } else { self.bit_length() + 1 };
+        let n_u32s = Self::get_length_u32(bits);
+        if n_u32s > output.len() {
+            return Err(BcError::with_invalid_argument("insufficient space"));
+        }
+
+        let mut mag_index = self.magnitude.len();
+        let mut ints_index = n_u32s;
+
+        if self.sign > 0 {
+            while mag_index > 0 {
+                output[{ints_index -= 1; ints_index}] = self.magnitude[{ mag_index -= 1; mag_index }];
+            }
+            debug_assert!((ints_index & 1) == ints_index);
+            if ints_index != 0 {
+                output[0] = u32::MIN;
+            }
+        } else {
+            let mut cc = 1u64;
+            while mag_index > 0 {
+                cc += !self.magnitude[{ mag_index -= 1; mag_index }] as u64;
+                output[{ ints_index -= 1; ints_index }] = cc as u32;
+                cc >>= 32;
+            }
+            debug_assert!(cc == 0);
+            debug_assert!((ints_index & 1) == ints_index);
+            if ints_index != 0 {
+                output[{ ints_index -= 1; ints_index}] = u32::MAX;
+            }
+        }
+        Ok(())
+    }
+    fn copy_to_u32_vec_little_endian(&self, unsigned: bool, output: &mut [u32]) -> Result<()> {
+        if self.sign == 0 {
+            if !unsigned {
+                if output.is_empty() {
+                    return Err(BcError::with_invalid_argument("Output vector is empty"));
+                }
+                output[0] = u32::MIN;
+            }
+            return Ok(());
+        }
+
+        let bits =  if unsigned && self.sign > 0 { self.bit_length() } else { self.bit_length() + 1 };
+        let n_u32s = Self::get_length_u32(bits);
+        if n_u32s > output.len() {
+            return Err(BcError::with_invalid_argument("insufficient space"));
+        }
+
+        let mut mag_index = self.magnitude.len();
+
+        if self.sign > 0 {
+            for ints_index in 0..self.magnitude.len() {
+                output[ints_index] = self.magnitude[{ mag_index -= 1; mag_index }];
+            }
+
+            if n_u32s > self.magnitude.len() {
+                debug_assert!((self.magnitude.len() + 1) == n_u32s);
+                output[self.magnitude.len()] = u32::MIN;
+            }
+        } else {
+            let mut cc = 1u64;
+            for ints_index in 0..self.magnitude.len() {
+                cc += !self.magnitude[{ mag_index -= 1; mag_index }] as u64;
+                output[ints_index] = cc as u32;
+                cc >>= 32;
+            }
+            debug_assert!(cc == 0);
+
+            if n_u32s > self.magnitude.len() {
+                debug_assert!((self.magnitude.len() + 1) == n_u32s);
+                output[self.magnitude.len()] = u32::MAX;
+            }
+        }
+        Ok(())
     }
 }
 

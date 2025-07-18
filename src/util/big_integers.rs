@@ -1,6 +1,9 @@
+//! BigInteger utilities.
 use rand::RngCore;
 use crate::math::big_integer::ZERO;
 use crate::math::BigInteger;
+use crate::{BcError, Result};
+use crate::math::raw::{internal_mod, nat};
 
 const MAX_ITERATIONS: usize = 1000;
 
@@ -38,3 +41,30 @@ pub fn create_random_in_range<TRngCore: RngCore>(min: &BigInteger, max: &BigInte
 
     BigInteger::with_random(max.subtract(min).bit_length() - 1, random).add(min)
 }
+
+pub fn mod_odd_inverse(m: &BigInteger, x: &BigInteger) -> Result<BigInteger> {
+    if !m.test_bit(0) {
+        return Err(BcError::with_invalid_argument("modulus must be odd"));
+    }
+
+    if m.sign() != 1 {
+        return Err(BcError::with_invalid_argument("modulus must be positive"));
+    }
+
+    let mut x = x.clone();
+    if x.sign() < 0 || x.bit_length() > m.bit_length() {
+        x = x.modulus(m)?;
+    }
+    
+    let bits = m.bit_length();
+    let m = nat::from_big_integer(bits, m)?;
+    let x = nat::from_big_integer(bits, &x)?;
+    let len = m.len();
+    let mut z = nat::create_u32(len);
+    if internal_mod::mod_odd_inverse(&m, &x, &mut z) == 0 {
+        return Err(BcError::with_arithmetic_error("BigInteger not invertible"));
+    }
+    Ok(nat::to_big_integer(len, &z)?)
+}
+
+// todo
