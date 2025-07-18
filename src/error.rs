@@ -57,6 +57,10 @@ impl BcError {
         (with_invalid_format, ErrorKind::InvalidFormat),
         (with_end_of_stream, ErrorKind::EndOfStream),
     );
+
+    pub fn error(&self) -> &Box<dyn Error + Send + Sync> {
+        &self.error
+    }
 }
 
 impl Debug for BcError {
