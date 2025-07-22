@@ -648,6 +648,9 @@ impl BigInteger {
     pub fn with_probable_prime(bit_length: usize, random: &mut dyn RngCore) -> Result<Self> {
         Self::with_random_certainty(bit_length, 100, random)
     }
+    pub fn with_arbitrary(size_in_bits: usize) -> BigInteger {
+        Self::with_random(size_in_bits, &mut rand::rng())
+    }
     /// Creates a new `BigInteger` with the given sign and magnitude, optionally stripping leading zeros.
     ///
     /// # Arguments
@@ -772,6 +775,17 @@ impl BigInteger {
     pub fn to_string(&self) -> String {
         self.to_string_radix(10).unwrap()
     }
+
+    /// Converts the `BigInteger` to a string representation in the specified radix.
+    ///
+    /// # Arguments
+    /// * `radix` - The base for the string representation. Must be one of 2, 8, 10, or 16.
+    ///
+    /// # Returns
+    /// A `Result<String>` containing the string representation of the `BigInteger` in the specified radix.
+    ///
+    /// # Errors
+    /// Returns an error if the radix is not one of the allowed values (2, 8, 10, or 16) or if the `BigInteger` is zero.
     pub fn to_string_radix(&self, radix: u32) -> Result<String> {
         if !(radix == 2 || radix == 8 || radix == 10 || radix == 16) {
             return Err(BcError::with_invalid_argument("Radix must be 2, 8, 10, or 16"));
@@ -875,6 +889,12 @@ impl BigInteger {
     }
     pub fn copy_to_u32_vec_unsigned_big_endian(&self, output: &mut [u32]) -> Result<()> {
         self.copy_to_u32_vec_big_endian(true, output)
+    }
+    pub fn copy_to_u8_vec_signed_big_endian(&self, output: &mut [u8]) -> Result<()> {
+        self.copy_to_u8_vec_big_endian(false, output)
+    }
+    pub fn copy_to_u8_vec_unsigned_big_endian(&self, output: &mut [u8]) -> Result<()> {
+        self.copy_to_u8_vec_big_endian(true, output)
     }
     // operators
 
@@ -2516,6 +2536,99 @@ impl BigInteger {
     }
     fn get_length_u32(bits: usize) -> usize {
         bits + size_of::<u32>() - 1 / size_of::<u32>()
+    }
+    fn copy_to_u8_vec_big_endian(&self, unsigned: bool, output: &mut [u8]) -> Result<()> {
+        if self.sign == 0 {
+            if !unsigned {
+                if output.is_empty() {
+                    return Err(BcError::with_invalid_argument("Output vector is empty"));
+                }
+                output[0] = 0;
+            }
+            return Ok(());
+        }
+
+        let bits = if unsigned && self.sign > 0 { self.bit_length() } else { self.bit_length() + 1 };
+        let n_bytes = get_bytes_length(bits);
+        if n_bytes > output.len() {
+            return Err(BcError::with_invalid_argument("insufficient space"));
+        }
+
+        let mut mag_index = self.magnitude.len();
+        let mut bytes_index = n_bytes;
+
+        if self.sign > 0 {
+            while mag_index > 1 {
+                let mag = self.magnitude[{
+                    mag_index -= 1;
+                    mag_index
+                }];
+                bytes_index -= 4;
+                u32_to_be_bytes(mag, &mut output[bytes_index..]);
+            }
+
+            let mut last_mag = self.magnitude[0];
+            while last_mag > u8::MAX as u32 {
+                output[{
+                    bytes_index -= 1;
+                    bytes_index
+                }] = (last_mag & 0xFF) as u8;
+                last_mag >>= 8;
+            }
+
+            output[{
+                bytes_index -= 1;
+                bytes_index
+            }] = last_mag as u8;
+            debug_assert!(bytes_index & 0x1 == bytes_index);
+            if bytes_index != 0 {
+                output[0] = 0;
+            }
+        } else {
+            let mut carry = true;
+            while mag_index > 1 {
+                let mut mag = !self.magnitude[{
+                    mag_index -= 1;
+                    mag_index
+                }];
+                if carry {
+                    carry = {
+                        mag = mag.wrapping_add(1);
+                        mag
+                    } == u32::MIN;
+                }
+                bytes_index -= 4;
+                u32_to_be_bytes(mag, &mut output[bytes_index..]);
+            }
+
+            let mut last_mag = self.magnitude[0];
+            if carry {
+                // Never wraps because magnitude[0] != 0
+                last_mag -= 1;
+            }
+
+            while last_mag > u8::MAX as u32 {
+                output[{
+                    bytes_index -= 1;
+                    bytes_index
+                }] = (!last_mag) as u8;
+                last_mag >>= 8;
+            }
+
+            output[{
+                bytes_index -= 1;
+                bytes_index
+            }] = (!last_mag) as u8;
+
+            debug_assert!(bytes_index & 1 == bytes_index);
+            if bytes_index != 0 {
+                output[{
+                    bytes_index -= 1;
+                    bytes_index
+                }] = u8::MAX;
+            }
+        }
+        Ok(())
     }
     fn copy_to_u32_vec_big_endian(&self, unsigned: bool, output: &mut [u32]) -> Result<()> {
         if self.sign == 0 {

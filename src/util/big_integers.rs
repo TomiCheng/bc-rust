@@ -66,5 +66,25 @@ pub fn mod_odd_inverse(m: &BigInteger, x: &BigInteger) -> Result<BigInteger> {
     }
     Ok(nat::to_big_integer(len, &z)?)
 }
+pub fn to_unsigned_bytes(length: usize, n : &BigInteger) -> Result<Vec<u8>> {
+    let bytes_length = n.get_length_of_u32_vec_unsigned();
+    if bytes_length > length {
+        return Err(BcError::with_invalid_argument("standard length exceeded"));
+    }
+
+    let mut bytes = vec![0u8; length];
+    n.copy_to_u8_vec_unsigned_big_endian(&mut bytes[(length - bytes_length)..])?;
+    Ok(bytes)
+}
+pub fn to_unsigned_bytes_inplace(n: &BigInteger, buf: &mut [u8]) -> Result<()> {
+    let bytes_length = n.get_length_of_u32_vec_unsigned();
+    let buf_length = buf.len();
+    if bytes_length > buf_length {
+        return Err(BcError::with_invalid_argument("standard length exceeded"));
+    }
+    buf[..(buf_length - bytes_length)].fill(0);
+    n.copy_to_u8_vec_unsigned_big_endian(&mut buf[0..bytes_length])?;
+    Ok(())
+}
 
 // todo
