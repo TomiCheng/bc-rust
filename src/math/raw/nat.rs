@@ -1,5 +1,7 @@
+#![allow(unused)]
 use crate::{BcError, Result};
 use crate::math::BigInteger;
+use crate::math::raw::nat512;
 use crate::util::pack;
 
 const M: u64 = 0xFFFFFFFF;
@@ -230,7 +232,6 @@ pub fn equal_to_u32s(len: usize, x: &[u32], y: &[u32]) -> u32 {
     d = (d >> 1) | (d & 1);
     ((d as i32 - 1) >> 31) as u32
 }
-// TODO
 pub fn get_bit_length(len: usize, x: &[u32]) -> usize {
     for i in (0..len).rev() {
         let x_i = x[i];
@@ -240,9 +241,6 @@ pub fn get_bit_length(len: usize, x: &[u32]) -> usize {
     }
     0
 }
-
-// TODO
-
 pub(crate) fn gte(len: usize, x: &[u32], y: &[u32]) -> bool {
     for i in (0..len).rev() {
         let x_i = x[i];
@@ -256,7 +254,6 @@ pub(crate) fn gte(len: usize, x: &[u32], y: &[u32]) -> bool {
     }
     true
 }
-// TODO
 pub(crate) fn less_than(len: usize, x: &[u32], y: &[u32]) -> i32 {
     let mut c = 0;
     for i in 0..len {
@@ -287,7 +284,6 @@ pub(crate) fn get_length_for_bits(bits: usize) -> Result<usize> {
 
     Ok((bits + 31) >> 5)
 }
-
 pub(crate) fn to_big_integer(len: usize, x: &[u32]) -> Result<BigInteger> {
     if cfg!(target_endian = "little") {
         unsafe {
@@ -310,4 +306,24 @@ pub fn inc_at(len: usize, z: &mut [u32], z_pos: usize) -> u32 {
         }
     }
     1
+}
+
+// TODO
+fn xor_to_u64(len: usize, x: &[u64], z: &mut [u64]) {
+    let mut i = 0;
+    let limit8 = len - 8;
+    while i < limit8 {
+        nat512::xor_to_u64(&x[i..], &mut z[i..]);
+        i += 8;
+    }
+    while i < len {
+        z[i] ^= x[i];;
+        i += 1;
+    }
+}
+fn zero_u32(len: usize, z: &mut [u32]) {
+    z[..len].fill(0);
+}
+fn zero_u64(len: usize, z: &mut [u64]) {
+    z[..len].fill(0);
 }

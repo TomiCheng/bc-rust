@@ -15,19 +15,25 @@ impl FpPoint {
     pub(crate) fn with_curve(curve: Weak<FpCurve>) -> Arc<Self> {
         Arc::new(FpPoint { curve, x: None, y: None })
     }
-    pub(crate) fn with_curve_x_y(
-        curve: Weak<FpCurve>,
-        x: Option<FpFieldElement>,
-        y: Option<FpFieldElement>,
-    ) -> Result<Arc<Self>> {
+    pub(crate) fn with_curve_x_y(curve: Weak<FpCurve>, x: Option<FpFieldElement>, y: Option<FpFieldElement>) -> Result<Arc<Self>> {
         if x.is_none() != y.is_none() {
             return Err(BcError::with_invalid_argument("Exactly one of the field elements is null"));
         }
         Ok(Arc::new(FpPoint { curve, x, y }))
     }
+    fn detach(&self) -> Arc<FpPoint> {
+        Arc::new(FpPoint {
+            curve: Weak::new(),
+            x: self.x.clone(),
+            y: self.y.clone(),
+        })
+    }
+
     pub fn is_infinity(&self) -> bool {
         self.x.is_none() && self.y.is_none()
     }
+
+
 
     pub fn add(self: &Arc<FpPoint>, b: &Arc<FpPoint>) -> Arc<FpPoint> {
         if self.is_infinity() {
@@ -41,6 +47,11 @@ impl FpPoint {
         }
         todo!();
     }
+
+    fn twice_jacobian_modified(calculate_w: bool) {
+
+    }
+
 }
 impl PartialEq for FpPoint {
     fn eq(&self, other: &Self) -> bool {
