@@ -1,3 +1,7 @@
+use std::sync::Arc;
+use crate::math::BigInteger;
+use crate::math::ec::EcFieldElementRc;
+use crate::math::ec::EcFieldElement;
 use crate::math::field::FiniteField;
 
 pub const COORD_AFFINE: u8 = 0;
@@ -12,22 +16,21 @@ pub const COORD_SKEWED: u8 = 7;
 // use crate::math::ec::{AbstractEcLookupTable, EcLookupTable, EcPoint};
 // use crate::math::field::FiniteField;
 //
-// pub trait EcCurve {
-//
-// }
-//
+
+pub type EcCurveRc = Arc<dyn EcCurve>;
+pub trait EcCurve {
+    fn create_field_element_from_big_integer(&self, x: &BigInteger) -> EcFieldElementRc;
+}
+
 pub(crate) struct EcCurveImpl {
     field: Box<dyn FiniteField>
+
 }
 
 impl EcCurveImpl {
     pub(crate) fn new(field: Box<dyn FiniteField>) -> Self {
         EcCurveImpl { field }
     }
-    //
-    //     pub fn create_cache_safe_lookup_table(&self, points: &[Box(dyn EcPoint)]) {
-    //         let dd = DefaultLookupTable::new(self, Vec::new(), 0);
-    //     }
 }
 //
 // // todo

@@ -47,6 +47,8 @@ mod try_from_tagged;
 pub mod x500;
 pub mod x509;
 mod tagged_der_encoding;
+mod x9;
+pub mod sec;
 
 pub use asn1_bit_string::Asn1BitString;
 pub use asn1_bmp_string::Asn1BmpString;

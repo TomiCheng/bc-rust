@@ -1,0 +1,55 @@
+use crate::define_oid;
+
+define_oid!(ELLIPTIC_CURVE, "1.3.132.0", "");
+define_oid!(SEC_T163K1, ELLIPTIC_CURVE, "1", "");
+define_oid!(SEC_T163R1, ELLIPTIC_CURVE, "2", "");
+define_oid!(SEC_T239K1, ELLIPTIC_CURVE, "3", "");
+define_oid!(SEC_T113R1, ELLIPTIC_CURVE, "4", "");
+define_oid!(SEC_T113R2, ELLIPTIC_CURVE, "5", "");
+define_oid!(SEC_P112R1, ELLIPTIC_CURVE, "6", "");
+define_oid!(SEC_P112R2, ELLIPTIC_CURVE, "7", "");
+define_oid!(SEC_P160R1, ELLIPTIC_CURVE, "8", "");
+define_oid!(SEC_P160K1, ELLIPTIC_CURVE, "9", "");
+define_oid!(SEC_P256K1, ELLIPTIC_CURVE, "10", "");
+define_oid!(SEC_T163R2, ELLIPTIC_CURVE, "15", "");
+define_oid!(SEC_T283K1, ELLIPTIC_CURVE, "16", "");
+define_oid!(SEC_T283R1, ELLIPTIC_CURVE, "17", "");
+define_oid!(SEC_T131R1, ELLIPTIC_CURVE, "22", "");
+define_oid!(SEC_T131R2, ELLIPTIC_CURVE, "23", "");
+define_oid!(SEC_T193R1, ELLIPTIC_CURVE, "24", "");
+define_oid!(SEC_T193R2, ELLIPTIC_CURVE, "25", "");
+define_oid!(SEC_T233K1, ELLIPTIC_CURVE, "26", "");
+define_oid!(SEC_T233R1, ELLIPTIC_CURVE, "27", "");
+define_oid!(SEC_P128R1, ELLIPTIC_CURVE, "28", "");
+define_oid!(SEC_P128R2, ELLIPTIC_CURVE, "29", "");
+define_oid!(SEC_P160R2, ELLIPTIC_CURVE, "30", "");
+define_oid!(SEC_P192K1, ELLIPTIC_CURVE, "31", "");
+define_oid!(SEC_P224K1, ELLIPTIC_CURVE, "32", "");
+define_oid!(SEC_P224R1, ELLIPTIC_CURVE, "33", "");
+define_oid!(SEC_P384R1, ELLIPTIC_CURVE, "34", "");
+define_oid!(SEC_P521R1, ELLIPTIC_CURVE, "35", "");
+define_oid!(SEC_T409K1, ELLIPTIC_CURVE, "36", "");
+define_oid!(SEC_T409R1, ELLIPTIC_CURVE, "37", "");
+define_oid!(SEC_T571K1, ELLIPTIC_CURVE, "38", "");
+define_oid!(SEC_T571R1, ELLIPTIC_CURVE, "39", "");
+
+define_oid!(SECG_SCHEMA, "1.3.132.1", "");
+define_oid!(DH_SINGLE_PASS_STD_DH_SHA224KDF_SCHEME, SECG_SCHEMA,  "11.0", "");
+define_oid!(DH_SINGLE_PASS_STD_DH_SHA256KDF_SCHEME, SECG_SCHEMA, "11.1", "");
+define_oid!(DH_SINGLE_PASS_STD_DH_SHA384KDF_SCHEME, SECG_SCHEMA, "11.2", "");
+define_oid!(DH_SINGLE_PASS_STD_DH_SHA512KDF_SCHEME, SECG_SCHEMA, "11.3", "");
+
+define_oid!(DH_SINGLE_PASS_COFACTOR_DH_SHA224KDF_SCHEME, SECG_SCHEMA, "14.0", "");
+define_oid!(DH_SINGLE_PASS_COFACTOR_DH_SHA256KDF_SCHEME, SECG_SCHEMA, "14.1", "");
+define_oid!(DH_SINGLE_PASS_COFACTOR_DH_SHA384KDF_SCHEME, SECG_SCHEMA, "14.2", "");
+define_oid!(DH_SINGLE_PASS_COFACTOR_DH_SHA512KDF_SCHEME, SECG_SCHEMA, "14.3", "");
+
+define_oid!(MQV_SINGLE_PASS_SHA224KDF_SCHEME, SECG_SCHEMA, "15.0", "");
+define_oid!(MQV_SINGLE_PASS_SHA256KDF_SCHEME, SECG_SCHEMA, "15.1", "");
+define_oid!(MQV_SINGLE_PASS_SHA384KDF_SCHEME, SECG_SCHEMA, "15.2", "");
+define_oid!(MQV_SINGLE_PASS_SHA512KDF_SCHEME, SECG_SCHEMA, "15.3", "");
+
+define_oid!(MQV_FULL_SHA224KDF_SCHEME, SECG_SCHEMA, "16.0", "");
+define_oid!(MQV_FULL_SHA256KDF_SCHEME, SECG_SCHEMA, "16.1", "");
+define_oid!(MQV_FULL_SHA384KDF_SCHEME, SECG_SCHEMA, "16.2", "");
+define_oid!(MQV_FULL_SHA512KDF_SCHEME, SECG_SCHEMA, "16.3", "");

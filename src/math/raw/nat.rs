@@ -1,4 +1,8 @@
 #![allow(unused)]
+
+use std::cmp::Ordering;
+use std::ops::{Add, BitAnd, Index, IndexMut, Shr, Sub, SubAssign};
+use std::process::Output;
 use crate::{BcError, Result};
 use crate::math::BigInteger;
 use crate::math::raw::nat512;
@@ -326,4 +330,152 @@ fn zero_u32(len: usize, z: &mut [u32]) {
 }
 fn zero_u64(len: usize, z: &mut [u64]) {
     z[..len].fill(0);
+}
+
+type Nat128 = Nat<u32, 4>;
+type Nat160 = Nat<u32, 5>;
+type Nat192 = Nat<u32, 6>;
+type Nat224 = Nat<u32, 7>;
+pub type Nat256 = Nat<u32, 8>;
+pub type Nat256Ext = Nat<u32, 16>;
+type Nat320 = Nat<u64, 5>;
+type Nat384 = Nat<u64, 6>;
+type Nat448 = Nat<u64, 7>;
+type Nat512 = Nat<u64, 8>;
+pub type Nat576 = Nat<u64, 9>;
+
+pub(crate) struct Nat<T, const N: usize> {
+    data: [T; N]
+}
+
+impl<T, const N: usize> Nat<T, N>
+where T: Default + Copy + PartialEq + From<u32> + BitAnd<Output = T> + Shr<usize, Output = T> + Add<Output = T> {
+    const T_BITS: usize = size_of::<T>() * 8;
+    const BITS: usize = N * size_of::<T>() * 8;
+    pub const fn new(data: [T; N]) -> Self {
+        Self { data }
+    }
+    pub fn create() -> Self {
+        Self { data: [T::default(); N] }
+    }
+    pub fn get_length_for_bits() -> usize {
+        (Self::BITS + Self::T_BITS - 1) / Self::T_BITS
+    }
+    pub fn is_zero(&self) -> bool {
+        for i in 0..N {
+            if self.data[i] != T::from(0) {
+                return false;
+            }
+        }
+        true
+    }
+    pub fn is_one(&self) -> bool {
+        if self.data[0] != T::from(1) {
+            return false;
+        }
+        for i in 1..N {
+            if self.data[i] != T::from(0) {
+                return false;
+            }
+        }
+        true
+    }
+    pub fn get_bit(&self, bit: usize) -> T {
+        if bit == 0 {
+            return self.data[0] & T::from(1);
+        }
+        if bit & 255 != bit {
+            return T::from(0);
+        }
+
+        let w = bit / Self::T_BITS;
+        let b = bit & (Self::T_BITS - 1);
+        (self.data[w] >> b) & T::from(1)
+    }
+
+    pub fn xor(&self, y: &Self, z: &mut Self) {
+        todo!();
+    }
+}
+impl<const N: usize> Nat<u32, N> {
+    pub fn from_big_integer(x: &BigInteger) -> Result<Self> {
+        if x.sign() < 0 || x.bit_length() > Self::BITS {
+            return Err(BcError::with_invalid_argument(""));
+        }
+
+        let len = Self::get_length_for_bits();
+        let mut z = Self::create();
+        let x_len = x.get_length_of_u32_vec_unsigned();
+        x.copy_to_u32_vec_unsigned_little_endian(&mut z.data[..x_len])?;
+        Ok(z)
+    }
+    pub fn to_big_integer(&self) -> BigInteger {
+        let mut bs = vec![0u8; Self::T_BITS];
+        for (i, v) in self.data.iter().enumerate() {
+            if *v != 0 {
+                let start = (7 - i) << 2;
+                bs[start..(start + 4)].copy_from_slice(&v.to_be_bytes());
+            }
+        }
+        BigInteger::with_sign_buffer(1, &bs).unwrap()
+    }
+}
+impl<const N: usize> Nat<u64, N> {
+
+}
+impl<T, const N: usize> Index<usize> for Nat<T, N> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
+    }
+}
+impl<T, const N: usize> IndexMut<usize> for Nat<T, N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.data[index]
+    }
+}
+impl<T, const N: usize> PartialEq for Nat<T, N>
+where T: PartialEq
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data
+    }
+}
+impl<T, const N: usize> PartialOrd for Nat<T, N>
+where T: PartialOrd
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        for (s, o) in self.data.iter().zip(other.data.iter()) {
+            if s < o {
+                return Some(Ordering::Less);
+            } else if s > o {
+                return Some(Ordering::Greater);
+            }
+        }
+        Some(Ordering::Equal)
+    }
+}
+impl<T, const N: usize> SubAssign for Nat<T, N>
+where T: Sub<Output = T> + Copy
+{
+    fn sub_assign(&mut self, other: Self) {
+        for (s, o) in self.data.iter_mut().zip(other.data.iter()) {
+            *s = *s - *o;
+        }
+    }
+}
+// impl<T, const N: usize> Add for Nat<T, N> {
+//     type Output = Nat<T, N>;
+//
+//     fn add(&self, rhs: &Self) -> Self::Output {
+//         todo!()
+//     }
+// }
+impl<T, const N: usize> Add for &Nat<T, N> {
+    type Output =  Nat<T, N>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        todo!()
+    }
 }
