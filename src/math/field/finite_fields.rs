@@ -5,7 +5,7 @@ use crate::math::field::prime_field::PrimeField;
 use crate::math::field::{FiniteField, PolynomialExtensionField};
 use crate::{BcError, Result};
 
-pub fn get_prime_field(characteristic: BigInteger) -> Result<impl FiniteField> {
+pub fn create_prime_field(characteristic: BigInteger) -> Result<PrimeField> {
     let bit_length = characteristic.bit_length();
     if characteristic.sign() <= 0 || bit_length < 2 {
         return Err(BcError::with_invalid_argument("must be >= 2"));

@@ -1,29 +1,137 @@
-// use std::fmt::{Display, Formatter};
-// use std::hash::{Hash, Hasher};
-// use crate::math::big_integer::{ONE, TWO, ZERO};
-// use crate::math::BigInteger;
-// use crate::math::ec::EcFieldElement;
-// use crate::util::big_integers;
-// use crate::{BcError, Result};
-// 
-// #[derive(Debug, Clone)]
-// pub struct FpFieldElement {
-//     q: BigInteger,
-//     r: Option<BigInteger>,
-//     x: BigInteger,
-// }
-// 
-// impl FpFieldElement {
-//     pub(crate) fn new(q: BigInteger, r: Option<BigInteger>, x: BigInteger) -> Self {
-//         FpFieldElement { q, r, x }
-//     }
-//     fn mod_add(&self, x1: &BigInteger, x2: &BigInteger) -> BigInteger {
-//         let mut x3 = x1.add(x2);
-//         if x3 >= self.q {
-//             x3 = x3.subtract(&self.q)
-//         }
-//         x3
-//     }
+use crate::math::big_integer::ONE;
+use crate::math::BigInteger;
+use crate::{Result};
+use crate::util::big_integers;
+
+#[derive(Debug, Clone)]
+pub struct FpFieldElement {
+    q: BigInteger,
+    r: Option<BigInteger>,
+    x: BigInteger,
+}
+impl FpFieldElement {
+    pub(crate) fn new(q: BigInteger, r: Option<BigInteger>, x: BigInteger) -> Self {
+        FpFieldElement { q, r, x }
+    }
+
+    pub fn to_big_integer(&self) -> BigInteger {
+        self.x.clone()
+    }
+    pub fn is_one(&self) -> bool {
+        self.bit_length() == 1
+    }
+    pub fn is_zero(&self) -> bool {
+        self.x.sign() == 0
+    }
+    pub fn bit_length(&self) -> usize {
+        self.x.bit_length()
+    }
+    pub fn multiply(&self, b: &Self) -> Result<Self> {
+        Ok(Self::new(self.q.clone(), self.r.clone(), self.mod_multiply(&self.x, &b.x)?))
+    }
+    pub fn invert(&self) -> Result<Self> {
+        Ok(Self::new(self.q.clone(), self.r.clone(), self.mod_inverse(&self.x)?))
+    }
+    pub fn square(&self) -> Result<Self> {
+        Ok(Self::new(self.q.clone(), self.r.clone(), self.mod_multiply(&self.x, &self.x)?))
+    }
+    pub fn subtract(&self, b: &Self) -> Self {
+        Self::new(self.q.clone(), self.r.clone(), self.mod_subtract(&self.x, &b.x))
+    }
+    pub fn divide(&self, b: &Self) -> Result<Self> {
+        Ok(Self::new(self.q.clone(), self.r.clone(), self.mod_multiply(&self.x, &self.mod_inverse(&b.x)?)?))
+    }
+    pub fn add(&self, b: &Self) -> Self {
+        Self::new(self.q.clone(), self.r.clone(), self.mod_add(&self.x, &b.x))
+    }
+    pub fn multiply_minus_product(&self, b: &Self, x: &Self, y: &Self) -> Result<Self> {
+        let ax = &self.x;
+        let bx = &b.x;
+        let xx = &x.x;
+        let yx = &y.x;
+        let ab = ax.multiply(bx);
+        let xy = xx.multiply(yx);
+        Ok(Self::new(self.q.clone(), self.r.clone(), self.mod_reduce(&ab.subtract(&xy))?))
+    }
+    pub fn negate(&self) -> Self {
+        if self.x.sign() == 0 {
+            self.clone()
+        } else {
+            Self::new(self.q.clone(), self.r.clone(), self.q.subtract(&self.x))
+        }
+    }
+    fn mod_multiply(&self, x1: &BigInteger, x2: &BigInteger) -> Result<BigInteger> {
+        self.mod_reduce(&x1.multiply(x2))
+    }
+    fn mod_reduce(&self, x: &BigInteger) -> Result<BigInteger> {
+        let mut x = x.clone();
+        if let Some(r) = &self.r {
+            let negative = x.sign() < 0;
+            if negative {
+                x = x.abs();
+            }
+            let q_len = self.q.bit_length();
+            if r.sign() > 0 {
+                let q_mod = (*ONE).shift_left(q_len as isize);
+                let r_is_one = r == &(*ONE);
+
+                while x.bit_length() > (q_len + 1) {
+                    let mut u = x.shift_right(q_len as isize);
+                    let v = x.remainder(&q_mod)?;
+                    if r_is_one {
+                        u = u.multiply(&r);
+                    }
+                    x = u.add(&v);
+                }
+            } else {
+                let d = ((q_len - 1) & 31) + 1;
+                let mu = r.negate();
+                let u = mu.multiply(&x.shift_right((q_len - d) as isize));
+                let quot = u.shift_right((q_len + d) as isize);
+                let mut v = quot.multiply(&self.q);
+                let bk1 = (*ONE).shift_left((q_len + d) as isize);
+                v = v.remainder(&bk1)?;
+                x = x.remainder(&bk1)?;
+                x = x.subtract(&v);
+                if x.sign() < 0 {
+                    x = x.add(&bk1);
+                }
+            }
+            while x >= self.q {
+                x = x.subtract(&self.q);
+            }
+            if negative && x.sign() != 0 {
+                x = self.q.subtract(&x);
+            }
+        } else {
+            x = x.modulus(&self.q)?;
+        }
+        Ok(x)
+    }
+    fn mod_inverse(&self, x: &BigInteger) -> Result<BigInteger> {
+        big_integers::mod_odd_inverse(&self.q, x)
+    }
+    fn mod_subtract(&self, x1: &BigInteger, x2: &BigInteger) -> BigInteger {
+        let mut x3 = x1.subtract(x2);
+        if x3.sign() < 0 {
+            x3 = x3.add(&self.q)
+        }
+        x3
+    }
+    fn mod_add(&self, x1: &BigInteger, x2: &BigInteger) -> BigInteger {
+        let mut x3 = x1.add(x2);
+        if x3 >= self.q {
+            x3 = x3.subtract(&self.q)
+        }
+        x3
+    }
+}
+impl PartialEq for FpFieldElement {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x
+    }
+}
+
 //     fn mod_double(&self, x: &BigInteger) -> BigInteger {
 //         let mut i2x = x.shift_left(1);
 //         if i2x >= self.q {
@@ -38,64 +146,10 @@
 //         }
 //         x.shift_right(1)
 //     }
-//     fn mod_inverse(&self, x: &BigInteger) -> Result<BigInteger> {
-//         big_integers::mod_odd_inverse(&self.q, x)
-//     }
-//     fn mod_multiply(&self, x1: &BigInteger, x2: &BigInteger) -> Result<BigInteger> {
-//         self.mod_reduce(&x1.multiply(x2))
-//     }
-//     fn mod_reduce(&self, x: &BigInteger) -> Result<BigInteger> {
-//         let mut x = x.clone();
-//         if let Some(r) = &self.r {
-//             let negative = x.sign() < 0;
-//             if negative {
-//                 x = x.abs();
-//             }
-//             let q_len = self.q.bit_length();
-//             if r.sign() > 0 {
-//                 let q_mod = (*ONE).shift_left(q_len as isize);
-//                 let r_is_one = r == &(*ONE);
-// 
-//                 while x.bit_length() > (q_len + 1) {
-//                     let mut u = x.shift_right(q_len as isize);
-//                     let v = x.remainder(&q_mod)?;
-//                     if r_is_one {
-//                         u = u.multiply(&r);
-//                     }
-//                     x = u.add(&v);
-//                 }
-//             } else {
-//                 let d = ((q_len -1 ) & 31) + 1;
-//                 let mu = r.negate();
-//                 let u = mu.multiply(&x.shift_right((q_len - d) as isize));
-//                 let quot = u.shift_right((q_len + d) as isize);
-//                 let mut v = quot.multiply(&self.q);
-//                 let bk1 = (*ONE).shift_left((q_len + d) as isize);
-//                 v = v.remainder(&bk1)?;
-//                 x = x.remainder(&bk1)?;
-//                 x = x.subtract(&v);
-//                 if x.sign() < 0 {
-//                     x = x.add(&bk1);
-//                 }
-//             }
-//             while x >= self.q {
-//                 x = x.subtract(&self.q);
-//             }
-//             if negative && x.sign() != 0 {
-//                 x = self.q.subtract(&x);
-//             }
-//         } else {
-//             x = x.modulus(&self.q)?;
-//         }
-//         Ok(x)
-//     }
-//     fn mod_subtract(&self, x1: &BigInteger, x2: &BigInteger) -> BigInteger {
-//         let mut x3 = x1.subtract(x2);
-//         if x3.sign() < 0 {
-//             x3 = x3.add(&self.q)
-//         }
-//         x3
-//     }
+
+
+
+
 //     fn check_sqrt(&self, z: Self) -> Result<Option<Self>> {
 //         if z.square()? == *self {
 //             Ok(Some(z))
@@ -144,7 +198,7 @@
 //         }
 //         Ok((uh, vl))
 //     }
-// }
+//}
 // 
 // impl EcFieldElement for FpFieldElement {
 //     fn big_integer(&self) -> &BigInteger {
@@ -159,9 +213,7 @@
 //         self.q.bit_length()
 //     }
 // 
-//     fn add(&self, b: &Self) -> Self {
-//         Self::new(self.q.clone(), self.r.clone(), self.mod_add(&self.x, b.big_integer()))
-//     }
+
 // 
 //     fn add_one(&self) -> Self {
 //         let mut x2 = self.x.add(&(*ONE));
@@ -171,36 +223,17 @@
 //         Self::new(self.q.clone(), self.r.clone(), x2)
 //     }
 // 
-//     fn subtract(&self, b: &Self) -> Self {
-//         Self::new(self.q.clone(), self.r.clone(), self.mod_subtract(&self.x, b.big_integer()))
-//     }
+
 // 
-//     fn multiply(&self, b: &Self) -> Result<Self> {
-//         Ok(Self::new(self.q.clone(), self.r.clone(), self.mod_multiply(&self.x, b.big_integer())?))
-//     }
+
 // 
-//     fn divide(&self, b: &Self) -> Result<Self>
-//     where
-//         Self: Sized
-//     {
-//         Ok(Self::new(self.q.clone(), self.r.clone(), self.mod_multiply(&self.x, &self.mod_inverse(b.big_integer())?)?))
-//     }
+
 // 
-//     fn negate(&self) -> Self {
-//         if self.x.sign() == 0 {
-//             self.clone()
-//         }  else {
-//             Self::new(self.q.clone(), self.r.clone(), self.q.subtract(&self.x))
-//         }
-//     }
+
 // 
-//     fn square(&self) -> Result<Self> {
-//         Ok(Self::new(self.q.clone(), self.r.clone(), self.mod_multiply(&self.x, &self.x)?))
-//     }
+
 // 
-//     fn invert(&self) -> Result<Self> {
-//         Ok(Self::new(self.q.clone(), self.r.clone(),self.mod_inverse(&self.x)?))
-//     }
+
 // 
 //     fn sqrt(&self) -> Result<Option<Self>>
 //     where
@@ -269,18 +302,7 @@
 //         Ok(None)
 //     }
 // 
-//     fn multiply_minus_product(&self, b: &Self, x: &Self, y: &Self) -> Result<Self>
-//     where
-//         Self: Sized
-//     {
-//         let ax = &self.x;
-//         let bx = b.big_integer();
-//         let xx = x.big_integer();
-//         let yx = y.big_integer();
-//         let ab = ax.multiply(bx);
-//         let xy = xx.multiply(yx);
-//         Ok(Self::new(self.q.clone(), self.r.clone(), self.mod_reduce(&ab.subtract(&xy))?))
-//     }
+
 // 
 //     fn multiply_plus_product(&self, b: &Self, x: &Self, y: &Self) -> Result<Self>
 //     where
@@ -344,16 +366,16 @@
 //     }
 // }
 // 
-// pub(crate) fn calculate_residue(p: &BigInteger) -> Result<Option<BigInteger>> {
-//     let bit_length = p.bit_length();
-//     if bit_length >= 96 {
-//         let first_word = p.shift_right(bit_length as isize - 64);
-//         if first_word.as_i64() == -1 {
-//             return Ok(Some((*ONE).shift_left(bit_length as isize).subtract(p)))
-//         }
-//         if bit_length & 7 == 0 {
-//             return Ok(Some((*ONE).shift_left((bit_length << 1) as isize).divide(p)?.negate()))
-//         }
-//     }
-//     Ok(None)
-// }
+pub(crate) fn calculate_residue(p: &BigInteger) -> Result<Option<BigInteger>> {
+    let bit_length = p.bit_length();
+    if bit_length >= 96 {
+        let first_word = p.shift_right(bit_length as isize - 64);
+        if first_word.as_i64() == -1 {
+            return Ok(Some((*ONE).shift_left(bit_length as isize).subtract(p)))
+        }
+        if bit_length & 7 == 0 {
+            return Ok(Some((*ONE).shift_left((bit_length << 1) as isize).divide(p)?.negate()))
+        }
+    }
+    Ok(None)
+}

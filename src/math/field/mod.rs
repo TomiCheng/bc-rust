@@ -11,3 +11,4 @@ pub use finite_field::FiniteField;
 pub use extension_field::ExtensionField;
 pub use polynomial_extension_field::PolynomialExtensionField;
 pub use polynomial::Polynomial;
+pub(crate) use prime_field::PrimeField;

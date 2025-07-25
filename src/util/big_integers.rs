@@ -41,7 +41,6 @@ pub fn create_random_in_range<TRngCore: RngCore>(min: &BigInteger, max: &BigInte
 
     BigInteger::with_random(max.subtract(min).bit_length() - 1, random).add(min)
 }
-
 pub fn mod_odd_inverse(m: &BigInteger, x: &BigInteger) -> Result<BigInteger> {
     if !m.test_bit(0) {
         return Err(BcError::with_invalid_argument("modulus must be odd"));
@@ -86,5 +85,7 @@ pub fn to_unsigned_bytes_inplace(n: &BigInteger, buf: &mut [u8]) -> Result<()> {
     n.copy_to_u8_vec_unsigned_big_endian(&mut buf[0..bytes_length])?;
     Ok(())
 }
-
+pub fn create_random_big_integer<TRngCore: RngCore>(bit_length: usize, random: &mut TRngCore) -> BigInteger {
+    BigInteger::with_random(bit_length, random)
+}
 // todo
