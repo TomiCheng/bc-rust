@@ -288,7 +288,7 @@ pub(crate) fn get_length_for_bits(bits: usize) -> Result<usize> {
 
     Ok((bits + 31) >> 5)
 }
-pub(crate) fn to_big_integer(len: usize, x: &[u32]) -> Result<BigInteger> {
+pub(crate) fn to_big_integer(len: usize, x: &[u32]) -> BigInteger {
     if cfg!(target_endian = "little") {
         unsafe {
             let bs = std::slice::from_raw_parts(x.as_ptr() as *const u8, x.len() * size_of::<u32>());
@@ -417,7 +417,7 @@ impl<const N: usize> Nat<u32, N> {
                 bs[start..(start + 4)].copy_from_slice(&v.to_be_bytes());
             }
         }
-        BigInteger::with_sign_buffer(1, &bs).unwrap()
+        BigInteger::with_sign_buffer(1, &bs)
     }
 }
 impl<const N: usize> Nat<u64, N> {

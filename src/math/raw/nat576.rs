@@ -49,5 +49,5 @@ pub(crate) fn to_big_integer(x: &Nat576) -> BigInteger {
         let v = x[i];
         pack::u64_to_be(v, &mut bs[((8 - i) << 3)..])
     }
-    BigInteger::with_sign_buffer(1, &bs).unwrap()
+    BigInteger::with_sign_buffer(1, &bs)
 }

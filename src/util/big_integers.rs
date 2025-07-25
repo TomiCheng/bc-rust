@@ -52,7 +52,7 @@ pub fn mod_odd_inverse(m: &BigInteger, x: &BigInteger) -> Result<BigInteger> {
 
     let mut x = x.clone();
     if x.sign() < 0 || x.bit_length() > m.bit_length() {
-        x = x.modulus(m)?;
+        x = x.modulus(m);
     }
     
     let bits = m.bit_length();
@@ -63,7 +63,7 @@ pub fn mod_odd_inverse(m: &BigInteger, x: &BigInteger) -> Result<BigInteger> {
     if internal_mod::mod_odd_inverse(&m, &x, &mut z) == 0 {
         return Err(BcError::with_arithmetic_error("BigInteger not invertible"));
     }
-    Ok(nat::to_big_integer(len, &z)?)
+    Ok(nat::to_big_integer(len, &z))
 }
 pub fn to_unsigned_bytes(length: usize, n : &BigInteger) -> Result<Vec<u8>> {
     let bytes_length = n.get_length_of_u32_vec_unsigned();

@@ -5,7 +5,7 @@ use rand::prelude::*;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
-use std::ops::Neg;
+use std::ops::*;
 use std::sync::{LazyLock, OnceLock};
 
 const I_MASK: i64 = 0xFFFFFFFF;
@@ -365,7 +365,7 @@ impl BigInteger {
         let result = if big_endian { init_be(buffer) } else { init_le(buffer) };
         Self::new(result.0, result.1)
     }
-    pub fn with_sign_buffer(sign: i8, buffer: &[u8]) -> Result<Self> {
+    pub fn with_sign_buffer(sign: i8, buffer: &[u8]) -> Self {
         Self::with_sign_buffer_big_endian(sign, buffer, true)
     }
     /// # Arguments
@@ -375,23 +375,23 @@ impl BigInteger {
     ///
     /// # Returns
     /// A `BigInteger` instance.
-    ///
-    /// # Errors
-    /// Returns `Error` if the sign is invalid.
-    pub fn with_sign_buffer_big_endian(sign: i8, buffer: &[u8], big_endian: bool) -> Result<Self> {
-        if sign < -1 || sign > 1 {
-            return Err(BcError::with_invalid_argument("Sign must be -1, 0, or 1"));
+    pub fn with_sign_buffer_big_endian(sign: i8, buffer: &[u8], big_endian: bool) -> Self {
+        let mut sign = sign;
+        if sign <= -1 {
+            sign = -1;
         }
-
+        if sign >= 1 {
+            sign = 1;
+        }
         if sign == 0 {
-            return Ok((*ZERO).clone());
+            return (*ZERO).clone();
         }
         let magnitude = if big_endian {
             make_magnitude_be(buffer)
         } else {
             make_magnitude_le(buffer)
         };
-        Ok(Self::new(sign, magnitude))
+        Self::new(sign, magnitude)
     }
     /// Creates a `BigInteger` from a string with the specified radix.
     ///
@@ -632,14 +632,14 @@ impl BigInteger {
             }
 
             let result = BigInteger::new(1, magnitude.clone());
-            if result.check_probable_prime(certainty, random, true)? {
+            if result.check_probable_prime(certainty, random, true) {
                 return Ok(result);
             }
             for j in 1..(magnitude.len() - 1) {
                 magnitude[j] ^= random.next_u32();
 
                 let result = BigInteger::new(1, magnitude.clone());
-                if result.check_probable_prime(certainty, random, true)? {
+                if result.check_probable_prime(certainty, random, true) {
                     return Ok(result);
                 }
             }
@@ -1187,48 +1187,52 @@ impl BigInteger {
     /// let a = BigInteger::with_u32(100);
     /// let b = BigInteger::with_u32(20);
     /// let result = a.divide(&b);
-    /// assert_eq!(result.unwrap().as_u32(), 5); // 100 / 20 = 5
+    /// assert_eq!(result.as_u32(), 5); // 100 / 20 = 5
     ///
     /// let a_neg = BigInteger::with_i32(-100);
     /// let b_neg = BigInteger::with_i32(-20);
     /// let result_neg = a_neg.divide(&b_neg);
-    /// assert_eq!(result_neg.unwrap().as_i32(), 5); // -100 / -20 = 5
+    /// assert_eq!(result_neg.as_i32(), 5); // -100 / -20 = 5
     ///
     /// let a_zero = BigInteger::with_u32(0);
     /// let b_zero = BigInteger::with_u32(20);
     /// let result_zero = a_zero.divide(&b_zero);
-    /// assert_eq!(result_zero.unwrap().as_u32(), 0); // 0 / 20 = 0
+    /// assert_eq!(result_zero.as_u32(), 0); // 0 / 20 = 0
     ///
     /// let a_neg_zero = BigInteger::with_i32(-0);
     /// let b_neg_zero = BigInteger::with_i32(-20);
     /// let result_neg_zero = a_neg_zero.divide(&b_neg_zero);
-    /// assert_eq!(result_neg_zero.unwrap().as_i32(), 0); // -0 / -20 = 0
+    /// assert_eq!(result_neg_zero.as_i32(), 0); // -0 / -20 = 0
+    /// ```
+    ///
+    /// ```should_panic
+    /// use bc_rust::math::BigInteger;
     ///
     /// let a_div_zero = BigInteger::with_u32(100);
     /// let b_div_zero = BigInteger::with_u32(0);
-    /// let result_div_zero = a_div_zero.divide(&b_div_zero);
-    /// assert!(result_div_zero.is_err()); // Division by zero should return an error
+    /// let result_div_zero = a_div_zero.divide(&b_div_zero); // panics due to division by zero
     /// ```
-    pub fn divide(&self, other: &Self) -> Result<Self> {
+    ///
+    pub fn divide(&self, other: &Self) -> Self {
         if other.sign == 0 || other.magnitude.is_empty() {
-            return Err(BcError::with_invalid_argument("divide by zero"));
+            panic!("divide by zero");
         }
 
         if self.sign == 0 {
-            return Ok(BigInteger::with_u32(0));
+            return BigInteger::with_u32(0);
         }
 
         if other.quick_pow2_check() {
             let result = self.abs().shift_right((other.abs().bit_length() - 1) as isize);
-            return if other.sign == self.sign { Ok(result) } else { Ok(result.negate()) };
+            return if other.sign == self.sign { result } else { result.negate() };
         }
 
         let mut mag = self.magnitude.to_vec();
-        Ok(Self::with_check_magnitude(
+        Self::with_check_magnitude(
             self.sign * other.sign,
             divide(&mut mag, &other.magnitude),
             true,
-        ))
+        )
     }
     /// Returns the remainder of division of `self` by `division` as a `Result`.
     ///
@@ -1238,8 +1242,8 @@ impl BigInteger {
     /// # Returns
     /// * `Result<Self>` - The remainder as a new `BigInteger` if successful, or an error if division by zero occurs.
     ///
-    /// # Errors
-    /// Returns `BcError` if `division` is zero.
+    /// # Panics
+    /// `division` is zero.
     ///
     /// # Example
     /// ```rust
@@ -1248,21 +1252,21 @@ impl BigInteger {
     /// let a = BigInteger::with_u32(100);
     /// let b = BigInteger::with_u32(30);
     /// let result = a.remainder(&b);
-    /// assert_eq!(result.unwrap().as_u32(), 10); // 100 % 30 = 10
+    /// assert_eq!(result.as_u32(), 10); // 100 % 30 = 10
     ///
     /// let a_neg = BigInteger::with_i32(-100);
     /// let b_neg = BigInteger::with_i32(30);
     /// let result_neg = a_neg.remainder(&b_neg);
-    /// assert_eq!(result_neg.unwrap().as_i32(), -10); // -100 % 30 = -10
+    /// assert_eq!(result_neg.as_i32(), -10); // -100 % 30 = -10
     ///
     /// ```
-    pub fn remainder(&self, division: &Self) -> Result<Self> {
+    pub fn remainder(&self, division: &Self) -> Self {
         if division.sign == 0 || division.magnitude.is_empty() {
-            return Err(BcError::with_invalid_argument("divide by zero"));
+            panic!("divide by zero");
         }
 
         if self.sign == 0 {
-            return Ok(BigInteger::with_u32(0));
+            return BigInteger::with_u32(0);
         }
 
         // For small values, use fast remainder method
@@ -1270,19 +1274,19 @@ impl BigInteger {
             let val = division.magnitude[0];
             if val > 0 {
                 if val == 1 {
-                    return Ok(BigInteger::with_u32(0));
+                    return BigInteger::with_u32(0);
                 }
                 let rem = self.remainder_with_u32(val);
                 return if rem == 0 {
-                    Ok(BigInteger::with_u32(0))
+                    BigInteger::with_u32(0)
                 } else {
-                    Ok(BigInteger::with_check_magnitude(self.sign, vec![rem], false))
+                    BigInteger::with_check_magnitude(self.sign, vec![rem], false)
                 };
             }
         }
 
         if compare_no_leading_zeros(&self.magnitude, &division.magnitude) < 0 {
-            return Ok(self.clone());
+            return self.clone();
         }
 
         let mut result: Vec<u32>;
@@ -1293,7 +1297,7 @@ impl BigInteger {
             remainder(&mut result, &division.magnitude);
         }
 
-        Ok(Self::with_check_magnitude(self.sign, result, true))
+        Self::with_check_magnitude(self.sign, result, true)
     }
     /// Divides `self` by `other` and returns a tuple containing the quotient and remainder as `BigInteger`.
     ///
@@ -1303,8 +1307,8 @@ impl BigInteger {
     /// # Returns
     /// * `Result<(BigInteger, BigInteger)>` - On success, returns a tuple `(quotient, remainder)`. Returns an error if division by zero occurs.
     ///
-    /// # Errors
-    /// Returns `BcError` if `other` is zero.
+    /// # Panics
+    /// `other` is zero.
     ///
     /// # Example
     /// ```
@@ -1312,17 +1316,17 @@ impl BigInteger {
     ///
     /// let a = BigInteger::with_u32(100);
     /// let b = BigInteger::with_u32(20);
-    /// let (q, r) = a.divide_and_remainder(&b).unwrap();
+    /// let (q, r) = a.divide_and_remainder(&b);
     /// assert_eq!(q.as_u32(), 5);
     /// assert_eq!(r.as_u32(), 0);
     /// ```
-    pub fn divide_and_remainder(&self, other: &Self) -> Result<(Self, Self)> {
+    pub fn divide_and_remainder(&self, other: &Self) -> (Self, Self) {
         if other.sign == 0 || other.magnitude.is_empty() {
-            return Err(BcError::with_invalid_argument("divide by zero"));
+            panic!("divide by zero");
         }
 
         if self.sign == 0 {
-            return Ok((BigInteger::with_u32(0), BigInteger::with_u32(0)));
+            return (BigInteger::with_u32(0), BigInteger::with_u32(0));
         }
 
         if other.quick_pow2_check() {
@@ -1332,15 +1336,15 @@ impl BigInteger {
             let divide = if self.sign == other.sign { quotient } else { quotient.negate() };
 
             let remainder = Self::with_check_magnitude(self.sign, self.last_n_bits(e), true);
-            return Ok((divide, remainder));
+            return (divide, remainder);
         }
 
         let mut remainder = self.magnitude.clone();
         let quotient = divide(&mut remainder, &other.magnitude);
-        Ok((
+        (
             Self::with_check_magnitude(self.sign * other.sign, quotient, true),
             Self::with_check_magnitude(self.sign, remainder, true),
-        ))
+        )
     }
     /// Calculates the mathematical modulus of `self` with respect to `other`.
     ///
@@ -1363,15 +1367,15 @@ impl BigInteger {
     /// let a = BigInteger::with_i32(-13);
     /// let b = BigInteger::with_i32(5);
     /// let result = a.modulus(&b);
-    /// assert_eq!(result.unwrap().as_i32(), 2); // -13 mod 5 = 2
+    /// assert_eq!(result.as_i32(), 2); // -13 mod 5 = 2
     /// ```
-    pub fn modulus(&self, other: &Self) -> Result<Self> {
+    pub fn modulus(&self, other: &Self) -> Self {
         if other.sign == 0 || other.magnitude.is_empty() {
-            return Err(BcError::with_invalid_argument("divide by zero"));
+            panic!("divide by zero");
         }
 
-        let biggie = self.remainder(other)?;
-        if biggie.sign >= 0 { Ok(biggie) } else { Ok(biggie.add(other)) }
+        let biggie = self.remainder(other);
+        if biggie.sign >= 0 { biggie } else { biggie.add(other) }
     }
     pub fn mod_inverse(&self, modulus: &Self) -> Result<Self> {
         if self.sign <= 0 {
@@ -1382,7 +1386,7 @@ impl BigInteger {
             return Ok(self.mod_inverse_pow2(modulus)?);
         }
 
-        let d = self.remainder(modulus)?;
+        let d = self.remainder(modulus);
         let (gcd, mut x) = ext_euclid(&d, modulus);
 
         if gcd != *ONE {
@@ -1417,13 +1421,13 @@ impl BigInteger {
             e1 = e.negate();
         }
 
-        let mut result = self.modulus(m)?;
+        let mut result = self.modulus(m);
         if &e1 != &(*ONE) {
             if m.magnitude[m.magnitude.len() - 1] & 1 == 0 {
-                result = Self::mod_pow_barrett(&result, &e1, m)?;
+                result = Self::mod_pow_barrett(&result, &e1, m);
             } else {
                 let mut y_accum = vec![0u32; m.magnitude.len() + 1];
-                result = Self::mod_pow_monty(&mut y_accum, &result, &e1, m, true)?;
+                result = Self::mod_pow_monty(&mut y_accum, &result, &e1, m, true);
             }
         }
 
@@ -1438,7 +1442,7 @@ impl BigInteger {
     /// * `other` - A reference to another `BigInteger` to compute the GCD with.
     ///
     /// # Returns
-    /// * `Result<Self>` - The GCD as a new `BigInteger`.
+    /// * `Self` - The GCD as a new `BigInteger`.
     ///
     /// # Example
     /// ```
@@ -1447,26 +1451,26 @@ impl BigInteger {
     /// let a = BigInteger::with_u32(48);
     /// let b = BigInteger::with_u32(18);
     /// let result = a.gcd(&b);
-    /// assert_eq!(result.unwrap().as_u32(), 6);
+    /// assert_eq!(result.as_u32(), 6);
     /// ```
-    pub fn gcd(&self, other: &Self) -> Result<Self> {
+    pub fn gcd(&self, other: &Self) -> Self {
         if other.sign == 0 || other.magnitude.is_empty() {
-            return Ok(self.abs());
+            return self.abs();
         }
 
         if self.sign == 0 {
-            return Ok(other.abs());
+            return other.abs();
         }
 
         let mut r: BigInteger;
         let mut u = self.clone();
         let mut v = other.clone();
         while v.sign != 0 {
-            r = u.modulus(&v)?;
+            r = u.modulus(&v);
             u = v;
             v = r;
         }
-        Ok(u)
+        u
     }
     /// Returns the square of this `BigInteger`.
     ///
@@ -1961,7 +1965,7 @@ impl BigInteger {
         debug_assert!(res[0] != 0);
         Self::with_check_magnitude(self.sign, res, false)
     }
-    pub fn is_probable_prime(&self, certainty: i32) -> Result<bool> {
+    pub fn is_probable_prime(&self, certainty: i32) -> bool {
         self.is_probable_prime_with_randomly_selected(certainty, false)
     }
     pub fn next_probable_prime(&self) -> Result<Self> {
@@ -1974,7 +1978,7 @@ impl BigInteger {
         }
 
         let mut n = self.inc().set_bit(0);
-        while !n.check_probable_prime(100, &mut rand::rng(), false)? {
+        while !n.check_probable_prime(100, &mut rand::rng(), false) {
             n = n.add(&(*TWO));
         }
         Ok(n)
@@ -1985,21 +1989,21 @@ impl BigInteger {
     pub fn min(&self, value: &Self) -> Self {
         if self < value { self.clone() } else { value.clone() }
     }
-    pub(crate) fn is_probable_prime_with_randomly_selected(&self, certainty: i32, randomly_selected: bool) -> Result<bool> {
+    pub(crate) fn is_probable_prime_with_randomly_selected(&self, certainty: i32, randomly_selected: bool) -> bool {
         if certainty <= 0 {
-            return Ok(true);
+            return true;
         }
         let n = self.abs();
 
         if !n.test_bit(0) {
-            return Ok(n == (*TWO));
+            return n == (*TWO);
         }
 
         if n == (*ONE) {
-            return Ok(false);
+            return false;
         }
 
-        Ok(n.check_probable_prime(certainty, &mut rand::rng(), randomly_selected)?)
+        n.check_probable_prime(certainty, &mut rand::rng(), randomly_selected)
     }
 
     fn add_to_magnitude(&self, other: &[u32]) -> Self {
@@ -2052,7 +2056,7 @@ impl BigInteger {
         }
         acc as u32
     }
-    fn check_probable_prime(&self, certainty: i32, random: &mut dyn RngCore, randomly_selected: bool) -> Result<bool> {
+    fn check_probable_prime(&self, certainty: i32, random: &mut dyn RngCore, randomly_selected: bool) -> bool {
         debug_assert!(certainty > 0);
         debug_assert!(self > &(*TWO));
         debug_assert!(self.test_bit(0));
@@ -2066,13 +2070,13 @@ impl BigInteger {
                 let prime = prime_list[j];
                 let q_rem = test % prime;
                 if q_rem == 0 {
-                    return Ok(self.bit_length() < 16 && self.as_i32() as u32 == prime);
+                    return self.bit_length() < 16 && self.as_i32() as u32 == prime;
                 }
             }
         }
         self.rabin_miller_test_with_randomly_selected(certainty, random, randomly_selected)
     }
-    fn rabin_miller_test_with_randomly_selected(&self, certainty: i32, random: &mut dyn RngCore, randomly_selected: bool) -> Result<bool> {
+    fn rabin_miller_test_with_randomly_selected(&self, certainty: i32, random: &mut dyn RngCore, randomly_selected: bool) -> bool {
         let bits = self.bit_length();
 
         debug_assert!(certainty > 0);
@@ -2106,7 +2110,7 @@ impl BigInteger {
 
         // NOTE: Avoid conversion to/from Montgomery form and check for R/-R as a result instead
 
-        let mont_radix = (*ONE).shift_left((32 * n.magnitude.len()) as isize).remainder(&n)?;
+        let mont_radix = (*ONE).shift_left((32 * n.magnitude.len()) as isize).remainder(&n);
         let minus_mont_radix = n.subtract(&mont_radix);
 
         let mut y_accum = vec![0u32; n.magnitude.len() + 1];
@@ -2115,7 +2119,6 @@ impl BigInteger {
             let mut a: BigInteger;
             loop {
                 a = Self::with_random(n.bit_length(), random);
-                //a = BigInteger::with_string("4571627816229255254").expect("msg");
                 if a.sign == 0
                     || a >= n
                     || is_equal_magnitude(&a.magnitude, &mont_radix.magnitude)
@@ -2127,19 +2130,19 @@ impl BigInteger {
                 }
             }
 
-            let mut y = Self::mod_pow_monty(&mut y_accum, &a, &r, &n, false)?;
+            let mut y = Self::mod_pow_monty(&mut y_accum, &a, &r, &n, false);
 
             if y != mont_radix {
                 let mut j = 0;
                 while y != minus_mont_radix {
                     j += 1;
                     if j == s {
-                        return Ok(false);
+                        return false;
                     }
                     y = Self::mod_square_monty(&mut y_accum, &y, &n);
 
                     if y == mont_radix {
-                        return Ok(false);
+                        return false;
                     }
                 }
             }
@@ -2150,7 +2153,7 @@ impl BigInteger {
                 break;
             }
         }
-        Ok(true)
+        true
     }
     fn mod_square_monty(y_accum: &mut [u32], b: &Self, m: &Self) -> Self {
         let n = m.magnitude.len();
@@ -2181,7 +2184,7 @@ impl BigInteger {
         debug_assert!((d & 1) != 0);
         inverse_u32(d)
     }
-    fn mod_pow_monty(y_acc_m: &mut [u32], b: &Self, e: &Self, m: &Self, convert: bool) -> Result<Self> {
+    fn mod_pow_monty(y_acc_m: &mut [u32], b: &Self, e: &Self, m: &Self, convert: bool) -> Self {
         let n = m.magnitude.len();
         let pow_r = 32 * n;
         let small_monty_modulus = m.bit_length() + 2 <= pow_r;
@@ -2190,7 +2193,7 @@ impl BigInteger {
         // tmp = this * R mod m
         let mut b1 = b.clone();
         if convert {
-            b1 = b1.shift_left(pow_r as isize).remainder(m)?;
+            b1 = b1.shift_left(pow_r as isize).remainder(m);
         }
         debug_assert!(y_acc_m.len() == n + 1);
 
@@ -2276,7 +2279,7 @@ impl BigInteger {
             subtract(&mut y_val, &m.magnitude);
         }
 
-        Ok(BigInteger::with_check_magnitude(1, y_val, true))
+        BigInteger::with_check_magnitude(1, y_val, true)
     }
     fn get_lowest_set_bit_mask_first(&self, first_word_mask_x: u32) -> i32 {
         let mut w = self.magnitude.len();
@@ -2320,12 +2323,12 @@ impl BigInteger {
         let mut x = BigInteger::with_i64(inv64);
 
         if pow > 64 {
-            let d = self.remainder(m)?;
+            let d = self.remainder(m);
             let mut bits_correct = 64;
 
             loop {
-                let t = x.multiply(&d).remainder(m)?;
-                x = x.multiply(&(*TWO).subtract(&t)).remainder(m)?;
+                let t = x.multiply(&d).remainder(m);
+                x = x.multiply(&(*TWO).subtract(&t)).remainder(m);
                 bits_correct <<= 1;
 
                 if bits_correct < pow {
@@ -2341,10 +2344,10 @@ impl BigInteger {
         }
         Ok(x)
     }
-    fn mod_pow_barrett(b: &BigInteger, e: &Self, m: &Self) -> Result<Self> {
+    fn mod_pow_barrett(b: &BigInteger, e: &Self, m: &Self) -> Self {
         let k = m.magnitude.len();
         let mr = (*ONE).shift_left(((k + 1) << 5) as isize);
-        let yu = (*ONE).shift_left((k << 6) as isize).divide(m)?;
+        let yu = (*ONE).shift_left((k << 6) as isize).divide(m);
 
         // Sliding window from MSW to LSW
         let mut extra_bits = 0;
@@ -2397,8 +2400,7 @@ impl BigInteger {
         for _ in 0..last_zeros {
             y = Self::reduce_barrett(&(y.square()), m, &mr, &yu);
         }
-
-        Ok(y)
+        y
     }
     fn reduce_barrett(x: &Self, m: &Self, mr: &Self, yu: &Self) -> Self {
         let x_len = x.bit_length();
@@ -2800,18 +2802,94 @@ impl Hash for BigInteger {
         self.sign.hash(state);
     }
 }
-
 impl Display for BigInteger {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_string())
     }
 }
 /// Implements the addition operator for references to `BigInteger`.
-impl<'a, 'b> core::ops::Add<&'b BigInteger> for &'a BigInteger {
+impl<'a, 'b> Add<&'b BigInteger> for &'a BigInteger {
     type Output = BigInteger;
 
     fn add(self, rhs: &'b BigInteger) -> BigInteger {
         self.add(rhs)
+    }
+}
+impl<'a, 'b> Sub<&'b BigInteger> for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn sub(self, rhs: &'b BigInteger) -> BigInteger {
+        self.subtract(rhs)
+    }
+}
+impl<'a, 'b> Mul<&'b BigInteger> for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn mul(self, rhs: &'b BigInteger) -> BigInteger {
+        self.multiply(rhs)
+    }
+}
+impl<'a, 'b> Div<&'b BigInteger> for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn div(self, rhs: &'b BigInteger) -> BigInteger {
+        self.divide(rhs)
+    }
+}
+impl<'a, 'b> Rem<&'b BigInteger> for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn rem(self, rhs: &'b BigInteger) -> BigInteger {
+        self.remainder(rhs)
+    }
+}
+impl<'a> Neg for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn neg(self) -> BigInteger {
+        self.negate()
+    }
+}
+impl<'a, 'b> BitAnd<&'b BigInteger> for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn bitand(self, rhs: &'b BigInteger) -> BigInteger {
+        self.and(rhs)
+    }
+}
+impl<'a, 'b> BitOr<&'b BigInteger> for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn bitor(self, rhs: &'b BigInteger) -> BigInteger {
+        self.or(rhs)
+    }
+}
+impl<'a, 'b> BitXor<&'b BigInteger> for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn bitxor(self, rhs: &'b BigInteger) -> BigInteger {
+        self.xor(rhs)
+    }
+}
+impl<'a> Not for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn not(self) -> BigInteger {
+        self.not()
+    }
+}
+impl<'a> Shl<isize> for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn shl(self, rhs: isize) -> Self::Output {
+        self.shift_left(rhs)
+    }
+}
+impl<'a> Shr<isize> for &'a BigInteger {
+    type Output = BigInteger;
+
+    fn shr(self, rhs: isize) -> Self::Output {
+        self.shift_right(rhs)
     }
 }
 //
@@ -3851,7 +3929,7 @@ fn to_string_with_moduli(sb: &mut String, radix: u32, moduli: &[BigInteger], mut
         return;
     }
     scale -= 1;
-    let (qr1, qr2) = pos.divide_and_remainder(&moduli[scale]).unwrap();
+    let (qr1, qr2) = pos.divide_and_remainder(&moduli[scale]);
     to_string_with_moduli(sb, radix, moduli, scale, &qr1);
     to_string_with_moduli(sb, radix, moduli, scale, &qr2);
 }
@@ -3870,7 +3948,7 @@ fn ext_euclid(a: &BigInteger, b: &BigInteger) -> (BigInteger, BigInteger) {
 
     if v3.sign() > 0 {
         loop {
-            let q = u3.divide_and_remainder(&v3).unwrap();
+            let q = u3.divide_and_remainder(&v3);
             u3 = v3;
             v3 = q.1;
 
@@ -3901,7 +3979,7 @@ mod tests {
         let mod_ = BigInteger::with_string("48112959837082048697").expect("error");
         let expected = BigInteger::with_string("4970597831480284165").expect("error");
 
-        let manual = b.multiply(&b).modulus(&mod_).unwrap();
+        let manual = b.multiply(&b).modulus(&mod_);
         assert_eq!(expected, manual, "b * b % mod");
     }
 
@@ -4026,7 +4104,7 @@ mod tests {
             for _ in 0..10 {
                 let pos = rand::random_range(0..128);
                 let m = n.clear_bit(pos);
-                assert_ne!(m.shift_right(pos as isize).remainder(&(*TWO)).unwrap(), *ONE);
+                assert_ne!(m.shift_right(pos as isize).remainder(&(*TWO)), *ONE);
             }
         }
 
@@ -4095,10 +4173,11 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "divide by zero")]
     fn test_divide_01() {
         for i in -5..=5 {
             let m = BigInteger::with_i32(i);
-            assert!(m.divide(&(*ZERO)).is_err());
+            m.divide(&(*ZERO));
         }
     }
 
@@ -4116,28 +4195,28 @@ mod tests {
 
             assert_eq!(
                 expected,
-                big_product.divide(&BigInteger::with_i32(divisor)).unwrap(),
+                big_product.divide(&BigInteger::with_i32(divisor)),
                 "divisor = {}",
                 divisor
             );
-            assert_eq!(expected.negate(), big_product.negate().divide(&BigInteger::with_i32(divisor)).unwrap());
-            assert_eq!(expected.negate(), big_product.divide(&BigInteger::with_i32(divisor).negate()).unwrap());
-            assert_eq!(expected, big_product.negate().divide(&BigInteger::with_i32(divisor).negate()).unwrap());
+            assert_eq!(expected.negate(), big_product.negate().divide(&BigInteger::with_i32(divisor)));
+            assert_eq!(expected.negate(), big_product.divide(&BigInteger::with_i32(divisor).negate()));
+            assert_eq!(expected, big_product.negate().divide(&BigInteger::with_i32(divisor).negate()));
 
             let expected = BigInteger::with_i32((product + 1) / divisor);
 
-            assert_eq!(expected, big_product_plus.divide(&BigInteger::with_i32(divisor)).unwrap());
+            assert_eq!(expected, big_product_plus.divide(&BigInteger::with_i32(divisor)));
             assert_eq!(
                 expected.negate(),
-                big_product_plus.negate().divide(&BigInteger::with_i32(divisor)).unwrap()
+                big_product_plus.negate().divide(&BigInteger::with_i32(divisor))
             );
             assert_eq!(
                 expected.negate(),
-                big_product_plus.divide(&BigInteger::with_i32(divisor).negate()).unwrap()
+                big_product_plus.divide(&BigInteger::with_i32(divisor).negate())
             );
             assert_eq!(
                 expected,
-                big_product_plus.negate().divide(&BigInteger::with_i32(divisor).negate()).unwrap()
+                big_product_plus.negate().divide(&BigInteger::with_i32(divisor).negate())
             );
         }
     }
@@ -4150,7 +4229,7 @@ mod tests {
             let b = BigInteger::with_random_certainty(100 + req, 0, &mut random).unwrap();
             let c = BigInteger::with_random_certainty(10 + req, 0, &mut random).unwrap();
             let d = a.multiply(&b).add(&c);
-            let e = d.divide(&a).unwrap();
+            let e = d.divide(&a);
 
             assert_eq!(b, e);
         }
@@ -4162,24 +4241,24 @@ mod tests {
             let b = BigInteger::with_random(64 + rand::random_range(0..64), &mut random);
             let b_shift = b.shift_right(shift);
 
-            assert_eq!(b_shift, b.divide(&a).unwrap(), "shift = {}, b = {:?}", shift, b.to_string_radix(16));
+            assert_eq!(b_shift, b.divide(&a), "shift = {}, b = {:?}", shift, b.to_string_radix(16));
             assert_eq!(
                 b_shift.negate(),
-                b.divide(&a.negate()).unwrap(),
+                b.divide(&a.negate()),
                 "shift = {}, b = {:?}",
                 shift,
                 b.to_string_radix(16)
             );
             assert_eq!(
                 b_shift.negate(),
-                b.negate().divide(&a).unwrap(),
+                b.negate().divide(&a),
                 "shift = {}, b = {:?}",
                 shift,
                 b.to_string_radix(16)
             );
             assert_eq!(
                 b_shift,
-                b.negate().divide(&a.negate()).unwrap(),
+                b.negate().divide(&a.negate()),
                 "shift = {}, b = {:?}",
                 shift,
                 b.to_string_radix(16)
@@ -4195,24 +4274,24 @@ mod tests {
         let b = BigInteger::with_i64(0x2504b470dc188499);
         let b_shift = b.shift_right(shift);
 
-        assert_eq!(b_shift, b.divide(&a).unwrap(), "shift = {}, b = {:?}", shift, b.to_string_radix(16));
+        assert_eq!(b_shift, b.divide(&a), "shift = {}, b = {:?}", shift, b.to_string_radix(16));
         assert_eq!(
             b_shift.negate(),
-            b.divide(&a.negate()).unwrap(),
+            b.divide(&a.negate()),
             "shift = {}, b = {:?}",
             shift,
             b.to_string_radix(16)
         );
         assert_eq!(
             b_shift.negate(),
-            b.negate().divide(&a).unwrap(),
+            b.negate().divide(&a),
             "shift = {}, b = {:?}",
             shift,
             b.to_string_radix(16)
         );
         assert_eq!(
             b_shift,
-            b.negate().divide(&a.negate()).unwrap(),
+            b.negate().divide(&a.negate()),
             "shift = {}, b = {:?}",
             shift,
             b.to_string_radix(16)
@@ -4223,11 +4302,11 @@ mod tests {
     fn test_divide_and_remainder() {
         let mut random = rand::rng();
         let n = BigInteger::with_random(48, &mut random);
-        let mut qr = n.divide_and_remainder(&n).unwrap();
+        let mut qr = n.divide_and_remainder(&n);
         assert_eq!(*ONE, qr.0);
         assert_eq!(*ZERO, qr.1);
 
-        qr = n.divide_and_remainder(&(*ONE)).unwrap();
+        qr = n.divide_and_remainder(&(*ONE));
         assert_eq!(&n, &qr.0);
         assert_eq!(&(*ZERO), &qr.1);
 
@@ -4236,7 +4315,7 @@ mod tests {
             let b = BigInteger::with_random_certainty(100 + rep, 0, &mut random).unwrap();
             let c = BigInteger::with_random_certainty(10 + rep, 0, &mut random).unwrap();
             let d = a.multiply(&b).add(&c);
-            let es = d.divide_and_remainder(&a).unwrap();
+            let es = d.divide_and_remainder(&a);
 
             assert_eq!(&b, &es.0);
             assert_eq!(&c, &es.1);
@@ -4250,19 +4329,19 @@ mod tests {
             let b_shift = b.shift_right(shift);
             let b_mod = b.and(&a.subtract(&(*ONE)));
 
-            qr = b.divide_and_remainder(&a).unwrap();
+            qr = b.divide_and_remainder(&a);
             assert_eq!(b_shift, qr.0, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
             assert_eq!(b_mod, qr.1, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
 
-            qr = b.divide_and_remainder(&a.negate()).unwrap();
+            qr = b.divide_and_remainder(&a.negate());
             assert_eq!(b_shift.negate(), qr.0, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
             assert_eq!(b_mod, qr.1, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
 
-            qr = b.negate().divide_and_remainder(&a).unwrap();
+            qr = b.negate().divide_and_remainder(&a);
             assert_eq!(b_shift.negate(), qr.0, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
             assert_eq!(b_mod.negate(), qr.1, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
 
-            qr = b.negate().divide_and_remainder(&a.negate()).unwrap();
+            qr = b.negate().divide_and_remainder(&a.negate());
             assert_eq!(b_shift, qr.0, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
             assert_eq!(b_mod.negate(), qr.1, "shift = {}, b = {:?}", shift, b.to_string_radix(16));
         }
@@ -4310,7 +4389,7 @@ mod tests {
             let fac = BigInteger::with_random(32, &mut random).add(&(*TWO));
             let p1 = BigInteger::with_probable_prime(63, &mut random).unwrap();
             let p2 = BigInteger::with_probable_prime(64, &mut random).unwrap();
-            let gcd = fac.multiply(&p1).gcd(&fac.multiply(&p2)).unwrap();
+            let gcd = fac.multiply(&p1).gcd(&fac.multiply(&p2));
 
             assert_eq!(fac, gcd);
         }
@@ -4345,37 +4424,37 @@ mod tests {
     const NON_PRIME_EXPONENTS: [i32; 10] = [1, 4, 6, 9, 11, 15, 23, 29, 37, 41];
     #[test]
     fn test_is_probable_prime() {
-        assert!(!&(*ZERO).is_probable_prime(100).unwrap());
-        assert!(&(*ZERO).is_probable_prime(0).unwrap());
-        assert!(&(*ZERO).is_probable_prime(-10).unwrap());
-        assert!(!&(*MINUS_ONE).is_probable_prime(100).unwrap());
-        assert!(&(*MINUS_TWO).is_probable_prime(100).unwrap());
-        assert!(BigInteger::with_i32(-17).is_probable_prime(100).unwrap());
-        assert!(BigInteger::with_i32(67).is_probable_prime(100).unwrap());
-        assert!(BigInteger::with_i32(773).is_probable_prime(100).unwrap());
+        assert!(!&(*ZERO).is_probable_prime(100));
+        assert!(&(*ZERO).is_probable_prime(0));
+        assert!(&(*ZERO).is_probable_prime(-10));
+        assert!(!&(*MINUS_ONE).is_probable_prime(100));
+        assert!(&(*MINUS_TWO).is_probable_prime(100));
+        assert!(BigInteger::with_i32(-17).is_probable_prime(100));
+        assert!(BigInteger::with_i32(67).is_probable_prime(100));
+        assert!(BigInteger::with_i32(773).is_probable_prime(100));
 
         for p in FIRST_PRIMES {
-            assert!(BigInteger::with_i32(p).is_probable_prime(100).unwrap());
-            assert!(BigInteger::with_i32(-p).is_probable_prime(100).unwrap());
+            assert!(BigInteger::with_i32(p).is_probable_prime(100));
+            assert!(BigInteger::with_i32(-p).is_probable_prime(100));
         }
 
         for c in NON_PRIMES {
-            assert!(!BigInteger::with_i32(c).is_probable_prime(100).unwrap());
-            assert!(!BigInteger::with_i32(-c).is_probable_prime(100).unwrap());
+            assert!(!BigInteger::with_i32(c).is_probable_prime(100));
+            assert!(!BigInteger::with_i32(-c).is_probable_prime(100));
         }
 
         for e in MERSENNE_PRIME_EXPONENTS {
             assert!(
-                &(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).is_probable_prime(100).unwrap(),
+                &(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).is_probable_prime(100),
                 "e = {}",
                 e
             );
-            assert!(&(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).negate().is_probable_prime(100).unwrap());
+            assert!(&(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).negate().is_probable_prime(100));
         }
 
         for e in NON_PRIME_EXPONENTS {
-            assert!(!(&(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).is_probable_prime(100).unwrap()));
-            assert!(!(&(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).negate().is_probable_prime(100).unwrap()));
+            assert!(!(&(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).is_probable_prime(100)));
+            assert!(!(&(*TWO).pow(e as u32).unwrap().subtract(&(*ONE)).negate().is_probable_prime(100)));
         }
     }
 
@@ -4420,11 +4499,11 @@ mod tests {
             let c = BigInteger::with_random_certainty(10 + diff, 0, &mut random).unwrap();
 
             let d = a.multiply(&b).add(&c);
-            let e = d.remainder(&a).unwrap();
+            let e = d.remainder(&a);
             assert_eq!(c, e);
 
             let pow2 = (*ONE).shift_left(rand::random_range(0..128) as isize);
-            assert_eq!(b.and(&pow2.subtract(&(*ONE))), b.modulus(&pow2).unwrap());
+            assert_eq!(b.and(&pow2.subtract(&(*ONE))), b.modulus(&pow2));
         }
     }
 
@@ -4438,7 +4517,7 @@ mod tests {
             let inv2 = inv.mod_inverse(&p).unwrap();
 
             assert_eq!(q, inv2);
-            assert_eq!(*ONE, q.multiply(&inv).modulus(&p).unwrap());
+            assert_eq!(*ONE, q.multiply(&inv).modulus(&p));
         }
 
         // ModInverse a power of 2 for a range of powers
@@ -4446,7 +4525,7 @@ mod tests {
             let m = (*ONE).shift_left(i as isize);
             let d = BigInteger::with_random(i, &mut random).set_bit(0);
             let x = d.mod_inverse(&m).unwrap();
-            let check = x.multiply(&d).modulus(&m).unwrap();
+            let check = x.multiply(&d).modulus(&m);
 
             assert_eq!(*ONE, check, "i = {}, x = {:?}, d = {:?}", i, x, d);
         }
@@ -4481,7 +4560,7 @@ mod tests {
 
             let res_x = n.mod_pow(&x, &m).unwrap();
             let res_y = n.mod_pow(&y, &m).unwrap();
-            let res = res_x.multiply(&res_y).modulus(&m).unwrap();
+            let res = res_x.multiply(&res_y).modulus(&m);
             let res3 = res.mod_pow(&(*THREE), &m).unwrap();
 
             assert_eq!(res3, n3.mod_pow(&x.add(&y), &m).unwrap());
@@ -4555,12 +4634,12 @@ mod tests {
         let first_prime = BigInteger::with_probable_prime(32, &mut random).unwrap();
         let next_prime = first_prime.next_probable_prime().unwrap();
 
-        assert!(first_prime.is_probable_prime(10).unwrap());
-        assert!(next_prime.is_probable_prime(10).unwrap());
+        assert!(first_prime.is_probable_prime(10));
+        assert!(next_prime.is_probable_prime(10));
 
         let mut check = first_prime.add(&(*ONE));
         while check < next_prime {
-            assert!(!check.is_probable_prime(10).unwrap());
+            assert!(!check.is_probable_prime(10));
             check = check.add(&(*ONE));
         }
     }
@@ -4613,8 +4692,8 @@ mod tests {
             let b = BigInteger::with_random_certainty(100 + rep, 0, &mut rand::rng()).unwrap();
             let c = BigInteger::with_random_certainty(10 + rep, 0, &mut rand::rng()).unwrap();
             let d = a.multiply(&b).add(&c);
-            let e = d.remainder(&a).unwrap();
-            let f = d.divide(&a).unwrap();
+            let e = d.remainder(&a);
+            let f = d.divide(&a);
 
             // println!("a = {:?}", a);
             // println!("b = {:?}", b);
@@ -4644,7 +4723,7 @@ mod tests {
             for _ in 0..10 {
                 let pos = rand::random_range(0..128);
                 let m = n.set_bit(pos);
-                let test = m.shift_right(pos as isize).remainder(&(*TWO)).unwrap() == *ONE;
+                let test = m.shift_right(pos as isize).remainder(&(*TWO)) == *ONE;
                 assert!(test);
             }
         }
@@ -4745,7 +4824,7 @@ mod tests {
 
             for _ in 0..10 {
                 let pos = rand::random_range(0..128);
-                let test = n.shift_right(pos as isize).remainder(&(*TWO)).unwrap() == *ONE;
+                let test = n.shift_right(pos as isize).remainder(&(*TWO)) == *ONE;
                 assert_eq!(test, n.test_bit(pos));
             }
         }
@@ -4783,7 +4862,7 @@ mod tests {
             let mut x = BigInteger::with_random(i, &mut random).set_bit(i - 1);
             let mut b = x.to_vec_unsigned();
             assert_eq!(b.len(), (i + 7) / 8);
-            let mut y = BigInteger::with_sign_buffer(1, &b).expect("Failed to create BigInteger from buffer");
+            let mut y = BigInteger::with_sign_buffer(1, &b);
             assert_eq!(x, y);
 
             x = x.negate();
