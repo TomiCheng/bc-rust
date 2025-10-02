@@ -1,5 +1,5 @@
 use crate::BcError;
-use crate::crypto::util::pack::{FromPacks, Pack, ToPacks};
+use crate::crypto::util::pack::{FromPacks, Pack};
 use crate::math::raw::internal_mod::{inverse_u32, inverse_u64};
 use rand::{Rng, RngCore};
 use std::cmp::Ordering;
@@ -7,7 +7,6 @@ use std::fmt;
 use std::fmt::{Binary, Display, Formatter, LowerHex, Octal, UpperHex};
 use std::hash::{Hash, Hasher};
 use std::ops::*;
-use std::panic::panic_any;
 use std::sync::{Arc, LazyLock, OnceLock};
 
 #[derive(Clone, Debug)]
@@ -35,11 +34,15 @@ impl BigInteger {
         }
     }
     fn from_magnitude(sign: i8, magnitude: &[u32], check: bool) -> Self {
-        let sub_slice = strip_prefix_value(&magnitude, 0);
-        if sub_slice.is_empty() {
-            Self::new(0, ZERO_MAGNITUDE.clone())
+        if check {
+            let sub_slice = strip_prefix_value(&magnitude, 0);
+            if sub_slice.is_empty() {
+                Self::new(0, ZERO_MAGNITUDE.clone())
+            } else {
+                Self::new(sign, sub_slice.to_vec().into())
+            }
         } else {
-            Self::new(sign, sub_slice.to_vec().into())
+            Self::new(sign, Arc::new(magnitude.to_vec()))
         }
     }
 
@@ -507,7 +510,7 @@ impl BigInteger {
     }
     pub fn to_string_radix(&self, radix: u32) -> String {
         if !(radix == 2 || radix == 8 || radix == 10 || radix == 16) {
-            return panic!("radix must be 2, 8, 10, or 16");
+            panic!("radix must be 2, 8, 10, or 16");
         }
 
         if self.sign == 0 {
@@ -883,7 +886,7 @@ impl BigInteger {
             let pow_of_2 = exp as u64 * (self.bit_length() - 1) as u64;
 
             if pow_of_2 > i32::MAX as u64 {
-                return panic!("over power of 2");
+                panic!("over power of 2");
             }
 
             return (*ONE).shift_left(pow_of_2 as isize);
@@ -3813,7 +3816,7 @@ mod tests {
     fn test_divide_01() {
         for i in -5..=5 {
             let m = BigInteger::from_i32(i);
-            m / (&(*ZERO));
+            let _ = m / (&(*ZERO));
         }
     }
     #[test]

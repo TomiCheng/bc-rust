@@ -254,7 +254,6 @@ impl Memorable for Sha1DigestImpl {
 }
 
 const DIGEST_LENGTH: usize = 20;
-const BYTE_LENGTH: usize = 64;
 const Y1: u32 = 0x5a827999;
 const Y2: u32 = 0x6ed9eba1;
 const Y3: u32 = 0x8f1bbcdc;

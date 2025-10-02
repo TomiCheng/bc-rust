@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use rand::RngCore;
 use crate::crypto::Digest;
 use crate::security::digest_utilities::do_final;

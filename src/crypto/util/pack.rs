@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub trait Pack {
     fn from_be_slice(bytes: &[u8]) -> Self;
     fn from_be_slice_low(bytes: &[u8]) -> Self;
