@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use crate::BcError;
 use crate::crypto::digest::Digest;
 use crate::crypto::digests::general_digest::{DigestImpl, GeneralDigest};
@@ -13,6 +14,11 @@ impl Sha1Digest {
         Self {
             m: GeneralDigest::new(Sha1DigestImpl::new()),
         }
+    }
+}
+impl Display for Sha1Digest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.algorithm_name())
     }
 }
 impl Digest for Sha1Digest {
