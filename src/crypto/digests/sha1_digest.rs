@@ -3,7 +3,7 @@ use crate::BcError;
 use crate::crypto::digest::Digest;
 use crate::crypto::digests::general_digest::{DigestImpl, GeneralDigest};
 use crate::crypto::util::pack::Pack;
-use crate::util::memorable::Memorable;
+use crate::util::Memorable;
 
 #[derive(Debug, Clone)]
 pub struct Sha1Digest {

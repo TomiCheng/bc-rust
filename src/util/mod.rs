@@ -1,2 +1,4 @@
 pub mod encoders;
-pub mod memorable;
+mod memorable;
+
+pub use memorable::Memorable;

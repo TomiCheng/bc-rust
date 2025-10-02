@@ -2,7 +2,7 @@
 //! "Handbook of Applied Cryptography", pages 344-347.
 
 use crate::BcError;
-use crate::util::memorable::Memorable;
+use crate::util::Memorable;
 
 const BYTE_LENGTH: usize = 64;
 pub(crate) trait DigestImpl {

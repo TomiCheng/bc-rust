@@ -2,7 +2,7 @@ use rand::RngCore;
 use crate::crypto::Digest;
 use crate::security::digest_utilities::do_final;
 use crate::util::encoders::hex::decode_to_vec;
-use crate::util::memorable::Memorable;
+use crate::util::Memorable;
 
 pub(crate) fn test_digest<T: Digest +  Memorable>(mut digest: T, messages: &[&str], results: &[&str]) {
     let mut res_buf = vec![0u8; digest.digest_size()];
