@@ -9,7 +9,11 @@ pub enum BcError {
     #[error("{0}")]
     ArithmeticError(String),
     #[error("{0}")]
+    InvalidData(String),
+    #[error("{0}")]
     ParseIntError(#[from] std::num::ParseIntError),
+    #[error("{0}")]
+    IoError(#[from] std::io::Error),
 }
 
 impl BcError {
@@ -18,5 +22,8 @@ impl BcError {
     }
     pub fn arithmetic_error(message: impl AsRef<str>) -> Self {
         BcError::ArithmeticError(message.as_ref().to_string())
+    }
+    pub fn invalid_data(message: impl AsRef<str>) -> Self {
+        BcError::InvalidData(message.as_ref().to_string())
     }
 }
