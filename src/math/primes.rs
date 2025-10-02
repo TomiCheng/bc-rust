@@ -114,28 +114,28 @@ impl StRandomPrime {
             let old_counter = prime_gen_counter;
 
             let mut x = hash_gen(d, &mut prime_seed, iterations + 1)?;
-            x = x.modulus(&(*ONE).shift_left((length - 1) as isize).set_bit(length - 1));
+            x = x.modulus(&(*ONE).shift_left((length - 1) as isize).set_bit(length - 1))?;
 
             let c0x2 = c0.shift_left(1);
-            let mut tx2 = x.subtract(&(*ONE)).divide(&c0x2).add(&(*ONE)).shift_left(1);
+            let mut tx2 = x.subtract(&(*ONE)).divide(&c0x2)?.add(&(*ONE)).shift_left(1);
             let mut dt = 0;
 
             let mut c = tx2.multiply(&c0).add(&(*ONE));
 
             // sieving could be used here in place of the 'HasAnySmallFactors' approach.
             loop {
-                if impl_has_any_small_factors(&c) {
+                if impl_has_any_small_factors(&c)? {
                     inc(&mut prime_seed, (iterations + 1) as i32);
                 } else {
                     let mut a = hash_gen(d, &mut prime_seed, iterations + 1)?;
-                    a = a.modulus(&c.subtract(&(*THREE))).add(&(*TWO));
+                    a = a.modulus(&c.subtract(&(*THREE)))?.add(&(*TWO));
 
                     tx2 = tx2.add(&BigInteger::from_i32(dt));
                     dt = 0;
 
                     let z: BigInteger = a.modulus_pow(&tx2, &c)?;
 
-                    if (&c.gcd(&z.subtract(&(*ONE))) == &(*ONE))
+                    if (&c.gcd(&z.subtract(&(*ONE)))? == &(*ONE))
                         && (&z.modulus_pow(&c0, &c)? == &(*ONE))
                     {
                         return Ok(Self::new(c, prime_seed, prime_gen_counter));
@@ -169,7 +169,7 @@ pub const SMALL_FACTOR_LIMIT: u32 = 211;
 /// # Panics
 /// If `candidate` is not greater than 0 or has a bit length of 1 or less.
 ///
-pub fn has_any_small_factors(candidate: &BigInteger) -> bool {
+pub fn has_any_small_factors(candidate: &BigInteger) -> Result<bool, BcError> {
     check_candidate(candidate, "candidate");
     impl_has_any_small_factors(candidate)
 }
@@ -287,11 +287,11 @@ fn hash_gen(d: &mut dyn Digest, seed: &mut [u8], count: usize) -> Result<BigInte
     }
     Ok(BigInteger::from_sign_be_slice(1, &buf))
 }
-fn impl_has_any_small_factors(x: &BigInteger) -> bool {
+fn impl_has_any_small_factors(x: &BigInteger) -> Result<bool, BcError> {
     // Bundle trial divisors into ~32-bit moduli then use fast tests on the ~32-bit remainders.
 
     let mut m = 2 * 3 * 5 * 7 * 11 * 13 * 17 * 19 * 23;
-    let mut r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    let mut r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 2) == 0
         || (r % 3) == 0
         || (r % 5) == 0
@@ -302,64 +302,64 @@ fn impl_has_any_small_factors(x: &BigInteger) -> bool {
         || (r % 19) == 0
         || (r % 23) == 0
     {
-        return true;
+        return Ok(true);
     }
 
     m = 29 * 31 * 37 * 41 * 43;
-    r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 29) == 0 || (r % 31) == 0 || (r % 37) == 0 || (r % 41) == 0 || (r % 43) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 47 * 53 * 59 * 61 * 67;
-    r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 47) == 0 || (r % 53) == 0 || (r % 59) == 0 || (r % 61) == 0 || (r % 67) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 71 * 73 * 79 * 83;
-    r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 71) == 0 || (r % 73) == 0 || (r % 79) == 0 || (r % 83) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 89 * 97 * 101 * 103;
-    r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 89) == 0 || (r % 97) == 0 || (r % 101) == 0 || (r % 103) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 107 * 109 * 113 * 127;
-    r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 107) == 0 || (r % 109) == 0 || (r % 113) == 0 || (r % 127) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 131 * 137 * 139 * 149;
-    r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 131) == 0 || (r % 137) == 0 || (r % 139) == 0 || (r % 149) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 151 * 157 * 163 * 167;
-    r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 151) == 0 || (r % 157) == 0 || (r % 163) == 0 || (r % 167) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 173 * 179 * 181 * 191;
-    r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 173) == 0 || (r % 179) == 0 || (r % 181) == 0 || (r % 191) == 0 {
-        return true;
+        return Ok(true);
     }
 
     m = 193 * 197 * 199 * 211;
-    r = x.modulus(&BigInteger::from_u32(m)).as_i32();
+    r = x.modulus(&BigInteger::from_u32(m))?.as_i32();
     if (r % 193) == 0 || (r % 197) == 0 || (r % 199) == 0 || (r % 211) == 0 {
-        return true;
+        return Ok(true);
     }
     // NOTE: Unit tests depend on SMALL_FACTOR_LIMIT matching the highest small factor tested here.
-    false
+    Ok(false)
 }
 fn impl_mr_probable_prime_to_base(
     w: &BigInteger,
@@ -374,7 +374,7 @@ fn impl_mr_probable_prime_to_base(
     }
 
     for _ in 1..a {
-        z = z.square().modulus(w);
+        z = z.square().modulus(w)?;
 
         if &z == w_sub_one {
             return Ok(true);
@@ -406,12 +406,12 @@ mod tests {
     fn test_has_any_small_factors() {
         for _ in 0..ITERATIONS {
             let prime = random_prime();
-            assert!(!has_any_small_factors(&prime));
+            assert!(!has_any_small_factors(&prime).unwrap());
 
             for small_factor in 2..SMALL_FACTOR_LIMIT {
                 let non_prime_with_small_factor =
                     BigInteger::from_u32(small_factor).multiply(&prime);
-                assert!(has_any_small_factors(&non_prime_with_small_factor));
+                assert!(has_any_small_factors(&non_prime_with_small_factor).unwrap());
             }
         }
     }
@@ -524,10 +524,10 @@ mod tests {
 
     fn random_prime() -> BigInteger {
         let mut random = rng();
-        BigInteger::create_probable_prime(PRIME_BITS, PRIME_CERTAINTY, &mut random)
+        BigInteger::create_probable_prime(PRIME_BITS, PRIME_CERTAINTY, &mut random).unwrap()
     }
     fn is_prime(x: &BigInteger) -> bool {
-        x.is_probable_prime(PRIME_CERTAINTY)
+        x.is_probable_prime(PRIME_CERTAINTY).unwrap()
     }
     // fn reference_is_mr_probable_prime(x: &BigInteger, num_bases: u32) -> bool {
     //     let x_sub_two = x.subtract(&(*TWO));
