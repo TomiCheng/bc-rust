@@ -9,6 +9,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::*;
 use std::sync::{Arc, LazyLock, OnceLock};
 
+/// A `BigInteger` represents an arbitrary-precision integer.
 #[derive(Clone, Debug)]
 pub struct BigInteger {
     sign: i8,
@@ -16,13 +17,59 @@ pub struct BigInteger {
     bits: OnceLock<usize>,
     bit_length: OnceLock<usize>,
 }
+/// Trait for generating random big integers with a specified number of bits.
 pub trait RandomBigInteger {
+    /// Generates a random big integer with the given number of bits using the provided random number generator.
+    ///
+    /// # Arguments
+    ///
+    /// * `bits` - The number of bits for the random big integer.
+    /// * `rng` - A mutable reference to a random number generator.
     fn with_rng<Rng: RngCore>(bits: usize, rng: &mut Rng) -> Self;
 }
+
+/// Trait for big integer primality operations.
+///
+/// Provides methods to create probable primes, check primality, and find the next probable prime.
 pub trait PrimeBigInteger {
-    fn create_probable_prime<Rng: RngCore>(bits: usize, certainty: usize, rng: &mut Rng) -> Result<Self, BcError> where Self: Sized;
+    /// Generates a probable prime big integer with the specified bit length and certainty.
+    ///
+    /// # Arguments
+    ///
+    /// * `bits` - The number of bits for the prime.
+    /// * `certainty` - The certainty level for primality testing.
+    /// * `rng` - A mutable reference to a random number generator.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Result<Self, BcError>` where `Self` is the generated probable prime.
+    fn create_probable_prime<Rng: RngCore>(
+        bits: usize,
+        certainty: usize,
+        rng: &mut Rng,
+    ) -> Result<Self, BcError>
+    where
+        Self: Sized;
+
+    /// Checks if the big integer is a probable prime with the given certainty.
+    ///
+    /// # Arguments
+    ///
+    /// * `certainty` - The certainty level for primality testing.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Result<bool, BcError>`, where `true` means the number is probably prime.
     fn is_probable_prime(&self, certainty: usize) -> Result<bool, BcError>;
-    fn next_probable_prime(&self) -> Result<Self, BcError> where Self: Sized;
+
+    /// Finds the next probable prime greater than the current value.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Result<Self, BcError>` where `Self` is the next probable prime.
+    fn next_probable_prime(&self) -> Result<Self, BcError>
+    where
+        Self: Sized;
 }
 impl BigInteger {
     fn new(sign: i8, magnitude: Arc<Vec<u32>>) -> Self {
@@ -69,6 +116,24 @@ impl BigInteger {
             Self::new(1, vec![value].into())
         }
     }
+    /// Creates a `BigInteger` from a `u64` value.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The unsigned 64-bit integer to convert.
+    ///
+    /// # Returns
+    ///
+    /// A `BigInteger` representing the given value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    ///
+    /// let n = BigInteger::from_u64(12345678901234567890);
+    /// assert_eq!(n.as_u64(), 12345678901234567890);
+    /// ```
     pub fn from_u64(value: u64) -> Self {
         if value == 0 {
             return BigInteger::new(0, ZERO_MAGNITUDE.clone());
@@ -375,6 +440,17 @@ impl BigInteger {
     pub fn sign(&self) -> i8 {
         self.sign
     }
+    /// Returns the number of bits required to represent the value of this `BigInteger`.
+    ///
+    /// For zero or empty magnitude, returns 0. Otherwise, calculates the bit length based on sign and magnitude.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// assert_eq!(BigInteger::from_u32(0).bit_length(), 0);
+    /// assert_eq!(BigInteger::from_u32(1).bit_length(), 1);
+    /// assert_eq!(BigInteger::from_u32(255).bit_length(), 8);
+    /// ```
     pub fn bit_length(&self) -> usize {
         *self.bit_length.get_or_init(|| {
             if self.sign == 0 || self.magnitude.is_empty() {
@@ -384,6 +460,17 @@ impl BigInteger {
             }
         })
     }
+    /// Returns the number of bits set to 1 in this `BigInteger`.
+    ///
+    /// For negative numbers, returns the bit count of its bitwise NOT.
+    /// For positive numbers, sums the count of set bits in each magnitude element.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// assert_eq!(BigInteger::from_u32(0b1011).bit_count(), 3);
+    /// assert_eq!(BigInteger::from_i32(-2).bit_count(), 1);
+    /// ```
     pub fn bit_count(&self) -> usize {
         *self.bits.get_or_init(|| {
             if self.sign < 0 {
@@ -406,6 +493,19 @@ impl BigInteger {
         let v = self.magnitude[n - 1] as u8;
         if self.sign < 0 { v.wrapping_neg() } else { v }
     }
+    /// Returns the value of this `BigInteger` as a `u16`.
+    ///
+    /// If the value is zero, returns 0. Otherwise, returns the least significant 16 bits
+    /// of the magnitude, applying two's complement if the number is negative.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let n = BigInteger::from_u16(65535);
+    /// assert_eq!(n.as_u16(), 65535);
+    /// let n = BigInteger::from_i16(-12345);
+    /// assert_eq!(n.as_u16(), (-12345i16) as u16);
+    /// ```
     pub fn as_u16(&self) -> u16 {
         if self.sign == 0 {
             return 0;
@@ -508,6 +608,30 @@ impl BigInteger {
     pub fn to_vec_unsigned(&self) -> Vec<u8> {
         self.to_vec_with_signed(true)
     }
+    /// Converts the `BigInteger` to a string in the specified radix (base).
+    ///
+    /// Supported radix values: 2, 8, 10, 16.
+    ///
+    /// # Arguments
+    /// * `radix` - The base to use for conversion (must be 2, 8, 10, or 16).
+    ///
+    /// # Returns
+    /// * `Ok(String)` containing the string representation of the number in the given radix.
+    /// * `Err(BcError)` if the radix is not supported.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    ///
+    /// let n = BigInteger::from_i32(255);
+    /// assert_eq!(n.to_string_radix(2).unwrap(), "11111111");
+    /// assert_eq!(n.to_string_radix(8).unwrap(), "377");
+    /// assert_eq!(n.to_string_radix(10).unwrap(), "255");
+    /// assert_eq!(n.to_string_radix(16).unwrap(), "ff");
+    ///
+    /// let n = BigInteger::from_i32(-42);
+    /// assert_eq!(n.to_string_radix(10).unwrap(), "-42");
+    /// ```
     pub fn to_string_radix(&self, radix: u32) -> Result<String, BcError> {
         if !(radix == 2 || radix == 8 || radix == 10 || radix == 16) {
             return Err(BcError::invalid_argument("radix must be 2, 8, 10, or 16"));
@@ -618,6 +742,19 @@ impl BigInteger {
             Self::new(-self.sign, self.magnitude.clone())
         }
     }
+    /// Increments the value of this `BigInteger` by one.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `BigInteger` that is one greater than the current value.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// assert_eq!(BigInteger::from_i32(0).inc(), BigInteger::from_i32(1));
+    /// assert_eq!(BigInteger::from_i32(-1).inc(), BigInteger::from_i32(0));
+    /// assert_eq!(BigInteger::from_i32(42).inc(), BigInteger::from_i32(43));
+    /// ```
     pub fn inc(&self) -> Self {
         if self.sign == 0 {
             ONE.clone()
@@ -628,6 +765,15 @@ impl BigInteger {
             self.add_to_magnitude(ONE.magnitude.as_slice())
         }
     }
+    /// Returns the absolute value of this `BigInteger`.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// assert_eq!(BigInteger::from_i32(-42).abs(), BigInteger::from_i32(42));
+    /// assert_eq!(BigInteger::from_i32(42).abs(), BigInteger::from_i32(42));
+    /// assert_eq!(BigInteger::from_i32(0).abs(), BigInteger::from_i32(0));
+    /// ```
     pub fn abs(&self) -> Self {
         if self.sign >= 0 {
             self.clone()
@@ -635,6 +781,27 @@ impl BigInteger {
             self.negate()
         }
     }
+    /// Adds two `BigInteger` values and returns the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The other `BigInteger` to add.
+    ///
+    /// # Returns
+    ///
+    /// A new `BigInteger` representing the sum.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(42);
+    /// let b = BigInteger::from_i32(58);
+    /// let sum = a.add(&b);
+    /// assert_eq!(sum, BigInteger::from_i32(100));
+    ///
+    /// let sum = &a + &b;
+    /// assert_eq!(sum, BigInteger::from_i32(100));
+    /// ```
     pub fn add(&self, other: &Self) -> Self {
         if self.sign == 0 {
             other.clone()
@@ -648,6 +815,26 @@ impl BigInteger {
             other.subtract(&self.negate())
         }
     }
+    /// Subtracts another `BigInteger` from this one and returns the result.
+    ///
+    /// Handles sign and magnitude correctly for arbitrary-precision integers.
+    ///
+    /// # Arguments
+    /// * `other` - The `BigInteger` to subtract.
+    ///
+    /// # Returns
+    /// A new `BigInteger` representing the difference.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(100);
+    /// let b = BigInteger::from_i32(42);
+    /// let diff = a.subtract(&b);
+    /// assert_eq!(diff, BigInteger::from_i32(58));
+    /// let diff2 = b.subtract(&a);
+    /// assert_eq!(diff2, BigInteger::from_i32(-58));
+    /// ```
     pub fn subtract(&self, other: &Self) -> Self {
         if other.sign == 0 {
             return self.clone();
@@ -669,6 +856,25 @@ impl BigInteger {
         let magnitude = do_sub_big_lil(bi.magnitude.as_slice(), li.magnitude.as_slice());
         Self::from_magnitude(self.sign * compare, &magnitude, true)
     }
+    /// Multiplies two `BigInteger` values and returns the result.
+    ///
+    /// Handles special cases for zero, powers of two, and self-multiplication.
+    /// Uses magnitude multiplication for general cases.
+    ///
+    /// # Arguments
+    /// * `other` - The other `BigInteger` to multiply.
+    ///
+    /// # Returns
+    /// A new `BigInteger` representing the product.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(6);
+    /// let b = BigInteger::from_i32(7);
+    /// let prod = a.multiply(&b);
+    /// assert_eq!(prod, BigInteger::from_i32(42));
+    /// ```
     pub fn multiply(&self, other: &Self) -> Self {
         if self == other {
             return self.square();
@@ -693,8 +899,32 @@ impl BigInteger {
         let res_sign = self.sign ^ other.sign ^ 1;
         Self::from_magnitude(res_sign, &res, true)
     }
-    pub fn divide(&self, other: &Self) -> Result<Self, BcError> {
-        if other.sign == 0 || other.magnitude.is_empty() {
+    /// Divides `self` by `other` and returns the quotient as a [`BigInteger`].
+    ///
+    /// Returns an error if `other` is zero or has an empty magnitude.
+    /// Handles quick division for powers of two.
+    ///
+    /// # Arguments
+    /// * `division` - The divisor as a reference to [`BigInteger`].
+    ///
+    /// # Returns
+    /// * `Ok(BigInteger)` - The quotient.
+    /// * `Err(BcError)` - If division by zero occurs.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    ///
+    /// let a = BigInteger::from_i32(10);
+    /// let b = BigInteger::from_i32(2);
+    /// assert_eq!(a.divide(&b).unwrap(), BigInteger::from_i32(5));
+    ///
+    /// let a: BigInteger = 10.into();
+    /// let b: BigInteger = 2.into();
+    /// assert_eq!(a / b, BigInteger::from_i32(5));
+    /// ```
+    pub fn divide(&self, division: &Self) -> Result<Self, BcError> {
+        if division.sign == 0 || division.magnitude.is_empty() {
             return Err(BcError::invalid_argument("divide by zero"));
         }
 
@@ -702,11 +932,11 @@ impl BigInteger {
             return Ok(ZERO.clone());
         }
 
-        if other.check_quick_pow2() {
+        if division.check_quick_pow2() {
             let result = self
                 .abs()
-                .shift_right((other.abs().bit_length() - 1) as isize);
-            return if other.sign == self.sign {
+                .shift_right((division.abs().bit_length() - 1) as isize);
+            return if division.sign == self.sign {
                 Ok(result)
             } else {
                 Ok(result.negate())
@@ -714,9 +944,39 @@ impl BigInteger {
         }
 
         let mut mag = self.magnitude.to_vec();
-        let magnitude = divide_magnitude(&mut mag, &other.magnitude);
-        Ok(Self::from_magnitude(self.sign * other.sign, &magnitude, true))
+        let magnitude = divide_magnitude(&mut mag, &division.magnitude);
+        Ok(Self::from_magnitude(
+            self.sign * division.sign,
+            &magnitude,
+            true,
+        ))
     }
+    /// Computes the remainder of `self` divided by `division`.
+    ///
+    /// Returns an error if `division` is zero or has an empty magnitude.
+    /// For small divisors (single `u32`), uses a fast remainder method.
+    /// If `self` is smaller than `division`, returns `self`.
+    /// For powers of two, uses a bit masking for efficiency.
+    ///
+    /// # Arguments
+    /// * `division` - The divisor as a reference to `BigInteger`.
+    ///
+    /// # Returns
+    /// * `Ok(BigInteger)` - The remainder.
+    /// * `Err(BcError)` - If division by zero occurs.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    ///
+    /// let a = BigInteger::from_i32(10);
+    /// let b = BigInteger::from_i32(3);
+    /// assert_eq!(a.remainder(&b).unwrap(), BigInteger::from_i32(1));
+    ///
+    /// let a = BigInteger::from_i32(10);
+    /// let b = BigInteger::from_i32(2);
+    /// assert_eq!(a.remainder(&b).unwrap(), BigInteger::from_i32(0));
+    /// ```
     pub fn remainder(&self, division: &Self) -> Result<Self, BcError> {
         if division.sign == 0 || division.magnitude.is_empty() {
             return Err(BcError::invalid_argument("divide by zero"));
@@ -756,6 +1016,28 @@ impl BigInteger {
 
         Ok(Self::from_magnitude(self.sign, &result, true))
     }
+    /// Divides `self` by `other` and returns both the quotient and remainder as a tuple.
+    ///
+    /// Returns an error if `other` is zero or has an empty magnitude.
+    /// Handles quick division for powers of two.
+    ///
+    /// # Arguments
+    /// * `other` - The divisor as a reference to `BigInteger`.
+    ///
+    /// # Returns
+    /// * `Ok((BigInteger, BigInteger))` - The quotient and remainder.
+    /// * `Err(BcError)` - If division by zero occurs.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    ///
+    /// let a = BigInteger::from_i32(10);
+    /// let b = BigInteger::from_i32(3);
+    /// let (q, r) = a.divide_and_remainder(&b).unwrap();
+    /// assert_eq!(q, BigInteger::from_i32(3));
+    /// assert_eq!(r, BigInteger::from_i32(1));
+    /// ```
     pub fn divide_and_remainder(&self, other: &Self) -> Result<(Self, Self), BcError> {
         if other.sign == 0 || other.magnitude.is_empty() {
             return Err(BcError::invalid_argument("divide by zero"));
@@ -786,6 +1068,26 @@ impl BigInteger {
             Self::from_magnitude(self.sign, &remainder, true),
         ))
     }
+    /// Computes the mathematical modulus of `self` with respect to `other`.
+    ///
+    /// This function returns a non-negative remainder, even if `self` is negative.
+    /// If the remainder is negative, it adds `other` to ensure the result is positive.
+    ///
+    /// # Arguments
+    /// * `other` - The divisor as a reference to `BigInteger`.
+    ///
+    /// # Returns
+    /// * `Ok(BigInteger)` - The non-negative modulus.
+    /// * `Err(BcError)` - If division by zero occurs.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    ///
+    /// let a = BigInteger::from_i32(-13);
+    /// let b = BigInteger::from_i32(5);
+    /// assert_eq!(a.modulus(&b).unwrap(), BigInteger::from_i32(2));
+    /// ```
     pub fn modulus(&self, other: &Self) -> Result<Self, BcError> {
         if other.sign == 0 || other.magnitude.is_empty() {
             return Err(BcError::invalid_argument("divide by zero"));
@@ -798,6 +1100,26 @@ impl BigInteger {
             Ok(biggie.add(other))
         }
     }
+    /// Computes the modular inverse of `self` with respect to `modulus`.
+    ///
+    /// Returns the value `x` such that `(self * x) % modulus == 1`, if it exists.
+    /// If `self` and `modulus` are not coprime, returns an error.
+    ///
+    /// # Arguments
+    /// * `modulus` - The modulus as a reference to `BigInteger`.
+    ///
+    /// # Returns
+    /// * `Ok(BigInteger)` - The modular inverse.
+    /// * `Err(BcError)` - If the inverse does not exist or arguments are invalid.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(3);
+    /// let m = BigInteger::from_i32(11);
+    /// let inv = a.modulus_inverse(&m).unwrap();
+    /// assert_eq!((a.multiply(&inv)).modulus(&m).unwrap(), BigInteger::from_i32(1));
+    /// ```
     pub fn modulus_inverse(&self, modulus: &Self) -> Result<Self, BcError> {
         if self.sign <= 0 {
             return Err(BcError::invalid_argument("modulus must be positive"));
@@ -819,6 +1141,29 @@ impl BigInteger {
         }
         Ok(x)
     }
+    /// Computes modular exponentiation: `(self^e) % m`.
+    ///
+    /// This function calculates the result of raising `self` to the power of `e`, then taking the modulus `m`.
+    /// Handles negative exponents by computing the modular inverse.
+    /// Uses Barrett or Montgomery reduction depending on the modulus.
+    ///
+    /// # Arguments
+    /// * `e` - The exponent as a reference to `BigInteger`.
+    /// * `m` - The modulus as a reference to `BigInteger`.
+    ///
+    /// # Returns
+    /// * `Ok(BigInteger)` - The result of modular exponentiation.
+    /// * `Err(BcError)` - If the modulus is not positive or other arithmetic errors occur.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let base = BigInteger::from_i32(4);
+    /// let exp = BigInteger::from_i32(13);
+    /// let modulus = BigInteger::from_i32(497);
+    /// let result = base.modulus_pow(&exp, &modulus).unwrap();
+    /// assert_eq!(result, BigInteger::from_i32(445));
+    /// ```
     pub fn modulus_pow(&self, e: &Self, m: &Self) -> Result<Self, BcError> {
         if m.sign <= 0 {
             return Err(BcError::invalid_argument("Modulus must be positive"));
@@ -857,6 +1202,24 @@ impl BigInteger {
         }
         Ok(result)
     }
+    /// Squares this `BigInteger` and returns the result.
+    ///
+    /// Handles special cases for zero and powers of two for efficiency.
+    /// Uses magnitude squaring for general cases.
+    ///
+    /// # Returns
+    /// A new `BigInteger` representing the square of `self`.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(5);
+    /// assert_eq!(a.square(), BigInteger::from_i32(25));
+    /// let b = BigInteger::from_i32(0);
+    /// assert_eq!(b.square(), BigInteger::from_i32(0));
+    /// let c = BigInteger::from_i32(-7);
+    /// assert_eq!(c.square(), BigInteger::from_i32(49));
+    /// ```
     pub fn square(&self) -> Self {
         if self.sign == 0 {
             return ZERO.clone();
@@ -874,6 +1237,26 @@ impl BigInteger {
         square_magnitudes(&mut res, &self.magnitude);
         Self::from_magnitude(1, &res, false)
     }
+    /// Raises this `BigInteger` to the power of `exp`.
+    ///
+    /// Uses exponentiation by squaring for efficiency.
+    /// Handles special cases for zero, one, and powers of two.
+    ///
+    /// # Arguments
+    /// * `exp` - The exponent as a `u32`.
+    ///
+    /// # Returns
+    /// * `Ok(BigInteger)` - The result of self^exp.
+    /// * `Err(BcError)` - If the exponent is too large for a power of two.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(2);
+    /// assert_eq!(a.pow(3).unwrap(), BigInteger::from_i32(8));
+    /// assert_eq!(BigInteger::from_i32(0).pow(5).unwrap(), BigInteger::from_i32(0));
+    /// assert_eq!(BigInteger::from_i32(5).pow(0).unwrap(), BigInteger::from_i32(1));
+    /// ```
     pub fn pow(&self, exp: u32) -> Result<Self, BcError> {
         let mut exp = exp;
         if exp == 0 {
@@ -905,6 +1288,22 @@ impl BigInteger {
         }
         Ok(y)
     }
+    /// Computes the greatest common divisor (GCD) of two `BigInteger` values using the Euclidean algorithm.
+    ///
+    /// # Arguments
+    /// * `other` - The other `BigInteger` to compute the GCD with.
+    ///
+    /// # Returns
+    /// * `Ok(BigInteger)` - The GCD of `self` and `other`.
+    /// * `Err(BcError)` - If an error occurs during modulus operation.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(48);
+    /// let b = BigInteger::from_i32(18);
+    /// assert_eq!(a.gcd(&b).unwrap(), BigInteger::from_i32(6));
+    /// ```
     pub fn gcd(&self, other: &Self) -> Result<Self, BcError> {
         if other.sign == 0 || other.magnitude.is_empty() {
             return Ok(self.abs());
@@ -926,6 +1325,23 @@ impl BigInteger {
     }
 
     // Bitwise operations
+    /// Tests whether the bit at position `n` is set.
+    ///
+    /// For negative numbers, returns the complement of the bit test.
+    ///
+    /// # Arguments
+    /// * `n` - The bit position to test (0-based).
+    ///
+    /// # Returns
+    /// * `true` if the bit at position `n` is set, otherwise `false`.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(0b1010);
+    /// assert_eq!(a.test_bit(1), true);  // 0b1010, bit 1 is set
+    /// assert_eq!(a.test_bit(0), false); // 0b1010, bit 0 is not set
+    /// ```
     pub fn test_bit(&self, n: usize) -> bool {
         if self.sign < 0 {
             return !self.not().test_bit(n);
@@ -938,6 +1354,27 @@ impl BigInteger {
         let word = self.magnitude[self.magnitude.len() - 1 - word_num];
         ((word >> (n % 32)) & 1) != 0
     }
+    /// Sets the bit at position `n` to 1 and returns a new `BigInteger`.
+    ///
+    /// If the bit is already set, returns a clone of `self`.
+    /// For positive numbers and bits within the current bit length, flips the existing bit.
+    /// Otherwise, performs a bitwise OR with `1 << n`.
+    ///
+    /// # Arguments
+    /// * `n` - The bit position to set (0-based).
+    ///
+    /// # Returns
+    /// A new `BigInteger` with the specified bit set.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(0b1010);
+    /// let b = a.set_bit(0);
+    /// assert_eq!(b, BigInteger::from_i32(0b1011));
+    /// let c = a.set_bit(1);
+    /// assert_eq!(c, a); // bit already set
+    /// ```
     pub fn set_bit(&self, n: usize) -> Self {
         if self.test_bit(n) {
             return self.clone();
@@ -948,6 +1385,31 @@ impl BigInteger {
             self.or(&(*ONE).shift_left(n as isize))
         }
     }
+    /// Clears the bit at position `n` in this `BigInteger` and returns a new value.
+    ///
+    /// If the bit is not set, returns a clone of `self`.
+    /// For positive numbers and bits within the current bit length, flips the existing bit.
+    /// Otherwise, performs a bitwise AND NOT with `1 << n`.
+    ///
+    /// # Arguments
+    /// * `n` - The bit position to clear (0-based).
+    ///
+    /// # Returns
+    /// A new `BigInteger` with the specified bit cleared.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(0b1011);
+    /// let b = a.clear_bit(0);
+    /// assert_eq!(b, BigInteger::from_i32(0b1010));
+    /// let b = a.clear_bit(1);
+    /// assert_eq!(b, BigInteger::from_i32(0b1001));
+    /// let b = a.clear_bit(2);
+    /// assert_eq!(b, BigInteger::from_i32(0b1011));
+    /// let b = a.clear_bit(3);
+    /// assert_eq!(b, BigInteger::from_i32(0b0011));
+    /// ```
     pub fn clear_bit(&self, n: usize) -> Self {
         if !self.test_bit(n) {
             return self.clone();
@@ -961,6 +1423,27 @@ impl BigInteger {
         let r2 = self.and_not(&r1);
         r2
     }
+    /// Flips the bit at position `n` in this `BigInteger` and returns a new value.
+    ///
+    /// If the bit is set, it will be cleared; if it is clear, it will be set.
+    /// For positive numbers and bits within the current bit length, uses an optimized method.
+    /// Otherwise, performs a bitwise XOR with `1 << n`.
+    ///
+    /// # Arguments
+    /// * `n` - The bit position to flip (0-based).
+    ///
+    /// # Returns
+    /// A new `BigInteger` with the specified bit flipped.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(0b1010);
+    /// let b = a.flip_bit(1);
+    /// assert_eq!(b, BigInteger::from_i32(0b1000));
+    /// let c = a.flip_bit(0);
+    /// assert_eq!(c, BigInteger::from_i32(0b1011));
+    /// ```
     pub fn flip_bit(&self, n: usize) -> Self {
         if self.sign > 0 && n < (self.bit_length() - 1) {
             return self.flip_existing_bit(n);
@@ -968,12 +1451,41 @@ impl BigInteger {
         let n1 = &(*ONE).shift_left(n as isize);
         self.xor(n1)
     }
+    /// Returns the index of the lowest set bit in this `BigInteger`.
+    ///
+    /// If the value is zero, returns -1.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(0b10100);
+    /// assert_eq!(a.get_lowest_set_bit(), 2);
+    /// let b = BigInteger::from_i32(0);
+    /// assert_eq!(b.get_lowest_set_bit(), -1);
+    /// ```
     pub fn get_lowest_set_bit(&self) -> i32 {
         if self.sign == 0 {
             return -1;
         }
         self.get_lowest_set_bit_mask_first(u32::MAX)
     }
+    /// Bitwise AND operation between two `BigInteger` values.
+    ///
+    /// Returns a new `BigInteger` representing the bitwise AND of `self` and `other`.
+    ///
+    /// # Arguments
+    /// * `other` - The other `BigInteger` to AND with.
+    ///
+    /// # Returns
+    /// A new `BigInteger` containing the result.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(6); // 0b110
+    /// let b = BigInteger::from_i32(3); // 0b011
+    /// assert_eq!(a.and(&b), BigInteger::from_i32(2)); // 0b010
+    /// ```
     pub fn and(&self, other: &Self) -> Self {
         if self.sign == 0 || other.sign == 0 {
             return BigInteger::from_u32(0);
@@ -1025,11 +1537,47 @@ impl BigInteger {
         }
         result
     }
+
+    /// Bitwise AND-NOT operation between two `BigInteger` values.
+    ///
+    /// Returns a new `BigInteger` representing the bitwise AND of `self` and the bitwise NOT of `other`.
+    ///
+    /// # Arguments
+    /// * `other` - The other `BigInteger` to AND-NOT with.
+    ///
+    /// # Returns
+    /// A new `BigInteger` containing the result.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(6); // 0b110
+    /// let b = BigInteger::from_i32(3); // 0b011
+    /// assert_eq!(a.and_not(&b), BigInteger::from_i32(4)); // 0b100
+    /// ```
     pub fn and_not(&self, other: &Self) -> Self {
         let r1 = other.not();
         let r2 = self.and(&r1);
         r2
     }
+
+    /// Bitwise OR operation between two `BigInteger` values.
+    ///
+    /// Returns a new `BigInteger` representing the bitwise OR of `self` and `other`.
+    ///
+    /// # Arguments
+    /// * `other` - The other `BigInteger` to OR with.
+    ///
+    /// # Returns
+    /// A new `BigInteger` containing the result.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(6); // 0b110
+    /// let b = BigInteger::from_i32(3); // 0b011
+    /// assert_eq!(a.or(&b), BigInteger::from_i32(7)); // 0b111
+    /// ```
     pub fn or(&self, other: &Self) -> Self {
         if self.sign == 0 {
             return other.clone();
@@ -1081,6 +1629,24 @@ impl BigInteger {
         }
         result
     }
+
+    /// Bitwise XOR operation between two `BigInteger` values.
+    ///
+    /// Returns a new `BigInteger` representing the bitwise XOR of `self` and `value`.
+    ///
+    /// # Arguments
+    /// * `value` - The other `BigInteger` to XOR with.
+    ///
+    /// # Returns
+    /// A new `BigInteger` containing the result.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(6); // 0b110
+    /// let b = BigInteger::from_i32(3); // 0b011
+    /// assert_eq!(a.xor(&b), BigInteger::from_i32(5)); // 0b101
+    /// ```
     pub fn xor(&self, value: &Self) -> Self {
         if self.sign == 0 {
             return value.clone();
@@ -1139,6 +1705,22 @@ impl BigInteger {
         }
         result
     }
+    /// Shifts the value of this `BigInteger` left by `n` bits.
+    ///
+    /// # Arguments
+    /// * `n` - The number of bits to shift left. If negative, performs a right shift.
+    ///
+    /// # Returns
+    /// A new `BigInteger` shifted left by `n` bits.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_u32(1);
+    /// assert_eq!(a.shift_left(3), BigInteger::from_u32(8));
+    /// let b = BigInteger::from_u32(8);
+    /// assert_eq!(b.shift_left(-3), BigInteger::from_u32(1));
+    /// ```
     pub fn shift_left(&self, n: isize) -> Self {
         if self.sign == 0 || self.magnitude.is_empty() {
             return BigInteger::from_u32(0);
@@ -1166,6 +1748,23 @@ impl BigInteger {
 
         result
     }
+
+    /// Shifts the value of this `BigInteger` right by `n` bits.
+    ///
+    /// # Arguments
+    /// * `n` - The number of bits to shift right. If negative, performs a left shift.
+    ///
+    /// # Returns
+    /// A new `BigInteger` shifted right by `n` bits.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_u32(8);
+    /// assert_eq!(a.shift_right(3), BigInteger::from_u32(1));
+    /// let b = BigInteger::from_u32(1);
+    /// assert_eq!(b.shift_right(-3), BigInteger::from_u32(8));
+    /// ```
     pub fn shift_right(&self, n: isize) -> Self {
         if n == 0 {
             return self.clone();
@@ -1203,13 +1802,36 @@ impl BigInteger {
         debug_assert!(res[0] != 0);
         Self::from_magnitude(self.sign, &res, false)
     }
-    // Comparison operations
-    // Utility functions
     // Logical operations
+    /// Returns the bitwise NOT of this `BigInteger`.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(5);
+    /// let b = a.not();
+    /// assert_eq!(b, BigInteger::from_i32(-6));
+    /// ```
     pub fn not(&self) -> Self {
         let r1 = self.inc();
         -r1
     }
+    /// Returns the maximum of `self` and `value`.
+    ///
+    /// # Arguments
+    /// * `value` - The other `BigInteger` to compare.
+    ///
+    /// # Returns
+    /// * `BigInteger` - The greater value.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(42);
+    /// let b = BigInteger::from_i32(100);
+    /// assert_eq!(a.max(&b), b);
+    /// assert_eq!(b.max(&a), b);
+    /// ```
     pub fn max(&self, value: &Self) -> Self {
         if self < value {
             value.clone()
@@ -1217,6 +1839,22 @@ impl BigInteger {
             self.clone()
         }
     }
+    /// Returns the minimum of `self` and `value`.
+    ///
+    /// # Arguments
+    /// * `value` - The other `BigInteger` to compare.
+    ///
+    /// # Returns
+    /// * `BigInteger` - The smaller value.
+    ///
+    /// # Examples
+    /// ```
+    /// use bc_rust::math::BigInteger;
+    /// let a = BigInteger::from_i32(42);
+    /// let b = BigInteger::from_i32(100);
+    /// assert_eq!(a.min(&b), a);
+    /// assert_eq!(b.min(&a), a);
+    /// ```
     pub fn min(&self, value: &Self) -> Self {
         if self < value {
             self.clone()
@@ -1370,7 +2008,13 @@ impl BigInteger {
         }
         result
     }
-    fn mod_pow_monty(y_acc_m: &mut [u32], b: &Self, e: &Self, m: &Self, convert: bool) -> Result<Self, BcError> {
+    fn mod_pow_monty(
+        y_acc_m: &mut [u32],
+        b: &Self,
+        e: &Self,
+        m: &Self,
+        convert: bool,
+    ) -> Result<Self, BcError> {
         let n = m.magnitude.len();
         let pow_r = 32 * n;
         let small_monty_modulus = m.bit_length() + 2 <= pow_r;
@@ -1874,7 +2518,11 @@ impl RandomBigInteger for BigInteger {
     }
 }
 impl PrimeBigInteger for BigInteger {
-    fn create_probable_prime<Rng: RngCore>(bits: usize, certainty: usize, rng: &mut Rng) -> Result<Self, BcError> {
+    fn create_probable_prime<Rng: RngCore>(
+        bits: usize,
+        certainty: usize,
+        rng: &mut Rng,
+    ) -> Result<Self, BcError> {
         if bits < 2 {
             return Err(BcError::invalid_argument("bits must be at least 2"));
         }
@@ -1928,7 +2576,9 @@ impl PrimeBigInteger for BigInteger {
     }
     fn next_probable_prime(&self) -> Result<Self, BcError> {
         if self.sign < 0 {
-            return Err(BcError::invalid_argument("Negative numbers cannot be prime"));
+            return Err(BcError::invalid_argument(
+                "Negative numbers cannot be prime",
+            ));
         }
 
         if self < &(*TWO) {
@@ -3383,14 +4033,18 @@ fn to_string_with_moduli(
     moduli: &[BigInteger],
     mut scale: usize,
     pos: &BigInteger,
-) -> Result<(), BcError>{
+) -> Result<(), BcError> {
     if pos.bit_length() < 64 {
         let s = match radix {
             2 => format!("{:b}", pos.as_i64()),
             8 => format!("{:o}", pos.as_i64()),
             10 => format!("{}", pos.as_i64()),
             16 => format!("{:X}", pos.as_i64()),
-            _ => return Err(BcError::invalid_argument("Only bases 2, 8, 10, 16 are allowed")),
+            _ => {
+                return Err(BcError::invalid_argument(
+                    "Only bases 2, 8, 10, 16 are allowed",
+                ));
+            }
         };
         if sb.len() > 1 || sb.len() == 1 && &sb[0..1] != "-" {
             append_zero_extended_string(sb, &s, 1 << scale);
@@ -3525,7 +4179,9 @@ mod tests {
 
         let mut random = rand::rng();
         for i in 0..10 {
-            let m = BigInteger::create_probable_prime(i + 3, 0, &mut random).unwrap().test_bit(0);
+            let m = BigInteger::create_probable_prime(i + 3, 0, &mut random)
+                .unwrap()
+                .test_bit(0);
             assert!(m, "i = {}", i);
         }
     }
@@ -3603,26 +4259,30 @@ mod tests {
             s,
             &BigInteger::from_str_radix(s, 10)
                 .unwrap()
-                .to_string_radix(10).unwrap()
+                .to_string_radix(10)
+                .unwrap()
         );
         assert_eq!(
             s,
             &BigInteger::from_str_radix(s, 10)
                 .unwrap()
-                .to_string_radix(10).unwrap()
+                .to_string_radix(10)
+                .unwrap()
         );
         assert_eq!(
             s,
             &BigInteger::from_str_radix(s, 16)
                 .unwrap()
-                .to_string_radix(16).unwrap()
+                .to_string_radix(16)
+                .unwrap()
         );
 
         let mut random = rand::rng();
         for i in 0..100 {
             let left = BigInteger::with_rng(i, &mut random);
             {
-                let right = BigInteger::from_str_radix(&left.to_string_radix(2).unwrap(), 2).unwrap();
+                let right =
+                    BigInteger::from_str_radix(&left.to_string_radix(2).unwrap(), 2).unwrap();
                 assert_eq!(
                     left,
                     right,
@@ -3639,7 +4299,8 @@ mod tests {
                 );
             }
             {
-                let right = BigInteger::from_str_radix(&left.to_string_radix(8).unwrap(), 8).unwrap();
+                let right =
+                    BigInteger::from_str_radix(&left.to_string_radix(8).unwrap(), 8).unwrap();
                 assert_eq!(
                     left,
                     right,
@@ -3656,7 +4317,8 @@ mod tests {
                 );
             }
             {
-                let right = BigInteger::from_str_radix(&left.to_string_radix(10).unwrap(), 10).unwrap();
+                let right =
+                    BigInteger::from_str_radix(&left.to_string_radix(10).unwrap(), 10).unwrap();
                 assert_eq!(
                     left,
                     right,
@@ -3834,40 +4496,52 @@ mod tests {
             );
             assert_eq!(
                 expected.negate(),
-                big_product.negate().divide(&BigInteger::from_i32(divisor)).unwrap()
+                big_product
+                    .negate()
+                    .divide(&BigInteger::from_i32(divisor))
+                    .unwrap()
             );
             assert_eq!(
                 expected.negate(),
-                big_product.divide(&BigInteger::from_i32(divisor).negate()).unwrap()
+                big_product
+                    .divide(&BigInteger::from_i32(divisor).negate())
+                    .unwrap()
             );
             assert_eq!(
                 expected,
                 big_product
                     .negate()
-                    .divide(&BigInteger::from_i32(divisor).negate()).unwrap()
+                    .divide(&BigInteger::from_i32(divisor).negate())
+                    .unwrap()
             );
 
             let expected = BigInteger::from_i32((product + 1) / divisor);
 
             assert_eq!(
                 expected,
-                big_product_plus.divide(&BigInteger::from_i32(divisor)).unwrap()
+                big_product_plus
+                    .divide(&BigInteger::from_i32(divisor))
+                    .unwrap()
             );
             assert_eq!(
                 expected.negate(),
                 big_product_plus
                     .negate()
-                    .divide(&BigInteger::from_i32(divisor)).unwrap()
+                    .divide(&BigInteger::from_i32(divisor))
+                    .unwrap()
             );
             assert_eq!(
                 expected.negate(),
-                big_product_plus.divide(&BigInteger::from_i32(divisor).negate()).unwrap()
+                big_product_plus
+                    .divide(&BigInteger::from_i32(divisor).negate())
+                    .unwrap()
             );
             assert_eq!(
                 expected,
                 big_product_plus
                     .negate()
-                    .divide(&BigInteger::from_i32(divisor).negate()).unwrap()
+                    .divide(&BigInteger::from_i32(divisor).negate())
+                    .unwrap()
             );
         }
     }
@@ -4351,7 +5025,10 @@ mod tests {
             for _ in 0..10 {
                 let pos = rand::random_range(0..128);
                 let m = n.clear_bit(pos);
-                assert_ne!(m.shift_right(pos as isize).remainder(&(*TWO)).unwrap(), *ONE);
+                assert_ne!(
+                    m.shift_right(pos as isize).remainder(&(*TWO)).unwrap(),
+                    *ONE
+                );
             }
         }
 
@@ -4637,34 +5314,42 @@ mod tests {
         for e in MERSENNE_PRIME_EXPONENTS {
             assert!(
                 &(*TWO)
-                    .pow(e as u32).unwrap()
+                    .pow(e as u32)
+                    .unwrap()
                     .subtract(&(*ONE))
-                    .is_probable_prime(100).unwrap(),
+                    .is_probable_prime(100)
+                    .unwrap(),
                 "e = {}",
                 e
             );
             assert!(
                 &(*TWO)
-                    .pow(e as u32).unwrap()
+                    .pow(e as u32)
+                    .unwrap()
                     .subtract(&(*ONE))
                     .negate()
-                    .is_probable_prime(100).unwrap()
+                    .is_probable_prime(100)
+                    .unwrap()
             );
         }
 
         for e in NON_PRIME_EXPONENTS {
             assert!(
                 !(&(*TWO)
-                    .pow(e as u32).unwrap()
+                    .pow(e as u32)
+                    .unwrap()
                     .subtract(&(*ONE))
-                    .is_probable_prime(100).unwrap())
+                    .is_probable_prime(100)
+                    .unwrap())
             );
             assert!(
                 !(&(*TWO)
-                    .pow(e as u32).unwrap()
+                    .pow(e as u32)
+                    .unwrap()
                     .subtract(&(*ONE))
                     .negate()
-                    .is_probable_prime(100).unwrap())
+                    .is_probable_prime(100)
+                    .unwrap())
             );
         }
     }
