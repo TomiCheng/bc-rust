@@ -1,15 +1,219 @@
 //! Utility methods for generating primes and testing for primality.
-//!
 
-use rand::RngCore;
-use crate::BcError;
 use crate::crypto::Digest;
 use crate::crypto::util::pack::Pack;
 use crate::math::BigInteger;
 use crate::math::big_integer::{ONE, THREE, TWO};
 use crate::util::big_integers::with_range_rng;
+use crate::{BcError, BcResult};
+use rand::RngCore;
 
-/// FIPS 186-4 C.6 Shawe-Taylor Random_Prime Routine.
+/// A fast check for small divisors, up to some implementation-specific limit.
+///
+/// # Arguments
+///
+/// * `candidate` - The [`BigInteger`] instance to test for division by small factors.
+///
+/// # Returns
+/// `true` if the candidate is found to have any small factors, `false` otherwise.
+///
+/// # Errors
+///
+/// Returns [`BcError`] if the candidate is invalid.
+///
+pub fn has_any_small_factors(candidate: &BigInteger) -> BcResult<bool> {
+    check_candidate(candidate, "candidate")?;
+    impl_has_any_small_factors(candidate)
+}
+
+/// FIPS 186-4 C.3.1 Miller-Rabin Probabilistic Primality Test (to a fixed base).
+/// Run a single iteration of the Miller-Rabin algorithm against the specified base.
+/// # Arguments
+///
+/// * `candidate` - The [`BigInteger`] instance to test for primality.
+/// * `base_value` - The base value to use for this iteration.
+///
+/// # Returns
+///
+/// `false` if `base_value` is a witness to compositeness (so `candidate` is definitely NOT prime), or else `true`.
+///
+/// # Errors
+///
+/// * `candidate` or `base_value` are invalid
+/// * `base_value` >= `candidate` - 1`.
+///
+pub fn is_mr_probable_prime_to_base(
+    candidate: &BigInteger,
+    base_value: &BigInteger,
+) -> BcResult<bool> {
+    check_candidate(candidate, "candidate")?;
+    check_candidate(base_value, "base_value")?;
+
+    if base_value >= &(candidate - &*ONE) {
+        return Err(BcError::invalid_argument(
+            "base_value must be < candidate-1",
+        ));
+    }
+
+    if candidate == &*TWO {
+        return Ok(true);
+    }
+
+    let w = candidate;
+    let w_sub_one = candidate - &*ONE;
+
+    let a = w_sub_one.get_lowest_set_bit();
+    let m = w_sub_one.shift_right(a as isize);
+
+    impl_mr_probable_prime_to_base(w, &w_sub_one, &m, a, base_value)
+}
+
+/// FIPS 186-4 C.3.1 Miller-Rabin Probabilistic Primality Test.
+/// Run several iterations of the Miller-Rabin algorithm with randomly-chosen bases.
+///
+/// # Arguments
+///
+/// * `candidate` - The [`BigInteger`] to test for primality.
+/// * `rng` - A mutable reference to a random number generator implementing [`RngCore`].
+/// * `iterations` - The number of Miller-Rabin iterations to perform.
+///
+/// # Returns
+///
+/// * `false` if any witness to composites is found amongst the chosen bases (so `candidate` s definitely NOT prime),
+/// * `true` (indicating primality with some probability dependent on the number of iterations that were performed).
+///
+/// # Errors
+///
+/// * `iterations` is less than 1.
+/// * the `candidate` is invalid.
+///
+pub fn is_mr_probable_prime<TRngCore: RngCore>(
+    candidate: &BigInteger,
+    rng: &mut TRngCore,
+    iterations: usize,
+) -> BcResult<bool> {
+    check_candidate(candidate, "candidate")?;
+
+    if iterations < 1 {
+        return Err(BcError::invalid_argument("iterations must be at least 1"));
+    }
+
+    if candidate.bit_length() == 2 {
+        return Ok(true);
+    }
+
+    if !candidate.test_bit(0) {
+        return Ok(false);
+    }
+
+    let w = candidate;
+    let w_sub_one = candidate.subtract(&(*ONE));
+    let w_sub_two = candidate.subtract(&(*TWO));
+
+    let a = w_sub_one.get_lowest_set_bit();
+    let m = w_sub_one.shift_right(a as isize);
+
+    for _ in 0..iterations {
+        let b = with_range_rng(&(*&TWO), &w_sub_two, rng);
+        if !impl_mr_probable_prime_to_base(w, &w_sub_one, &m, a, &b)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+/// Enhanced Miller-Rabin Probable Prime Test.
+///
+/// This function performs an enhanced version of the Miller-Rabin primality test,
+/// which can also detect non-trivial factors of the candidate number.
+///
+/// # Arguments
+///
+/// * `candidate` - The [`BigInteger`] to test for primality.
+/// * `rng` - A mutable reference to a random number generator implementing [`RngCore`].
+/// * `iterations` - The number of Miller-Rabin iterations to perform.
+///
+/// # Returns
+///
+/// Returns a tuple:
+/// - The first element is `false` if the candidate is probably prime, `true` if a factor is found or the candidate is composite.
+/// - The second element is `Some(factor)` if a non-trivial factor is found, otherwise `None`.
+///
+/// # Errors
+///
+/// Returns [`BcError`] if the candidate is invalid or if `iterations` is less than 1.
+pub fn test_enhanced_mr_probable_prime<Rng: RngCore>(
+    candidate: &BigInteger,
+    rng: &mut Rng,
+    iterations: usize,
+) -> BcResult<(bool, Option<BigInteger>)> {
+    check_candidate(candidate, "candidate")?;
+    if iterations < 1 {
+        return Err(BcError::invalid_argument("iterations must be at least 1"));
+    }
+    if candidate.bit_length() == 2 {
+        return Ok((true, None));
+    }
+    if !candidate.test_bit(0) {
+        return Ok((true, Some(TWO.clone())));
+    }
+    let w = candidate;
+    let w_sub_one = candidate - &*ONE;
+    let w_sub_two = candidate - &*TWO;
+    let a = w_sub_one.get_lowest_set_bit();
+    let m = w_sub_one.shift_right(a as isize);
+
+    for _ in 0..iterations {
+        debug_assert!(&*TWO <= &w_sub_two);
+        let b = with_range_rng(&*TWO, &w_sub_two, rng);
+        let mut g = b.gcd(w)?;
+
+        if g > *ONE {
+            return Ok((true, Some(g)));
+        }
+
+        let mut z = b.modulus_pow(&m, w)?;
+        if z == *ONE || z == w_sub_one {
+            continue;
+        }
+
+        let mut prime_to_base = false;
+        let mut x = z.clone();
+        for _ in 1..a {
+            z = z.square().modulus(w)?;
+
+            if z == w_sub_one {
+                prime_to_base = true;
+                break;
+            }
+
+            if z == *ONE {
+                break;
+            }
+
+            x = z.clone();
+        }
+        if !prime_to_base {
+            if z != *ONE {
+                x = z.clone();
+                z = z.square().modulus(w)?;
+
+                if z != *ONE {
+                    x = z.clone();
+                }
+            }
+            g = x.subtract(&*ONE).gcd(&w)?;
+
+            if g > *ONE {
+                return Ok((true, Some(g)));
+            }
+            return Ok((true, None));
+        }
+    }
+
+    Ok((false, None))
+}
+/// FIPS 186-4 C.6 Shawe-Taylor Random Prime Routine.
 pub struct StRandomPrime {
     prime_gen_counter: usize,
     prime_seed: Vec<u8>,
@@ -23,20 +227,8 @@ impl StRandomPrime {
             prime,
         }
     }
-    /// FIPS 186-4 C.6 Shawe-Taylor Random_Prime Routine.
-    /// Construct a provable prime number using a hash function.
-    ///
-    /// # Parameters
-    ///
-    /// * `hash` - The [`Digest`] instance to use (as "Hash()").
-    /// * `length` - The length (in bits) of the prime to be generated. Must be at least 2.
-    /// * `input_seed` - The seed to be used for the generation of the requested prime. Cannot be empty.
-    ///
-    /// # Returns
-    /// an [`StRandomPrime`] instance containing the requested prime.
-    ///
-    pub fn generate(
-        hash: &mut dyn Digest,
+    pub fn generate<TDigest: Digest>(
+        hash: &mut TDigest,
         length: usize,
         input_seed: &[u8],
     ) -> Result<Self, BcError> {
@@ -60,8 +252,8 @@ impl StRandomPrime {
         self.prime_gen_counter
     }
 
-    fn impl_st_random_prime(
-        d: &mut dyn Digest,
+    fn impl_st_random_prime<TDigest: Digest>(
+        d: &mut TDigest,
         length: usize,
         mut prime_seed: Vec<u8>,
     ) -> Result<Self, BcError> {
@@ -117,7 +309,11 @@ impl StRandomPrime {
             x = x.modulus(&(*ONE).shift_left((length - 1) as isize).set_bit(length - 1))?;
 
             let c0x2 = c0.shift_left(1);
-            let mut tx2 = x.subtract(&(*ONE)).divide(&c0x2)?.add(&(*ONE)).shift_left(1);
+            let mut tx2 = x
+                .subtract(&(*ONE))
+                .divide(&c0x2)?
+                .add(&(*ONE))
+                .shift_left(1);
             let mut dt = 0;
 
             let mut c = tx2.multiply(&c0).add(&(*ONE));
@@ -156,77 +352,15 @@ impl StRandomPrime {
 }
 
 pub const SMALL_FACTOR_LIMIT: u32 = 211;
-/// A fast check for small divisors, up to some implementation-specific limit.
-///
-/// # Parameters
-///
-/// * `candidate` - The [`BigInteger`] instance to test for division by small factors.
-///
-/// # Returns
-///
-/// `true` if the candidate is found to have any small factors, `false` otherwise.
-///
-/// # Panics
-/// If `candidate` is not greater than 0 or has a bit length of 1 or less.
-///
-pub fn has_any_small_factors(candidate: &BigInteger) -> Result<bool, BcError> {
-    check_candidate(candidate, "candidate");
-    impl_has_any_small_factors(candidate)
-}
-/// FIPS 186-4 C.3.1 Miller-Rabin Probabilistic Primality Test.
-/// Run several iterations of the Miller-Rabin algorithm with randomly-chosen bases.
-///
-/// # Parameters
-///
-/// * `candidate` - The `BigInteger` instance to test for primality.
-/// * `random` - The source of randomness to use to choose bases.
-/// * `iterations` - The number of randomly-chosen bases to perform the test for.
-///
-/// # Returns
-///
-/// `false` if any witness to composites is found amongst the chosen bases (so `candidate` s definitely NOT prime),
-/// or else `true` (indicating primality with some probability dependent on the number of iterations that were performed).
-///
-pub fn is_mr_probable_prime<TRngCore: RngCore>(
-    candidate: &BigInteger,
-    random: &mut TRngCore,
-    iterations: u32,
-) -> bool {
-    check_candidate(candidate, "candidate");
 
-    if iterations < 1 {
-        panic!("iterations must be at least 1");
-    }
-
-    if candidate.bit_length() == 2 {
-        return true;
-    }
-
-    if !candidate.test_bit(0) {
-        return false;
-    }
-
-    let w = candidate;
-    let w_sub_one = candidate.subtract(&(*ONE));
-    let w_sub_two = candidate.subtract(&(*TWO));
-
-    let a = w_sub_one.get_lowest_set_bit();
-    let m = w_sub_one.shift_right(a as isize);
-
-    for _ in 0..iterations {
-        let b = with_range_rng(&(*&TWO), &w_sub_two, random);
-        // TODO
-        // if !impl_mr_probable_prime_to_base(w, &w_sub_one, &m, a, &b)? {
-        //     return false;
-        // }
-    }
-    true
-}
-
-fn check_candidate(n: &BigInteger, name: &str)  {
+fn check_candidate(n: &BigInteger, name: &str) -> BcResult<()> {
     if !(n.sign() > 0 && n.bit_length() > 1) {
-        panic!("{} must be > 0 and have a bit length > 1", name);
+        return Err(BcError::invalid_argument(&format!(
+            "{} must be > 0 and have a bit length > 1",
+            name
+        )));
     }
+    Ok(())
 }
 fn hash(d: &mut dyn Digest, input: &[u8], output: &mut [u8]) -> Result<(), BcError> {
     d.block_update(input)?;
@@ -367,7 +501,7 @@ fn impl_mr_probable_prime_to_base(
     m: &BigInteger,
     a: i32,
     b: &BigInteger,
-) -> Result<bool, BcError> {
+) -> BcResult<bool> {
     let mut z = b.modulus_pow(m, w)?;
     if z == *ONE || z == *w_sub_one {
         return Ok(true);
@@ -395,7 +529,6 @@ mod tests {
     use crate::math::BigInteger;
     use crate::math::big_integer::PrimeBigInteger;
     use crate::math::primes::*;
-    use rand::prelude::*;
     use rand::rng;
 
     const ITERATIONS: usize = 10;
@@ -416,10 +549,35 @@ mod tests {
         }
     }
     #[test]
+    fn test_mr_probable_prime_to_base() {
+        let mr_iterations = (PRIME_CERTAINTY + 1) / 2;
+        for _ in 0..ITERATIONS {
+            let prime = random_prime();
+            assert!(reference_is_mr_probable_prime(&prime, mr_iterations));
+
+            let non_prime = random_prime().multiply(&prime);
+            assert!(!reference_is_mr_probable_prime(&non_prime, mr_iterations));
+        }
+    }
+    #[test]
+    fn test_mr_probable_prime() {
+        let mr_iterations = (PRIME_CERTAINTY + 1) / 2;
+        let mut random = rng();
+        for _ in 0..ITERATIONS {
+            let prime = random_prime();
+            assert!(is_mr_probable_prime(&prime, &mut random, mr_iterations).unwrap());
+
+            let non_prime = random_prime().multiply(&prime);
+            assert!(!is_mr_probable_prime(&non_prime, &mut random, mr_iterations).unwrap());
+        }
+    }
+
+    #[test]
     fn test_st_random_prime() {
         let mut random = rng();
-        let mut digests: [Box<dyn Digest>; 2] =
-            [Box::new(Sha1Digest::new()), Box::new(Sha256Digest::new())];
+        let mut sha1 = Sha1Digest::new();
+        let mut sha256 = Sha256Digest::new();
+        let digests: [&mut dyn Digest; 2] = [&mut sha1, &mut sha256];
 
         digests.iter_mut().for_each(|digest| {
             let mut coincidence_count = 0;
@@ -427,7 +585,7 @@ mod tests {
 
             let mut gen_prime = |seed: &[u8], iterations: &mut usize| -> StRandomPrime {
                 loop {
-                    match StRandomPrime::generate(digest.as_mut(), PRIME_BITS, seed) {
+                    match StRandomPrime::generate(digest, PRIME_BITS, seed) {
                         Ok(v) => return v,
                         Err(e) if e.to_string().starts_with("Too many iterations") => {
                             *iterations -= 1;
@@ -495,32 +653,6 @@ mod tests {
             //         //         assert_eq!(mr3.get_factor(), None);
         }
     }
-    //
-    // #[test]
-    // fn test_mr_probable_prime() {
-    //     let mr_iterations = (PRIME_CERTAINTY + 1) / 2;
-    //     let mut random = rng();
-    //     for _ in 0..ITERATIONS {
-    //         let prime = random_prime();
-    //         assert!(is_mr_probable_prime(&prime, &mut random, mr_iterations).unwrap());
-    //
-    //         let non_prime = random_prime().multiply(&prime);
-    //         assert!(!is_mr_probable_prime(&non_prime, &mut random, mr_iterations).unwrap());
-    //     }
-    // }
-    //
-    // #[test]
-    // fn test_mr_probable_prime_to_base() {
-    //     let mr_iterations = (PRIME_CERTAINTY + 1) / 2;
-    //     for _ in 0..ITERATIONS {
-    //         let prime = random_prime();
-    //         assert!(reference_is_mr_probable_prime(&prime, mr_iterations));
-    //
-    //         let non_prime = random_prime().multiply(&prime);
-    //         assert!(!reference_is_mr_probable_prime(&non_prime, mr_iterations));
-    //     }
-    // }
-    //
 
     fn random_prime() -> BigInteger {
         let mut random = rng();
@@ -529,15 +661,15 @@ mod tests {
     fn is_prime(x: &BigInteger) -> bool {
         x.is_probable_prime(PRIME_CERTAINTY).unwrap()
     }
-    // fn reference_is_mr_probable_prime(x: &BigInteger, num_bases: u32) -> bool {
-    //     let x_sub_two = x.subtract(&(*TWO));
-    //     let mut random = rng();
-    //     for _ in 0..num_bases {
-    //         let b = create_random_in_range(&(*TWO), &x_sub_two, &mut random);
-    //         if !is_mr_probable_prime_to_base(&x, &b).unwrap() {
-    //             return false;
-    //         }
-    //     }
-    //     true
-    // }
+    fn reference_is_mr_probable_prime(x: &BigInteger, num_bases: usize) -> bool {
+        let x_sub_two = x.subtract(&(*TWO));
+        let mut random = rng();
+        for _ in 0..num_bases {
+            let b = with_range_rng(&(*TWO), &x_sub_two, &mut random);
+            if !is_mr_probable_prime_to_base(&x, &b).unwrap() {
+                return false;
+            }
+        }
+        true
+    }
 }
