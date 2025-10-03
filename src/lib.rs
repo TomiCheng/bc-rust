@@ -7,3 +7,4 @@ pub mod util;
 pub mod security;
 
 pub use bc_error::BcError;
+pub type BcResult<T> = Result<T, BcError>;
