@@ -122,10 +122,11 @@ pub fn is_mr_probable_prime<TRngCore: RngCore>(
     Ok(true)
 }
 
-/// Enhanced Miller-Rabin Probable Prime Test.
+/// FIPS 186-4 C.3.2 Enhanced Miller-Rabin Probabilistic Primality Test.
 ///
-/// This function performs an enhanced version of the Miller-Rabin primality test,
-/// which can also detect non-trivial factors of the candidate number.
+/// Run several iterations of the Miller-Rabin algorithm with randomly-chosen bases. This is an alternative to
+/// [`is_mr_probable_prime`] that provides more information about a
+/// composite candidate, which may be useful when generating or validating RSA moduli.
 ///
 /// # Arguments
 ///
@@ -141,21 +142,22 @@ pub fn is_mr_probable_prime<TRngCore: RngCore>(
 ///
 /// # Errors
 ///
-/// Returns [`BcError`] if the candidate is invalid or if `iterations` is less than 1.
-pub fn test_enhanced_mr_probable_prime<Rng: RngCore>(
+/// * if `candidate` is invalid.
+/// * if `iterations` is less than 1.
+pub fn enhanced_mr_probable_prime_test<Rng: RngCore>(
     candidate: &BigInteger,
     rng: &mut Rng,
     iterations: usize,
-) -> BcResult<(bool, Option<BigInteger>)> {
+) -> BcResult<MrOutput> {
     check_candidate(candidate, "candidate")?;
     if iterations < 1 {
         return Err(BcError::invalid_argument("iterations must be at least 1"));
     }
     if candidate.bit_length() == 2 {
-        return Ok((true, None));
+        return Ok(MrOutput::new(true, None));
     }
     if !candidate.test_bit(0) {
-        return Ok((true, Some(TWO.clone())));
+        return Ok(MrOutput::new(true, Some(TWO.clone())));
     }
     let w = candidate;
     let w_sub_one = candidate - &*ONE;
@@ -169,7 +171,7 @@ pub fn test_enhanced_mr_probable_prime<Rng: RngCore>(
         let mut g = b.gcd(w)?;
 
         if g > *ONE {
-            return Ok((true, Some(g)));
+            return Ok(MrOutput::create_provably_composite_with_factor(g));
         }
 
         let mut z = b.modulus_pow(&m, w)?;
@@ -205,15 +207,48 @@ pub fn test_enhanced_mr_probable_prime<Rng: RngCore>(
             g = x.subtract(&*ONE).gcd(&w)?;
 
             if g > *ONE {
-                return Ok((true, Some(g)));
+                return Ok(MrOutput::create_provably_composite_with_factor(g));
             }
-            return Ok((true, None));
+            return Ok(MrOutput::create_provably_composite_not_prime_power());
         }
     }
 
-    Ok((false, None))
+    Ok(MrOutput::create_probably_prime())
 }
-/// FIPS 186-4 C.6 Shawe-Taylor Random Prime Routine.
+
+/// Used to return the output from the [`enhanced_mr_probable_prime_test`] Enhanced Miller-Rabin Probabilistic Primality Test
+pub struct MrOutput {
+    provably_composite: bool,
+    factor: Option<BigInteger>,
+}
+impl MrOutput {
+    fn new(provably_composite: bool, factor: Option<BigInteger>) -> Self {
+        MrOutput {
+            provably_composite,
+            factor,
+        }
+    }
+    pub(crate) fn create_probably_prime() -> Self {
+        Self::new(false, None)
+    }
+    pub(crate) fn create_provably_composite_not_prime_power() -> Self {
+        Self::new(true, None)
+    }
+    pub(crate) fn create_provably_composite_with_factor(factor: BigInteger) -> Self {
+        Self::new(true, Some(factor))
+    }
+    pub fn is_provably_composite(&self) -> bool {
+        self.provably_composite
+    }
+    pub fn is_not_prime_power(&self) -> bool {
+        self.provably_composite && self.factor.is_none()
+    }
+    pub fn factor(&self) -> Option<&BigInteger> {
+        self.factor.as_ref()
+    }
+}
+
+/// Used to return the output from the [`StRandomPrime::generate`] Shawe-Taylor Random_Prime Routine
 pub struct StRandomPrime {
     prime_gen_counter: usize,
     prime_seed: Vec<u8>,
@@ -227,6 +262,27 @@ impl StRandomPrime {
             prime,
         }
     }
+    /// FIPS 186-4 C.6 Shawe-Taylor Random_Prime Routine.
+    ///
+    /// Construct a provable prime number using a hash function.
+    ///
+    /// # Arguments
+    ///
+    /// * `hash` - The [`Digest`] instance to use (as "Hash()").
+    /// * `length` - The length (in bits) of the prime to be generated. (must be between 2 and 65536).
+    /// * `input_seed` - The seed to be used for the generation of the requested prime. (must not be empty).
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(StRandomPrime)` containing the generated prime, its seed, and the generation counter,
+    /// or `Err(BcError)` if the arguments are invalid or generation fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - `length` is less than 2 or greater than 65536.
+    /// - `input_seed` is empty.
+    /// - Prime generation exceeds the allowed number of iterations.
     pub fn generate<TDigest: Digest>(
         hash: &mut TDigest,
         length: usize,
@@ -571,15 +627,46 @@ mod tests {
             assert!(!is_mr_probable_prime(&non_prime, &mut random, mr_iterations).unwrap());
         }
     }
+    #[test]
+    fn test_enhanced_mr_probable_prime() {
+        let mut random = rng();
+        let mr_iterations = (PRIME_CERTAINTY + 1) / 2;
+        for iterations in 0..ITERATIONS {
+            let prime = random_prime();
+            let mr = enhanced_mr_probable_prime_test(&prime, &mut random, mr_iterations).unwrap();
+            assert!(!mr.is_provably_composite());
+            assert!(!mr.is_not_prime_power());
+            assert_eq!(mr.factor(), None);
 
+            let mut prime_power = prime.clone();
+            for _ in 0..=(iterations % 8) {
+                prime_power = prime_power.multiply(&prime);
+            }
+
+            let mr2 =
+                enhanced_mr_probable_prime_test(&prime_power, &mut random, mr_iterations).unwrap();
+            assert!(mr2.is_provably_composite());
+            assert!(!mr2.is_not_prime_power());
+            assert_eq!(mr2.factor(), Some(&prime));
+
+            let non_prime_power = random_prime().multiply(&prime);
+            let mr3 = enhanced_mr_probable_prime_test(&non_prime_power, &mut random, mr_iterations)
+                .unwrap();
+            assert!(mr3.is_provably_composite());
+            assert!(mr3.is_not_prime_power());
+            assert_eq!(mr3.factor(), None);
+        }
+    }
     #[test]
     fn test_st_random_prime() {
         let mut random = rng();
         let mut sha1 = Sha1Digest::new();
         let mut sha256 = Sha256Digest::new();
-        let digests: [&mut dyn Digest; 2] = [&mut sha1, &mut sha256];
 
-        digests.iter_mut().for_each(|digest| {
+        inner_test(&mut sha1, &mut random);
+        inner_test(&mut sha256, &mut random);
+
+        fn inner_test<TDigest: Digest, Rng: RngCore>(digest: &mut TDigest, rng: &mut Rng) {
             let mut coincidence_count = 0;
             let mut iterations = 0usize;
 
@@ -599,7 +686,7 @@ mod tests {
             while iterations < ITERATIONS {
                 iterations += 1;
                 let mut input_seed = [0u8; 16];
-                random.fill_bytes(&mut input_seed);
+                rng.fill_bytes(&mut input_seed);
 
                 let st = gen_prime(&input_seed, &mut iterations);
                 assert!(is_prime(st.prime()));
@@ -622,35 +709,6 @@ mod tests {
                 }
             }
             assert!(coincidence_count * coincidence_count < ITERATIONS);
-        });
-    }
-    #[test]
-    fn test_enhanced_mr_probable_prime() {
-        let mut random = rng();
-        let mr_interations = (PRIME_CERTAINTY + 1) / 2;
-        for iterations in 0..ITERATIONS {
-            let prime = random_prime();
-            //         //         let mr = enhanced_mr_probable_prime_test(&prime, &mut random, mr_interations).unwrap();
-            //         //         assert!(!mr.is_provably_composite());
-            //         //         assert!(!mr.is_not_prime_power());
-            //         //         assert_eq!(mr.get_factor(), None);
-            //         //
-            //         //         let mut prime_power = prime.clone();
-            //         //         for _ in 0..=(iterations % 8) {
-            //         //             prime_power = prime_power.multiply(&prime);
-            //         //         }
-            //         //
-            //         //         let mr2 = enhanced_mr_probable_prime_test(&prime_power, &mut random, mr_interations).unwrap();
-            //         //         assert!(mr2.is_provably_composite());
-            //         //         assert!(!mr2.is_not_prime_power());
-            //         //         assert_eq!(mr2.get_factor(), Some(&prime));
-            //         //
-            //         //         let non_prime_power = random_prime().multiply(&prime);
-            //         //         let mr3 =
-            //         //             enhanced_mr_probable_prime_test(&non_prime_power, &mut random, mr_interations).unwrap();
-            //         //         assert!(mr3.is_provably_composite());
-            //         //         assert!(mr3.is_not_prime_power());
-            //         //         assert_eq!(mr3.get_factor(), None);
         }
     }
 
