@@ -3,8 +3,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum BcError {
-    #[error("{0}")]
-    InvalidArgument(String),
+    #[error("{message}, argument: {argument}")]
+    InvalidArgument { message: String, argument: String },
     #[error("{0}")]
     ArithmeticError(String),
     #[error("{0}")]
@@ -19,7 +19,10 @@ pub enum BcError {
 
 impl BcError {
     pub fn invalid_argument(message: impl AsRef<str>) -> Self {
-        BcError::InvalidArgument(message.as_ref().to_string())
+        BcError::InvalidArgument {
+            message: message.as_ref().to_string(),
+            argument: "".to_string()
+        }
     }
     pub fn arithmetic_error(message: impl AsRef<str>) -> Self {
         BcError::ArithmeticError(message.as_ref().to_string())
@@ -30,4 +33,16 @@ impl BcError {
     pub fn invalid_operation(message: impl AsRef<str>) -> Self {
         BcError::InvalidOperation(message.as_ref().to_string())
     }
+}
+
+#[macro_export]
+macro_rules! err_invalid_arg {
+    ($cond:expr, $msg:expr, $arg:expr) => {
+        if $cond {
+            return Err(crate::BcError::InvalidArgument {
+                message: $msg.to_string(),
+                argument: $arg.to_string(),
+            });
+        }
+    };
 }
