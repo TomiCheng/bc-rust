@@ -73,6 +73,10 @@ impl HexEncoder {
     /// Encodes `data` as hex, writing to `out`.
     ///
     /// Returns the number of bytes written.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BcError::IoError`] if writing to `out` fails.
     pub fn encode(&self, data: &[u8], out: &mut impl Write) -> BcResult<usize> {
         let mut buf = [0u8; 2];
         for &b in data {
@@ -93,6 +97,12 @@ impl HexEncoder {
     /// Decodes hex bytes into `out`, ignoring whitespace.
     ///
     /// Returns the number of bytes written.
+    ///
+    /// # Errors
+    ///
+    /// - [`BcError::InvalidArgument`] if the data length (after stripping whitespace) is odd.
+    /// - [`BcError::InvalidArgument`] if a non-hex character is encountered.
+    /// - [`BcError::IoError`] if writing to `out` fails.
     pub fn decode(&self, data: &[u8], out: &mut impl Write) -> BcResult<usize> {
         let data: Vec<u8> = data.iter().copied().filter(|&c| !is_whitespace(c)).collect();
         if !data.len().is_multiple_of(2) {
@@ -120,13 +130,20 @@ impl HexEncoder {
     /// Decodes a hex string into `out`, ignoring whitespace.
     ///
     /// Returns the number of bytes written.
+    ///
+    /// # Errors
+    ///
+    /// See [`decode`](Self::decode) for error conditions.
     pub fn decode_str(&self, data: &str, out: &mut impl Write) -> BcResult<usize> {
         self.decode(data.as_bytes(), out)
     }
 
     /// Decodes a hex string strictly — no whitespace allowed.
     ///
-    /// Returns an error if the string contains any non-hex characters.
+    /// # Errors
+    ///
+    /// - [`BcError::InvalidArgument`] if the string length is odd.
+    /// - [`BcError::InvalidArgument`] if any character is not a valid hex digit (whitespace included).
     ///
     /// # Examples
     ///
