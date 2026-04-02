@@ -12,6 +12,8 @@ pub enum BcError {
     SystemTimeError { source: Option<std::time::SystemTimeError>, msg: String },
     /// An operation was called in an invalid state.
     InvalidOperation { msg: String },
+    /// A PEM encoding or decoding error occurred.
+    PemError { msg: String },
 }
 
 impl fmt::Display for BcError {
@@ -30,6 +32,7 @@ impl fmt::Display for BcError {
                 None => write!(f, "System time error: {}", msg),
             },
             BcError::InvalidOperation { msg } => write!(f, "Invalid operation: {}", msg),
+            BcError::PemError { msg } => write!(f, "PEM error: {}", msg),
         }
     }
 }
@@ -89,6 +92,17 @@ macro_rules! system_time_error {
 macro_rules! invalid_op {
     ($msg:expr) => {
         Err($crate::error::BcError::InvalidOperation { msg: $msg.to_string() })
+    };
+}
+
+/// Creates an `Err(BcError::PemError)`.
+///
+/// Usage:
+/// - `pem_error!("msg")`
+#[macro_export]
+macro_rules! pem_error {
+    ($msg:expr) => {
+        Err($crate::error::BcError::PemError { msg: $msg.to_string() })
     };
 }
 
