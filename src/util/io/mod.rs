@@ -11,7 +11,9 @@
 //! | `BufferedFilterStream.cs` | — | Not ported — replaced by [`std::io::BufReader`] / [`std::io::BufWriter`] |
 //! | `StreamOverflowException.cs` | — | Not ported — use [`crate::error::BcError`] instead |
 //! | `LimitedInputStream.cs` | [`limited_reader`] | Byte-limited [`std::io::Read`] wrapper |
+//! | `PushbackStream.cs` | [`pushback_reader`] | Single-byte pushback [`std::io::Read`] wrapper |
 //! | `Streams.cs` | [`streams`] | Stream utility functions |
 
 pub mod limited_reader;
+pub mod pushback_reader;
 pub mod streams;

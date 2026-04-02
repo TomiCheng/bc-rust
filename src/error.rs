@@ -10,6 +10,8 @@ pub enum BcError {
     IoError { source: Option<std::io::Error>, msg: String },
     /// A system time error occurred, with an optional source and a message.
     SystemTimeError { source: Option<std::time::SystemTimeError>, msg: String },
+    /// An operation was called in an invalid state.
+    InvalidOperation { msg: String },
 }
 
 impl fmt::Display for BcError {
@@ -27,6 +29,7 @@ impl fmt::Display for BcError {
                 Some(s) => write!(f, "System time error: {} ({})", msg, s),
                 None => write!(f, "System time error: {}", msg),
             },
+            BcError::InvalidOperation { msg } => write!(f, "Invalid operation: {}", msg),
         }
     }
 }
@@ -75,6 +78,17 @@ macro_rules! system_time_error {
     };
     ($source:expr, $msg:expr) => {
         Err($crate::error::BcError::SystemTimeError { source: Some($source), msg: $msg.to_string() })
+    };
+}
+
+/// Creates an `Err(BcError::InvalidOperation)`.
+///
+/// Usage:
+/// - `invalid_op!("msg")`
+#[macro_export]
+macro_rules! invalid_op {
+    ($msg:expr) => {
+        Err($crate::error::BcError::InvalidOperation { msg: $msg.to_string() })
     };
 }
 
