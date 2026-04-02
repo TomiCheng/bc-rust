@@ -19,6 +19,7 @@ use crate::error::{BcError, BcResult};
 /// This is **not** RFC 4648 compliant but is provided here as [`UrlSafeBc`](Base64Alphabet::UrlSafeBc)
 /// for compatibility with bc-csharp encoded data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Base64Alphabet {
     /// RFC 4648 standard Base64: uses `+`, `/` and `=` padding.
     Standard,
@@ -99,7 +100,7 @@ impl Base64Encoder {
     /// # Errors
     ///
     /// Returns [`BcError::IoError`] if writing to `out` fails.
-    pub fn encode(&self, data: &[u8], out: &mut impl Write) -> BcResult<usize> {
+    pub fn encode(&self, data: &[u8], out: &mut (impl Write + ?Sized)) -> BcResult<usize> {
         let table = &self.alphabet.encode_table;
         let padding = self.alphabet.padding;
         let mut buf = [0u8; 4];
@@ -159,12 +160,23 @@ impl Base64Encoder {
     ///
     /// - [`BcError::InvalidArgument`] if an invalid Base64 character is encountered.
     /// - [`BcError::IoError`] if writing to `out` fails.
-    pub fn decode(&self, data: &[u8], out: &mut impl Write) -> BcResult<usize> {
+    pub fn decode(&self, data: &[u8], out: &mut (impl Write + ?Sized)) -> BcResult<usize> {
         let data: Vec<u8> = data.iter().copied().filter(|&c| !is_whitespace(c)).collect();
         self.decode_filtered(&data, out)
     }
 
-    /// Decodes a Base64 string, ignoring whitespace.
+    /// Decodes a Base64 string into `out`, ignoring whitespace.
+    ///
+    /// Returns the number of bytes written.
+    ///
+    /// # Errors
+    ///
+    /// See [`decode`](Self::decode) for error conditions.
+    pub fn decode_str_to(&self, data: &str, out: &mut (impl Write + ?Sized)) -> BcResult<usize> {
+        self.decode(data.as_bytes(), out)
+    }
+
+    /// Decodes a Base64 string into a `Vec<u8>`, ignoring whitespace.
     ///
     /// # Errors
     ///
@@ -183,7 +195,7 @@ impl Base64Encoder {
         None
     }
 
-    fn decode_filtered(&self, data: &[u8], out: &mut impl Write) -> BcResult<usize> {
+    fn decode_filtered(&self, data: &[u8], out: &mut (impl Write + ?Sized)) -> BcResult<usize> {
         if data.is_empty() {
             return Ok(0);
         }
@@ -251,6 +263,20 @@ impl Base64Encoder {
 impl Default for Base64Encoder {
     fn default() -> Self {
         Self::new(Base64Alphabet::Standard)
+    }
+}
+
+impl crate::util::encoders::encoder::Encoder for Base64Encoder {
+    fn encode(&self, data: &[u8], out: &mut dyn Write) -> BcResult<usize> {
+        self.encode(data, out)
+    }
+
+    fn decode(&self, data: &[u8], out: &mut dyn Write) -> BcResult<usize> {
+        self.decode(data, out)
+    }
+
+    fn decode_str(&self, data: &str, out: &mut dyn Write) -> BcResult<usize> {
+        self.decode_str_to(data, out)
     }
 }
 
