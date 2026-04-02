@@ -21,6 +21,7 @@
 //! | `TeeOutputStream.cs` | [`tee_writer`] | [`std::io::Write`] wrapper that copies to a secondary [`std::io::Write`] |
 
 pub mod limited_reader;
+pub mod pem;
 pub mod pushback_reader;
 pub mod streams;
 pub mod tee_reader;
