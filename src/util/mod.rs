@@ -5,6 +5,7 @@
 //! | bc-csharp | bc-rust | Notes |
 //! |-----------|---------|-------|
 //! | `util/date/DateTimeUtilities.cs` | [`date`] | Unix timestamp utilities |
+//! | `util/io/` | [`io`] | I/O utility types and functions |
 //! | `util/encoders/` | [`encoders`] | Hex / Base64 encoding and decoding |
 //! | `util/Integers.cs` | [`integers`] | Bit manipulation for `u32` |
 //! | `util/Longs.cs` | [`longs`] | Bit manipulation for `u64` |
@@ -13,6 +14,7 @@
 
 pub mod date;
 pub mod encoders;
+pub mod io;
 pub mod integers;
 pub mod longs;
 pub mod shorts;
