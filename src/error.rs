@@ -8,15 +8,25 @@ pub enum BcError {
     InvalidArgument { param: Option<String>, msg: String },
     /// An I/O error occurred, with an optional source and a message.
     IoError { source: Option<std::io::Error>, msg: String },
+    /// A system time error occurred, with an optional source and a message.
+    SystemTimeError { source: Option<std::time::SystemTimeError>, msg: String },
 }
 
 impl fmt::Display for BcError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BcError::InvalidArgument { param: Some(p), msg } => write!(f, "Invalid argument '{}': {}", p, msg),
-            BcError::InvalidArgument { param: None, msg } => write!(f, "Invalid argument: {}", msg),
-            BcError::IoError { source: Some(s), msg } => write!(f, "I/O error: {} ({})", msg, s),
-            BcError::IoError { source: None, msg } => write!(f, "I/O error: {}", msg),
+            BcError::InvalidArgument { param, msg } => match param {
+                Some(p) => write!(f, "Invalid argument '{}': {}", p, msg),
+                None => write!(f, "Invalid argument: {}", msg),
+            },
+            BcError::IoError { source, msg } => match source {
+                Some(s) => write!(f, "I/O error: {} ({})", msg, s),
+                None => write!(f, "I/O error: {}", msg),
+            },
+            BcError::SystemTimeError { source, msg } => match source {
+                Some(s) => write!(f, "System time error: {} ({})", msg, s),
+                None => write!(f, "System time error: {}", msg),
+            },
         }
     }
 }
@@ -26,6 +36,12 @@ impl std::error::Error for BcError {}
 impl From<std::io::Error> for BcError {
     fn from(e: std::io::Error) -> Self {
         BcError::IoError { source: Some(e), msg: "I/O operation failed".to_string() }
+    }
+}
+
+impl From<std::time::SystemTimeError> for BcError {
+    fn from(e: std::time::SystemTimeError) -> Self {
+        BcError::SystemTimeError { source: Some(e), msg: "System time operation failed".to_string() }
     }
 }
 
@@ -44,6 +60,21 @@ macro_rules! invalid_arg {
     };
     ($param:expr, $msg:expr) => {
         Err($crate::error::BcError::InvalidArgument { param: Some($param.to_string()), msg: $msg.to_string() })
+    };
+}
+
+/// Creates an `Err(BcError::SystemTimeError)`.
+///
+/// Usage:
+/// - `system_time_error!("msg")`          — no source
+/// - `system_time_error!(source, "msg")`  — with source
+#[macro_export]
+macro_rules! system_time_error {
+    ($msg:expr) => {
+        Err($crate::error::BcError::SystemTimeError { source: None, msg: $msg.to_string() })
+    };
+    ($source:expr, $msg:expr) => {
+        Err($crate::error::BcError::SystemTimeError { source: Some($source), msg: $msg.to_string() })
     };
 }
 
