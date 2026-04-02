@@ -2,6 +2,7 @@
 
 use std::io::Write;
 use crate::error::{BcError, BcResult};
+use crate::util::encoders::encoder::Encoder;
 
 const ENCODE_TABLE_LOWER: &[u8; 16] = b"0123456789abcdef";
 const ENCODE_TABLE_UPPER: &[u8; 16] = b"0123456789ABCDEF";
@@ -77,7 +78,7 @@ impl HexEncoder {
     /// # Errors
     ///
     /// Returns [`BcError::IoError`] if writing to `out` fails.
-    pub fn encode(&self, data: &[u8], out: &mut impl Write) -> BcResult<usize> {
+    pub fn encode(&self, data: &[u8], out: &mut (impl Write + ?Sized)) -> BcResult<usize> {
         let mut buf = [0u8; 2];
         for &b in data {
             buf[0] = self.encode_table[(b >> 4) as usize];
@@ -103,7 +104,7 @@ impl HexEncoder {
     /// - [`BcError::InvalidArgument`] if the data length (after stripping whitespace) is odd.
     /// - [`BcError::InvalidArgument`] if a non-hex character is encountered.
     /// - [`BcError::IoError`] if writing to `out` fails.
-    pub fn decode(&self, data: &[u8], out: &mut impl Write) -> BcResult<usize> {
+    pub fn decode(&self, data: &[u8], out: &mut (impl Write + ?Sized)) -> BcResult<usize> {
         let data: Vec<u8> = data.iter().copied().filter(|&c| !is_whitespace(c)).collect();
         if !data.len().is_multiple_of(2) {
             return Err(BcError::InvalidArgument {
@@ -134,7 +135,7 @@ impl HexEncoder {
     /// # Errors
     ///
     /// See [`decode`](Self::decode) for error conditions.
-    pub fn decode_str(&self, data: &str, out: &mut impl Write) -> BcResult<usize> {
+    pub fn decode_str(&self, data: &str, out: &mut (impl Write + ?Sized)) -> BcResult<usize> {
         self.decode(data.as_bytes(), out)
     }
 
@@ -180,6 +181,20 @@ impl HexEncoder {
 impl Default for HexEncoder {
     fn default() -> Self {
         Self::new(HexCase::Lower)
+    }
+}
+
+impl Encoder for HexEncoder {
+    fn encode(&self, data: &[u8], out: &mut dyn Write) -> BcResult<usize> {
+        self.encode(data, out)
+    }
+
+    fn decode(&self, data: &[u8], out: &mut dyn Write) -> BcResult<usize> {
+        self.decode(data, out)
+    }
+
+    fn decode_str(&self, data: &str, out: &mut dyn Write) -> BcResult<usize> {
+        self.decode_str(data, out)
     }
 }
 
