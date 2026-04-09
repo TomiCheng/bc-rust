@@ -6,8 +6,10 @@ Port [bc-csharp](https://github.com/bcgit/bc-csharp) (Bouncy Castle C#) cryptogr
 
 ## Code Quality
 
-After completing any code changes, run Clippy and fix all warnings:
+After completing any code changes, run the full check suite and fix all issues before committing:
 
 ```
+cargo fmt --check
 cargo clippy -- -D warnings
+cargo test
 ```
