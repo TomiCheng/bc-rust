@@ -2,5 +2,13 @@
 name = "bc_rust"
 version = "0.1.0"
 edition = "2024"
+description = "A port of Bouncy Castle C# cryptography library to Rust"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/TomiCheng/bc-rust"
+homepage = "https://github.com/TomiCheng/bc-rust"
+documentation = "https://docs.rs/bc_rust"
+keywords = ["cryptography", "bouncy-castle", "crypto", "bzip2"]
+categories = ["cryptography", "compression"]
+readme = "README.md"
 
 [dependencies]
