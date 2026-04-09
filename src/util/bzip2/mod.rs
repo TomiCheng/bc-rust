@@ -21,16 +21,46 @@
 //!
 //! Port of `util/bzip2/` from bc-csharp.
 //!
+//! ## Example
+//!
+//! ```rust
+//! use std::io::{Read, Write};
+//! use bc_rust::util::bzip2::{BZip2Reader, BZip2Writer};
+//!
+//! // Compress
+//! let mut compressed = Vec::new();
+//! {
+//!     let mut writer = BZip2Writer::new(&mut compressed).unwrap();
+//!     writer.write_all(b"Hello, world!").unwrap();
+//!     writer.finish().unwrap();
+//! }
+//!
+//! // Decompress
+//! let mut reader = BZip2Reader::new(compressed.as_slice()).unwrap();
+//! let mut output = Vec::new();
+//! reader.read_to_end(&mut output).unwrap();
+//!
+//! assert_eq!(output, b"Hello, world!");
+//! ```
+//!
+//! ## Public API
+//!
+//! | Type | Description |
+//! |------|-------------|
+//! | [`BZip2Reader`] | Decompression — wraps any [`std::io::Read`] |
+//! | [`BZip2Writer`] | Compression — wraps any [`std::io::Write`] |
+//!
 //! ## bc-csharp mapping
 //!
-//! | bc-csharp | bc-rust | Notes |
-//! |-----------|---------|-------|
-//! | `BZip2Constants.cs` | [`constants`] | Shared constants |
-//! | `CRC.cs` | [`crc`] | CRC-32 calculation |
-//! | `CBZip2InputStream.cs` | [`bzip2_reader`] | Decompression reader |
-//! | `CBZip2OutputStream.cs` | [`bzip2_writer`] | Compression writer |
+//! | bc-csharp | bc-rust |
+//! |-----------|---------|
+//! | `CBZip2InputStream.cs` | [`BZip2Reader`] |
+//! | `CBZip2OutputStream.cs` | [`BZip2Writer`] |
 
-pub mod bzip2_reader;
-pub mod bzip2_writer;
+pub(super) mod bzip2_reader;
+pub(super) mod bzip2_writer;
 pub(super) mod constants;
 pub(super) mod crc;
+
+pub use bzip2_reader::BZip2Reader;
+pub use bzip2_writer::BZip2Writer;

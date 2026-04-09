@@ -405,8 +405,8 @@ impl<W: Write> BZip2Writer<W> {
 
         // Sort big buckets by size (smallest first) using Shell sort.
         let mut running_order = [0i32; 256];
-        for i in 0..256 {
-            running_order[i] = i as i32;
+        for (i, r) in running_order.iter_mut().enumerate() {
+            *r = i as i32;
         }
         let mut h = 1i32;
         while h <= 256 {
@@ -444,8 +444,8 @@ impl<W: Write> BZip2Writer<W> {
         let mut copy = [0i32; 256];
         let mut big_done = [false; 256];
 
-        for i in 0..256usize {
-            let ss = running_order[i] as usize;
+        for (i, &ss_i) in running_order.iter().enumerate() {
+            let ss = ss_i as usize;
 
             // QSort3 any unsorted small buckets [ss, j].
             for j in 0..256usize {
@@ -486,8 +486,8 @@ impl<W: Write> BZip2Writer<W> {
             }
 
             // Synthesise sorted order for small buckets [t, ss] for all t != ss.
-            for j in 0..256usize {
-                copy[j] = self.ftab[(j << 8) + ss] & CLEAR_MASK;
+            for (j, c) in copy.iter_mut().enumerate() {
+                *c = self.ftab[(j << 8) + ss] & CLEAR_MASK;
             }
             for j in (self.ftab[ss << 8] & CLEAR_MASK) as usize
                 ..(self.ftab[(ss + 1) << 8] & CLEAR_MASK) as usize
@@ -545,7 +545,7 @@ impl<W: Write> BZip2Writer<W> {
                     }
                     self.zptr[j as usize] = zptr_jh;
                     j -= h;
-                    if j <= lo + h - 1 {
+                    if j < lo + h {
                         break;
                     }
                 }
@@ -565,7 +565,7 @@ impl<W: Write> BZip2Writer<W> {
                     }
                     self.zptr[j as usize] = zptr_jh;
                     j -= h;
-                    if j <= lo + h - 1 {
+                    if j < lo + h {
                         break;
                     }
                 }
@@ -585,7 +585,7 @@ impl<W: Write> BZip2Writer<W> {
                     }
                     self.zptr[j as usize] = zptr_jh;
                     j -= h;
-                    if j <= lo + h - 1 {
+                    if j < lo + h {
                         break;
                     }
                 }
@@ -938,9 +938,7 @@ impl<W: Write> BZip2Writer<W> {
             let mut sym = 1usize;
             let mut tmp = yy[0];
             while block_byte != tmp {
-                let tmp2 = tmp;
-                tmp = yy[sym];
-                yy[sym] = tmp2;
+                std::mem::swap(&mut tmp, &mut yy[sym]);
                 sym += 1;
             }
             yy[0] = tmp;
@@ -1016,8 +1014,8 @@ impl<W: Write> BZip2Writer<W> {
                 }
 
                 let len_np = &mut len[(n_part - 1) as usize];
-                for v in 0..alpha_size {
-                    len_np[v] = if v >= gs as usize && v <= ge as usize {
+                for (v, l) in len_np.iter_mut().enumerate().take(alpha_size) {
+                    *l = if v >= gs as usize && v <= ge as usize {
                         LESSER_ICOST
                     } else {
                         GREATER_ICOST
@@ -1038,8 +1036,8 @@ impl<W: Write> BZip2Writer<W> {
 
         for _iter in 0..N_ITERS {
             fave = [0i32; N_GROUPS];
-            for t in 0..n_groups {
-                rfreq[t][..alpha_size].fill(0);
+            for rfreq_t in rfreq.iter_mut().take(n_groups) {
+                rfreq_t[..alpha_size].fill(0);
             }
 
             n_selectors = 0;
@@ -1064,7 +1062,7 @@ impl<W: Write> BZip2Writer<W> {
                     cost[0] = c0; cost[1] = c1; cost[2] = c2;
                     cost[3] = c3; cost[4] = c4; cost[5] = c5;
                 } else {
-                    for t in 0..n_groups { cost[t] = 0; }
+                    cost[..n_groups].fill(0);
                     for i in gs..=ge {
                         let icv = self.zptr[i] as usize;
                         for t in 0..n_groups {
@@ -1076,8 +1074,8 @@ impl<W: Write> BZip2Writer<W> {
                 // Select cheapest table.
                 let mut bc = cost[0] as i32;
                 let mut bt = 0usize;
-                for t in 1..n_groups {
-                    let ct = cost[t] as i32;
+                for (t, &c) in cost.iter().enumerate().take(n_groups).skip(1) {
+                    let ct = c as i32;
                     if ct < bc { bc = ct; bt = t; }
                 }
                 fave[bt] += 1;
@@ -1107,8 +1105,8 @@ impl<W: Write> BZip2Writer<W> {
         for t in 0..n_groups {
             let mut max_len = 0i32;
             let mut min_len = 32i32;
-            for i in 0..alpha_size {
-                let lti = len[t][i] as i32;
+            for &l in len[t].iter().take(alpha_size) {
+                let lti = l as i32;
                 max_len = max_len.max(lti);
                 min_len = min_len.min(lti);
             }
@@ -1120,19 +1118,19 @@ impl<W: Write> BZip2Writer<W> {
 
         // Mapping table: which byte values appear in this block (16×16 bitmap).
         let mut in_use16 = [false; 16];
-        for i in 0..16usize {
+        for (i, flag) in in_use16.iter_mut().enumerate() {
             for j in 0..16usize {
                 if self.in_use[i * 16 + j] {
-                    in_use16[i] = true;
+                    *flag = true;
                     break;
                 }
             }
         }
-        for i in 0..16 {
-            self.bs_put_bit(in_use16[i] as i32)?;
+        for &flag in &in_use16 {
+            self.bs_put_bit(flag as i32)?;
         }
-        for i in 0..16usize {
-            if in_use16[i] {
+        for (i, &flag) in in_use16.iter().enumerate() {
+            if flag {
                 for j in 0..16usize {
                     self.bs_put_bit(self.in_use[i * 16 + j] as i32)?;
                 }
@@ -1171,11 +1169,11 @@ impl<W: Write> BZip2Writer<W> {
         // Coding tables: delta-encoded lengths.
         // Symbol 0: 5-bit length packed with a 0-bit terminator into 6 bits.
         // Symbols 1+: pairs of "10" (increment) or "11" (decrement) then "0" (stop).
-        for t in 0..n_groups {
-            let mut curr = len[t][0] as i32;
+        for len_t in len.iter().take(n_groups) {
+            let mut curr = len_t[0] as i32;
             self.bs_put_bits_small(6, curr << 1)?;
-            for i in 1..alpha_size {
-                let lti = len[t][i] as i32;
+            for &l in len_t[1..alpha_size].iter() {
+                let lti = l as i32;
                 while curr < lti { self.bs_put_bits_small(2, 2)?; curr += 1; } // 10
                 while curr > lti { self.bs_put_bits_small(2, 3)?; curr -= 1; } // 11
                 self.bs_put_bit(0)?; // stop
@@ -1227,8 +1225,8 @@ impl<W: Write> BZip2Writer<W> {
             parent[0] = -2;
 
             // Insert all leaf nodes into the min-heap.
-            for i in 1..=alpha_size {
-                parent[i] = -1;
+            for (i, p) in parent.iter_mut().enumerate().skip(1).take(alpha_size) {
+                *p = -1;
                 n_heap += 1;
                 heap[n_heap] = i as i32;
                 // Sift up.
@@ -1300,9 +1298,9 @@ impl<W: Write> BZip2Writer<W> {
             }
 
             // Some depths exceeded max_len: halve all leaf weights and retry.
-            for i in 1..=alpha_size {
-                let j = weight[i] >> 8;
-                weight[i] = (1 + j / 2) << 8;
+            for w in weight[1..=alpha_size].iter_mut() {
+                let j = *w >> 8;
+                *w = (1 + j / 2) << 8;
             }
         }
     }

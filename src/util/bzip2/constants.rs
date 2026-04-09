@@ -30,7 +30,6 @@ pub(super) const BASE_BLOCK_SIZE: usize = 100_000;
 pub(super) const MAX_ALPHA_SIZE: usize = 258;
 
 /// Maximum Huffman code length allowed during **decoding**.
-#[allow(dead_code)] // used by bzip2_reader (not yet implemented)
 pub(super) const MAX_CODE_LEN: usize = 20;
 
 /// Maximum Huffman code length allowed during **encoding** (code generation).
@@ -40,11 +39,9 @@ pub(super) const MAX_CODE_LEN_GEN: usize = 17;
 
 /// Run-length symbol A. Together with [`RUNB`], encodes the length of a
 /// run of repeated bytes using a binary (Fibonacci-like) encoding.
-#[allow(dead_code)] // used by bzip2_reader (not yet implemented)
 pub(super) const RUNA: usize = 0;
 
 /// Run-length symbol B. See [`RUNA`].
-#[allow(dead_code)] // used by bzip2_reader (not yet implemented)
 pub(super) const RUNB: usize = 1;
 
 /// Maximum number of Huffman tables used per block.

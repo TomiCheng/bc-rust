@@ -23,6 +23,7 @@
 
 use std::io::{self, Read};
 
+use super::bzip2_writer::RNUMS;
 use super::constants::*;
 use super::crc::Crc;
 
@@ -69,8 +70,6 @@ pub struct BZip2Reader<R: Read> {
     inner: R,
 
     // --- Stream-level state ---
-    /// Compression level read from the stream header (1–9).
-    block_size_100k: usize,
     /// Set when the EOS marker has been seen and CRC verified.
     stream_end: bool,
 
@@ -194,7 +193,6 @@ impl<R: Read> BZip2Reader<R> {
 
         Ok(Self {
             inner,
-            block_size_100k,
             stream_end: false,
             bs_buff: 0,
             bs_live: 0,
@@ -409,9 +407,9 @@ impl<R: Read> BZip2Reader<R> {
         }
 
         self.n_in_use = 0;
-        for i in 0..256 {
-            self.in_use[i] = in_use[i];
-            if in_use[i] {
+        for (i, &used) in in_use.iter().enumerate() {
+            self.in_use[i] = used;
+            if used {
                 self.seq_to_unseq[self.n_in_use] = i as u8;
                 self.n_in_use += 1;
             }
@@ -435,8 +433,8 @@ impl<R: Read> BZip2Reader<R> {
 
         // MTF-decode the selectors: pos[] is the MTF alphabet (table indices).
         let mut pos = [0u8; N_GROUPS];
-        for i in 0..N_GROUPS {
-            pos[i] = i as u8;
+        for (i, p) in pos.iter_mut().enumerate() {
+            *p = i as u8;
         }
         for i in 0..self.n_selectors {
             let j = self.selector_mtf[i] as usize;
@@ -451,24 +449,23 @@ impl<R: Read> BZip2Reader<R> {
         // Start value: 5 bits.  For each symbol: read bits until 0 is seen;
         // each 1 followed by 0 decrements, each 1 followed by 1 increments.
         let mut len = [[0i32; MAX_ALPHA_SIZE]; N_GROUPS];
-        for t in 0..self.n_groups {
+        for len_t in len.iter_mut().take(self.n_groups) {
             let mut curr = self.bs_get_bits(5)?;
-            for i in 0..alpha_size {
+            for cell in len_t.iter_mut().take(alpha_size) {
                 loop {
                     if self.bs_get_bit()? == 0 { break; }
                     if self.bs_get_bit()? == 0 { curr += 1; }
                     else                        { curr -= 1; }
                 }
-                len[t][i] = curr;
+                *cell = curr;
             }
         }
 
         // --- Build Huffman decode tables (limit, base, perm) ---
-        for t in 0..self.n_groups {
+        for (t, len_t) in len.iter().enumerate().take(self.n_groups) {
             let mut min_len = 32i32;
             let mut max_len =  0i32;
-            for i in 0..alpha_size {
-                let l = len[t][i];
+            for &l in len_t.iter().take(alpha_size) {
                 if l > max_len { max_len = l; }
                 if l < min_len { min_len = l; }
             }
@@ -476,7 +473,7 @@ impl<R: Read> BZip2Reader<R> {
                 &mut self.limit[t],
                 &mut self.base[t],
                 &mut self.perm[t],
-                &len[t],
+                len_t,
                 min_len, max_len, alpha_size,
             );
             self.min_lens[t] = min_len;
@@ -502,8 +499,8 @@ impl<R: Read> BZip2Reader<R> {
         // perm[]: symbols listed in ascending code-length order (canonical order).
         let mut pp = 0;
         for i in min_len..=max_len {
-            for j in 0..alpha_size {
-                if length[j] == i {
+            for (j, &l) in length.iter().enumerate().take(alpha_size) {
+                if l == i {
                     perm[pp] = j as i32;
                     pp += 1;
                 }
@@ -512,8 +509,8 @@ impl<R: Read> BZip2Reader<R> {
 
         // base[l]: cumulative count of symbols with length < l.
         base.fill(0);
-        for i in 0..alpha_size {
-            base[length[i] as usize + 1] += 1;
+        for &l in length.iter().take(alpha_size) {
+            base[l as usize + 1] += 1;
         }
         for i in 1..=MAX_CODE_LEN {
             base[i] += base[i - 1];
@@ -552,9 +549,7 @@ impl<R: Read> BZip2Reader<R> {
         // MTF alphabet: yy[rank] = the actual byte value for that rank.
         // Initialised from seq_to_unseq which maps compact MTF indices to bytes.
         let mut yy = [0u8; 256];
-        for i in 0..self.n_in_use {
-            yy[i] = self.seq_to_unseq[i];
-        }
+        yy[..self.n_in_use].copy_from_slice(&self.seq_to_unseq[..self.n_in_use]);
 
         self.unzftab = [0; 256];
         let mut last: i32 = -1; // index of the last byte written into tt[]
@@ -676,9 +671,7 @@ impl<R: Read> BZip2Reader<R> {
         // cftab[b] is the starting sorted rank for byte value b, and is
         // incremented as each source position is assigned a rank.
         let mut cftab = [0usize; 257];
-        for i in 0..256 {
-            cftab[i + 1] = self.unzftab[i];
-        }
+        cftab[1..257].copy_from_slice(&self.unzftab);
         for i in 1..=256 {
             cftab[i] += cftab[i - 1];
         }
@@ -709,12 +702,29 @@ impl<R: Read> BZip2Reader<R> {
     /// Verify the block CRC against `stored_block_crc` and fold it into
     /// `computed_stream_crc`.  Returns an error on mismatch.
     fn end_block(&mut self) -> io::Result<()> {
-        todo!()
+        let block_final_crc = self.block_crc.get_final();
+        if block_final_crc != self.stored_block_crc {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "bzip2: block CRC mismatch",
+            ));
+        }
+        // Same accumulation formula used by BZip2Writer::end_block.
+        self.computed_stream_crc =
+            self.computed_stream_crc.rotate_left(1) ^ block_final_crc;
+        Ok(())
     }
 
     /// Verify the stream CRC at EOS and mark the stream as finished.
     fn end_stream(&mut self) -> io::Result<()> {
-        todo!()
+        if self.computed_stream_crc != self.stored_stream_crc {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "bzip2: stream CRC mismatch",
+            ));
+        }
+        self.stream_end = true;
+        Ok(())
     }
 
     // -----------------------------------------------------------------------
@@ -728,7 +738,38 @@ impl<R: Read> BZip2Reader<R> {
     /// When the block is exhausted, calls `end_block` and transitions to
     /// `StartBlock` (or `NoProcess` if this was the last block).
     fn setup_rand_part_a(&mut self) -> io::Result<()> {
-        todo!()
+        if self.t_i >= self.count {
+            self.end_block()?;
+            self.current_state = ReaderState::StartBlock;
+            return Ok(());
+        }
+
+        // Save previous character for run detection in state B.
+        self.ch_prev = self.t_ch;
+
+        // Advance the BWT walking pointer and extract the byte.
+        //   tt[t_pos] = (byte_at_t_pos << 24) | next_t_pos
+        let combined = self.tt[self.t_pos];
+        self.t_ch = (combined >> 24) as u8;
+        self.t_pos = (combined & 0x00_FF_FF_FF) as usize;
+
+        // De-randomise: apply the same flip pattern the writer used.
+        // r_n_to_go starts at 0; when it hits 0, reload from RNUMS[r_t_pos]
+        // and advance r_t_pos.  After decrementing, XOR bit 0 when r_n_to_go == 1.
+        if self.block_randomised {
+            if self.r_n_to_go == 0 {
+                self.r_n_to_go = RNUMS[self.r_t_pos] as i32;
+                self.r_t_pos = (self.r_t_pos + 1) & 0x1FF;
+            }
+            self.r_n_to_go -= 1;
+            if self.r_n_to_go == 1 {
+                self.t_ch ^= 1;
+            }
+        }
+
+        self.t_i += 1;
+        self.current_state = ReaderState::RandPartB;
+        Ok(())
     }
 
     /// State B — accumulate an RLE run.
@@ -738,7 +779,34 @@ impl<R: Read> BZip2Reader<R> {
     /// to `RandPartC`.  Otherwise sets `current_char` / `output_count`
     /// and transitions back to `RandPartA`.
     fn setup_rand_part_b(&mut self) -> io::Result<()> {
-        todo!()
+        if self.j2 == 4 {
+            // t_ch is the repeat-count byte (the byte A just read after seeing
+            // four identical characters).  It is a control byte — not emitted
+            // as data and not counted in the CRC.
+            self.z = self.t_ch as i32;
+            self.j2 = 0;
+            self.current_state = if self.z > 0 {
+                ReaderState::RandPartC
+            } else {
+                ReaderState::RandPartA
+            };
+        } else if self.t_ch == self.ch_prev && self.j2 > 0 {
+            // Same character as the previous one: extend the run.
+            self.j2 += 1;
+            self.block_crc.update(self.t_ch);
+            self.current_char = self.t_ch as i32;
+            self.output_count = 1;
+            self.current_state = ReaderState::RandPartA;
+        } else {
+            // New character (or first character of the block: j2 == 0).
+            // Begin a fresh run of length 1.
+            self.j2 = 1;
+            self.block_crc.update(self.t_ch);
+            self.current_char = self.t_ch as i32;
+            self.output_count = 1;
+            self.current_state = ReaderState::RandPartA;
+        }
+        Ok(())
     }
 
     /// State C — emit the run extension.
@@ -746,7 +814,14 @@ impl<R: Read> BZip2Reader<R> {
     /// Decrements `z`; when exhausted transitions back to `RandPartA`.
     /// Sets `current_char` / `output_count` for the repeated byte.
     fn setup_rand_part_c(&mut self) -> io::Result<()> {
-        todo!()
+        self.block_crc.update(self.ch_prev);
+        self.current_char = self.ch_prev as i32;
+        self.output_count = 1;
+        self.z -= 1;
+        if self.z == 0 {
+            self.current_state = ReaderState::RandPartA;
+        }
+        Ok(())
     }
 }
 
@@ -796,5 +871,155 @@ impl<R: Read> Read for BZip2Reader<R> {
         }
 
         Ok(written)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Read, Write};
+
+    use super::super::bzip2_writer::BZip2Writer;
+    use super::BZip2Reader;
+
+    /// Compress `data` with BZip2Writer at the given block size, then return
+    /// the raw compressed bytes.
+    fn compress(data: &[u8], block_size: usize) -> Vec<u8> {
+        let mut buf = Vec::new();
+        {
+            let mut w = BZip2Writer::with_block_size(&mut buf, block_size).unwrap();
+            w.write_all(data).unwrap();
+            w.finish().unwrap();
+        } // drop w, releasing the borrow on buf
+        buf
+    }
+
+    /// Decompress a bzip2 byte slice and return the original bytes.
+    fn decompress(compressed: &[u8]) -> Vec<u8> {
+        let mut r = BZip2Reader::new(compressed).unwrap();
+        let mut out = Vec::new();
+        r.read_to_end(&mut out).unwrap();
+        out
+    }
+
+    /// Round-trip `data` and assert it survives unchanged.
+    fn round_trip(data: &[u8], block_size: usize) {
+        let compressed = compress(data, block_size);
+        let got = decompress(&compressed);
+        assert_eq!(got, data, "round-trip failed for {} bytes", data.len());
+    }
+
+    // --- basic cases ---
+
+    #[test]
+    fn empty_input() {
+        round_trip(b"", 9);
+    }
+
+    #[test]
+    fn single_byte() {
+        round_trip(b"A", 9);
+    }
+
+    #[test]
+    fn short_ascii() {
+        round_trip(b"Hello, world!", 9);
+    }
+
+    #[test]
+    fn all_byte_values() {
+        let data: Vec<u8> = (0u8..=255).collect();
+        round_trip(&data, 9);
+    }
+
+    // --- RLE corner cases ---
+
+    /// Exactly 4 identical bytes: triggers the run-length path with count = 0
+    /// (no extra copies beyond the 4).
+    #[test]
+    fn run_of_exactly_4() {
+        round_trip(&[0xA5u8; 4], 9);
+    }
+
+    /// 5 identical bytes: count byte = 1 (one extra beyond 4).
+    #[test]
+    fn run_of_5() {
+        round_trip(&[0xA5u8; 5], 9);
+    }
+
+    /// 259 identical bytes: count byte = 255 (maximum extra copies beyond 4).
+    #[test]
+    fn run_of_259() {
+        round_trip(&[0xFFu8; 259], 9);
+    }
+
+    /// Two back-to-back runs of 4+ identical bytes with a different byte between
+    /// them, exercising the run-counter reset path.
+    #[test]
+    fn two_runs_separated() {
+        let mut data = vec![b'A'; 8];
+        data.push(b'B');
+        data.extend_from_slice(&[b'C'; 8]);
+        round_trip(&data, 9);
+    }
+
+    // --- block size variants ---
+
+    #[test]
+    fn block_size_1() {
+        round_trip(b"block size one test", 1);
+    }
+
+    #[test]
+    fn block_size_9() {
+        round_trip(b"block size nine test", 9);
+    }
+
+    /// Data larger than a single block at block_size=1 (100 000 bytes), forcing
+    /// the reader through multiple block boundaries.
+    #[test]
+    fn multi_block() {
+        let data: Vec<u8> = (0u8..=255).cycle().take(120_000).collect();
+        round_trip(&data, 1);
+    }
+
+    // --- small-buffer reads ---
+
+    /// Read decompressed output one byte at a time to exercise the
+    /// `output_count` drain loop in every possible state.
+    #[test]
+    fn read_one_byte_at_a_time() {
+        let data = b"one byte at a time";
+        let compressed = compress(data, 9);
+        let mut r = BZip2Reader::new(compressed.as_slice()).unwrap();
+        let mut out = Vec::new();
+        let mut byte = [0u8; 1];
+        loop {
+            let n = r.read(&mut byte).unwrap();
+            if n == 0 {
+                break;
+            }
+            out.push(byte[0]);
+        }
+        assert_eq!(out, data);
+    }
+
+    // --- error cases ---
+
+    #[test]
+    fn bad_magic_returns_error() {
+        match BZip2Reader::new(b"notbzip2data".as_ref()) {
+            Err(e) => assert_eq!(e.kind(), std::io::ErrorKind::InvalidData),
+            Ok(_)  => panic!("expected an error for invalid magic"),
+        }
+    }
+
+    #[test]
+    fn truncated_stream_returns_error() {
+        let compressed = compress(b"some data", 9);
+        // Feed only the first half of the compressed stream.
+        let half = &compressed[..compressed.len() / 2];
+        let mut r = BZip2Reader::new(half).unwrap();
+        let result = r.read_to_end(&mut Vec::new());
+        assert!(result.is_err());
     }
 }
