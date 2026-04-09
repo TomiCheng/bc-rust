@@ -11,8 +11,10 @@
 //! | `util/Longs.cs` | [`longs`] | Bit manipulation for `u64` |
 //! | `util/Shorts.cs` | [`shorts`] | Bit manipulation for `u16` |
 //! | `util/bzip2/` | [`bzip2`] | BZip2 compression and decompression |
+//! | `util/Arrays.cs` | [`arrays`] | Array utilities (zeroing, constant-time compare, copy, concat) |
 //! | `util/net/IPAddress.cs` | — | Not ported — covered by Rust `std::net` |
 
+pub mod arrays;
 pub mod bzip2;
 pub mod date;
 pub mod encoders;

@@ -5,21 +5,36 @@ use std::fmt;
 #[non_exhaustive]
 pub enum BcError {
     /// An argument passed to a function was invalid.
-    InvalidArgument { param: Option<String>, msg: String },
+    InvalidArgument {
+        /// The name of the offending parameter, if known.
+        param: Option<String>,
+        /// A description of why the argument is invalid.
+        msg: String,
+    },
     /// An I/O error occurred, with an optional source and a message.
     IoError {
+        /// The underlying I/O error, if any.
         source: Option<std::io::Error>,
+        /// A description of the I/O error.
         msg: String,
     },
     /// A system time error occurred, with an optional source and a message.
     SystemTimeError {
+        /// The underlying system time error, if any.
         source: Option<std::time::SystemTimeError>,
+        /// A description of the system time error.
         msg: String,
     },
     /// An operation was called in an invalid state.
-    InvalidOperation { msg: String },
+    InvalidOperation {
+        /// A description of why the operation is invalid.
+        msg: String,
+    },
     /// A PEM encoding or decoding error occurred.
-    PemError { msg: String },
+    PemError {
+        /// A description of the PEM error.
+        msg: String,
+    },
 }
 
 impl fmt::Display for BcError {

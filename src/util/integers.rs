@@ -1,6 +1,8 @@
 //! Utility functions for 32-bit integer bit manipulation.
 
+/// Number of bits in a `u32`.
 pub const NUM_BITS: u32 = 32;
+/// Number of bytes in a `u32`.
 pub const NUM_BYTES: u32 = 4;
 
 /// Returns the value of the highest one-bit in `i`.

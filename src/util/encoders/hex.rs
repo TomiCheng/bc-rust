@@ -43,7 +43,9 @@ fn decode_nibble(c: u8) -> Option<u8> {
 /// Specifies whether hex output should be lowercase or uppercase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HexCase {
+    /// Encode hex digits as lowercase (`0-9a-f`).
     Lower,
+    /// Encode hex digits as uppercase (`0-9A-F`).
     Upper,
 }
 

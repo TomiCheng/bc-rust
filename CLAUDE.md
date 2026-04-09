@@ -24,6 +24,20 @@ For each new feature or fix:
 4. Push and open a PR targeting `develop`, referencing the issue with `Closes #N`
 5. Merge PR into `develop`
 
+## Porting Guidelines
+
+When porting a bc-csharp class to Rust, not every method needs a direct implementation.
+If Rust's standard library already provides an equivalent, **skip the implementation** and
+document the alternative in the module-level doc comment instead.
+
+## Documentation
+
+Every `pub` function, struct, enum, and trait **must** have a doc comment (`///`).
+
+- Use `///` for items, `//!` for module-level docs.
+- Include an `# Examples` section with a runnable doctest where practical.
+- Doc comments are enforced by `#![warn(missing_docs)]` in `lib.rs`.
+
 ## Code Quality
 
 After completing any code changes, run the full check suite and fix all issues before committing:
