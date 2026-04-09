@@ -14,6 +14,16 @@ Port [bc-csharp](https://github.com/bcgit/bc-csharp) (Bouncy Castle C#) cryptogr
 Feature branches should be cut from `develop` and merged back via PR.
 `develop` is merged into `main` only when ready to publish a new release.
 
+## Development Workflow
+
+For each new feature or fix:
+
+1. Create a GitHub issue describing the work
+2. Cut a branch from `develop`: `git checkout -b feature/issue-N-description`
+3. Develop, then run the full check suite (see Code Quality below)
+4. Push and open a PR targeting `develop`, referencing the issue with `Closes #N`
+5. Merge PR into `develop`
+
 ## Code Quality
 
 After completing any code changes, run the full check suite and fix all issues before committing:
