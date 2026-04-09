@@ -1,6 +1,8 @@
 //! Utility functions for 64-bit integer bit manipulation.
 
+/// Number of bits in a `u64`.
 pub const NUM_BITS: u32 = 64;
+/// Number of bytes in a `u64`.
 pub const NUM_BYTES: u32 = 8;
 
 /// Returns the value of the highest one-bit in `i`.
