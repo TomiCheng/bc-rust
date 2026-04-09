@@ -6,8 +6,8 @@
 //! (1 Jan 1970, 00:00:00 UTC). This is simpler than bc-csharp's `DateTime`/ticks
 //! approach because Rust has no built-in calendar type.
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::error::{BcError, BcResult};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// The minimum valid Unix timestamp in milliseconds (the Unix epoch itself).
 ///
@@ -59,7 +59,10 @@ pub fn from_unix_ms(ms: i64) -> BcResult<SystemTime> {
     if !(MIN_UNIX_MS..=MAX_UNIX_MS).contains(&ms) {
         return Err(BcError::InvalidArgument {
             param: Some("ms".to_string()),
-            msg: format!("Unix millisecond value must be in {}..={}", MIN_UNIX_MS, MAX_UNIX_MS),
+            msg: format!(
+                "Unix millisecond value must be in {}..={}",
+                MIN_UNIX_MS, MAX_UNIX_MS
+            ),
         });
     }
     Ok(UNIX_EPOCH + Duration::from_millis(ms as u64))

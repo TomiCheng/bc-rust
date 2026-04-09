@@ -10,9 +10,9 @@
 //! | `Streams.ReadAll` | [`Read::read_to_end`] |
 //! | `Streams.ReadFully` | [`Read::read_exact`] |
 
-use std::io::{self, Read, Write};
-use crate::error::BcResult;
 use super::limited_reader::LimitedReader;
+use crate::error::BcResult;
+use std::io::{self, Read, Write};
 
 /// Default buffer size for stream operations.
 pub const DEFAULT_BUFFER_SIZE: usize = 4096;
@@ -133,7 +133,11 @@ pub fn read_all_limited(source: &mut impl Read, limit: usize) -> BcResult<Vec<u8
 /// let mut dest = Vec::new();
 /// assert!(pipe_all_limited(&mut source, 5, &mut dest).is_err());
 /// ```
-pub fn pipe_all_limited(source: &mut impl Read, limit: u64, destination: &mut impl Write) -> BcResult<u64> {
+pub fn pipe_all_limited(
+    source: &mut impl Read,
+    limit: u64,
+    destination: &mut impl Write,
+) -> BcResult<u64> {
     let mut limited = LimitedReader::new(source, limit);
     let bytes = io::copy(&mut limited, destination)?;
     Ok(bytes)

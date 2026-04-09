@@ -2,8 +2,8 @@
 //!
 //! Port of `PemObjectParser.cs` from bc-csharp.
 
-use crate::error::BcResult;
 use super::pem_object::PemObject;
+use crate::error::BcResult;
 
 /// Trait for types that can parse a [`PemObject`] into a concrete type.
 ///

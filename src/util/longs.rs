@@ -192,6 +192,9 @@ mod tests {
     #[test]
     fn test_rotate_right() {
         assert_eq!(rotate_right(0b0010, 1), 0b0001);
-        assert_eq!(rotate_right(0x0000_0000_0000_0001, 1), 0x8000_0000_0000_0000);
+        assert_eq!(
+            rotate_right(0x0000_0000_0000_0001, 1),
+            0x8000_0000_0000_0000
+        );
     }
 }

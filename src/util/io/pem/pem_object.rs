@@ -2,9 +2,9 @@
 //!
 //! Port of `PemObject.cs` from bc-csharp.
 
-use crate::error::BcResult;
 use super::pem_header::PemHeader;
 use super::pem_object_generator::PemObjectGenerator;
+use crate::error::BcResult;
 
 /// A PEM object with a type, optional headers, and binary content.
 ///
@@ -38,7 +38,11 @@ pub struct PemObject {
 impl PemObject {
     /// Creates a new `PemObject` with the given type and content, and no headers.
     pub fn new(pem_type: impl Into<String>, content: Vec<u8>) -> Self {
-        Self { pem_type: pem_type.into(), headers: Vec::new(), content }
+        Self {
+            pem_type: pem_type.into(),
+            headers: Vec::new(),
+            content,
+        }
     }
 
     /// Creates a new `PemObject` with the given type, headers, and content.
@@ -47,7 +51,11 @@ impl PemObject {
         headers: Vec<PemHeader>,
         content: Vec<u8>,
     ) -> Self {
-        Self { pem_type: pem_type.into(), headers, content }
+        Self {
+            pem_type: pem_type.into(),
+            headers,
+            content,
+        }
     }
 
     /// Returns the PEM type (e.g. `"CERTIFICATE"`, `"RSA PRIVATE KEY"`).

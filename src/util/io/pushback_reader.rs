@@ -2,9 +2,9 @@
 //!
 //! Port of `PushbackStream.cs` from bc-csharp.
 
-use std::io::{self, Read};
 use crate::error::BcResult;
 use crate::invalid_op;
+use std::io::{self, Read};
 
 /// A [`Read`] wrapper that supports pushing back a single byte.
 ///
@@ -42,7 +42,10 @@ pub struct PushbackReader<R: Read> {
 impl<R: Read> PushbackReader<R> {
     /// Creates a new `PushbackReader` wrapping `inner`.
     pub fn new(inner: R) -> Self {
-        Self { inner, pushed_back: None }
+        Self {
+            inner,
+            pushed_back: None,
+        }
     }
 
     /// Pushes back a single byte.

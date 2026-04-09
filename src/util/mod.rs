@@ -16,7 +16,7 @@
 pub mod bzip2;
 pub mod date;
 pub mod encoders;
-pub mod io;
 pub mod integers;
+pub mod io;
 pub mod longs;
 pub mod shorts;

@@ -129,9 +129,9 @@ pub struct BZip2Reader<R: Read> {
     /// `limit[g][l]`  — largest Huffman code of length l in group g.
     limit: [[i32; MAX_CODE_LEN + 1]; N_GROUPS],
     /// `base[g][l]`   — first symbol index for codes of length l in group g.
-    base:  [[i32; MAX_CODE_LEN + 1]; N_GROUPS],
+    base: [[i32; MAX_CODE_LEN + 1]; N_GROUPS],
     /// `perm[g][i]`   — symbol at canonical position i in group g.
-    perm:  [[i32; MAX_ALPHA_SIZE]; N_GROUPS],
+    perm: [[i32; MAX_ALPHA_SIZE]; N_GROUPS],
     /// Minimum code length for each group.
     min_lens: [i32; N_GROUPS],
 
@@ -185,7 +185,7 @@ impl<R: Read> BZip2Reader<R> {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
                     "invalid bzip2 block size digit",
-                ))
+                ));
             }
         };
 
@@ -214,8 +214,8 @@ impl<R: Read> BZip2Reader<R> {
             selector: vec![0u8; MAX_SELECTORS],
             selector_mtf: vec![0u8; MAX_SELECTORS],
             limit: [[0i32; MAX_CODE_LEN + 1]; N_GROUPS],
-            base:  [[0i32; MAX_CODE_LEN + 1]; N_GROUPS],
-            perm:  [[0i32; MAX_ALPHA_SIZE]; N_GROUPS],
+            base: [[0i32; MAX_CODE_LEN + 1]; N_GROUPS],
+            perm: [[0i32; MAX_ALPHA_SIZE]; N_GROUPS],
             min_lens: [0i32; N_GROUPS],
             current_state: ReaderState::StartBlock,
             ch_prev: 0,
@@ -309,16 +309,12 @@ impl<R: Read> BZip2Reader<R> {
         let b5 = self.bs_get_bits(8)? as u8;
 
         // Block magic: 0x314159265359  (first six hex digits of π)
-        if b0 == 0x31 && b1 == 0x41 && b2 == 0x59
-            && b3 == 0x26 && b4 == 0x53 && b5 == 0x59
-        {
+        if b0 == 0x31 && b1 == 0x41 && b2 == 0x59 && b3 == 0x26 && b4 == 0x53 && b5 == 0x59 {
             return Ok(true);
         }
 
         // EOS magic: 0x177245385090  (first six hex digits of √π)
-        if b0 == 0x17 && b1 == 0x72 && b2 == 0x45
-            && b3 == 0x38 && b4 == 0x50 && b5 == 0x90
-        {
+        if b0 == 0x17 && b1 == 0x72 && b2 == 0x45 && b3 == 0x38 && b4 == 0x50 && b5 == 0x90 {
             return Ok(false);
         }
 
@@ -361,7 +357,7 @@ impl<R: Read> BZip2Reader<R> {
 
         // Reset randomisation state; the first step is taken in setup_rand_part_a.
         self.r_n_to_go = 0;
-        self.r_t_pos  = 0;
+        self.r_t_pos = 0;
 
         // Decode Huffman tables, then decode the MTF-encoded symbol stream.
         // Fills orig_ptr and the raw BWT bytes into tt[] (low 8 bits per entry).
@@ -418,7 +414,7 @@ impl<R: Read> BZip2Reader<R> {
         let alpha_size = self.n_in_use + 2; // +2 for RUNA and RUNB
 
         // --- Number of Huffman tables and selectors ---
-        self.n_groups    = self.bs_get_bits(3)?  as usize;
+        self.n_groups = self.bs_get_bits(3)? as usize;
         self.n_selectors = self.bs_get_bits(15)? as usize;
 
         // --- Selector list: unary-coded, each value is the MTF rank ---
@@ -453,9 +449,14 @@ impl<R: Read> BZip2Reader<R> {
             let mut curr = self.bs_get_bits(5)?;
             for cell in len_t.iter_mut().take(alpha_size) {
                 loop {
-                    if self.bs_get_bit()? == 0 { break; }
-                    if self.bs_get_bit()? == 0 { curr += 1; }
-                    else                        { curr -= 1; }
+                    if self.bs_get_bit()? == 0 {
+                        break;
+                    }
+                    if self.bs_get_bit()? == 0 {
+                        curr += 1;
+                    } else {
+                        curr -= 1;
+                    }
                 }
                 *cell = curr;
             }
@@ -464,17 +465,23 @@ impl<R: Read> BZip2Reader<R> {
         // --- Build Huffman decode tables (limit, base, perm) ---
         for (t, len_t) in len.iter().enumerate().take(self.n_groups) {
             let mut min_len = 32i32;
-            let mut max_len =  0i32;
+            let mut max_len = 0i32;
             for &l in len_t.iter().take(alpha_size) {
-                if l > max_len { max_len = l; }
-                if l < min_len { min_len = l; }
+                if l > max_len {
+                    max_len = l;
+                }
+                if l < min_len {
+                    min_len = l;
+                }
             }
             Self::hb_create_decode_tables(
                 &mut self.limit[t],
                 &mut self.base[t],
                 &mut self.perm[t],
                 len_t,
-                min_len, max_len, alpha_size,
+                min_len,
+                max_len,
+                alpha_size,
             );
             self.min_lens[t] = min_len;
         }
@@ -490,11 +497,13 @@ impl<R: Read> BZip2Reader<R> {
     /// * `base`  — base code value for each length level.
     /// * `limit` — largest code value at each length level.
     fn hb_create_decode_tables(
-        limit:  &mut [i32; MAX_CODE_LEN + 1],
-        base:   &mut [i32; MAX_CODE_LEN + 1],
-        perm:   &mut [i32; MAX_ALPHA_SIZE],
+        limit: &mut [i32; MAX_CODE_LEN + 1],
+        base: &mut [i32; MAX_CODE_LEN + 1],
+        perm: &mut [i32; MAX_ALPHA_SIZE],
         length: &[i32],
-        min_len: i32, max_len: i32, alpha_size: usize,
+        min_len: i32,
+        max_len: i32,
+        alpha_size: usize,
     ) {
         // perm[]: symbols listed in ascending code-length order (canonical order).
         let mut pp = 0;
@@ -527,8 +536,7 @@ impl<R: Read> BZip2Reader<R> {
 
         // Adjust base[] so that  symbol_index = perm[code - base[len]].
         for i in (min_len + 1)..=max_len {
-            base[i as usize] =
-                ((limit[(i - 1) as usize] + 1) << 1) - base[i as usize];
+            base[i as usize] = ((limit[(i - 1) as usize] + 1) << 1) - base[i as usize];
         }
     }
 
@@ -556,10 +564,10 @@ impl<R: Read> BZip2Reader<R> {
 
         // Huffman decode state — shared between the outer loop and the
         // RUNA/RUNB inner loop via the get_next_sym! macro below.
-        let mut group_no:  i32 = -1;
+        let mut group_no: i32 = -1;
         let mut group_pos: i32 = 0;
-        let mut zt:  usize = 0;
-        let mut zn:  i32; // always assigned inside get_next_sym! before use
+        let mut zt: usize = 0;
+        let mut zn: i32; // always assigned inside get_next_sym! before use
         let mut zvec: i32; // always assigned inside get_next_sym! before use
 
         // Fetch the next Huffman symbol.
@@ -568,16 +576,16 @@ impl<R: Read> BZip2Reader<R> {
         macro_rules! get_next_sym {
             () => {{
                 if group_pos == 0 {
-                    group_no  += 1;
-                    group_pos  = G_SIZE as i32;
+                    group_no += 1;
+                    group_pos = G_SIZE as i32;
                     zt = self.selector[group_no as usize] as usize;
                 }
                 group_pos -= 1;
 
-                zn   = self.min_lens[zt];
+                zn = self.min_lens[zt];
                 zvec = self.bs_get_bits(zn)?;
                 while zvec > self.limit[zt][zn as usize] {
-                    zn  += 1;
+                    zn += 1;
                     zvec = (zvec << 1) | self.bs_get_bit()?;
                 }
                 self.perm[zt][(zvec - self.base[zt][zn as usize]) as usize]
@@ -598,8 +606,11 @@ impl<R: Read> BZip2Reader<R> {
                 let mut s: i32 = -1;
                 let mut n: i32 = 1;
                 loop {
-                    if next_sym == RUNA as i32 { s += n; }
-                    else                        { s += 2 * n; }
+                    if next_sym == RUNA as i32 {
+                        s += n;
+                    } else {
+                        s += 2 * n;
+                    }
                     n <<= 1;
                     next_sym = get_next_sym!();
                     if next_sym != RUNA as i32 && next_sym != RUNB as i32 {
@@ -619,7 +630,7 @@ impl<R: Read> BZip2Reader<R> {
                 // MTF decode: symbol value encodes the rank (1-based).
                 last += 1;
                 let rank = (next_sym - 1) as usize;
-                let ch   = yy[rank];
+                let ch = yy[rank];
                 // Move yy[rank] to the front: shift yy[0..rank] right by one.
                 yy.copy_within(0..rank, 1);
                 yy[0] = ch;
@@ -662,10 +673,7 @@ impl<R: Read> BZip2Reader<R> {
         // both as ll8[i] (to build the chain) and as ll8[j] (to pack into
         // the high 8 bits at the chain destination j).  A temporary copy
         // lets us read either without fighting the borrow checker.
-        let ll8: Vec<u8> = self.tt[..self.count]
-            .iter()
-            .map(|&v| v as u8)
-            .collect();
+        let ll8: Vec<u8> = self.tt[..self.count].iter().map(|&v| v as u8).collect();
 
         // cftab[b] = number of bytes with value < b (prefix sum of unzftab).
         // cftab[b] is the starting sorted rank for byte value b, and is
@@ -683,8 +691,8 @@ impl<R: Read> BZip2Reader<R> {
         //             ^               ^
         //             byte at rank j  chain: rank j came from source i
         for i in 0..self.count {
-            let uc  = ll8[i] as usize;
-            let j   = cftab[uc];
+            let uc = ll8[i] as usize;
+            let j = cftab[uc];
             cftab[uc] += 1;
             self.tt[j] = ((ll8[j] as u32) << 24) | (i as u32);
         }
@@ -694,9 +702,9 @@ impl<R: Read> BZip2Reader<R> {
         self.t_pos = (self.tt[self.orig_ptr] & 0x00_FF_FF_FF) as usize;
 
         // Reset per-block output counters.
-        self.t_i           = 0;
-        self.j2            = 0;
-        self.current_char  = -1; // no byte pending (equivalent to ch2 = 256 in C#)
+        self.t_i = 0;
+        self.j2 = 0;
+        self.current_char = -1; // no byte pending (equivalent to ch2 = 256 in C#)
     }
 
     /// Verify the block CRC against `stored_block_crc` and fold it into
@@ -710,8 +718,7 @@ impl<R: Read> BZip2Reader<R> {
             ));
         }
         // Same accumulation formula used by BZip2Writer::end_block.
-        self.computed_stream_crc =
-            self.computed_stream_crc.rotate_left(1) ^ block_final_crc;
+        self.computed_stream_crc = self.computed_stream_crc.rotate_left(1) ^ block_final_crc;
         Ok(())
     }
 
@@ -863,10 +870,10 @@ impl<R: Read> Read for BZip2Reader<R> {
             // Advance the state machine to produce the next character.
             match self.current_state {
                 ReaderState::StartBlock => self.init_block()?,
-                ReaderState::RandPartA  => self.setup_rand_part_a()?,
-                ReaderState::RandPartB  => self.setup_rand_part_b()?,
-                ReaderState::RandPartC  => self.setup_rand_part_c()?,
-                ReaderState::NoProcess  => break 'fill,
+                ReaderState::RandPartA => self.setup_rand_part_a()?,
+                ReaderState::RandPartB => self.setup_rand_part_b()?,
+                ReaderState::RandPartC => self.setup_rand_part_c()?,
+                ReaderState::NoProcess => break 'fill,
             }
         }
 
@@ -1009,7 +1016,7 @@ mod tests {
     fn bad_magic_returns_error() {
         match BZip2Reader::new(b"notbzip2data".as_ref()) {
             Err(e) => assert_eq!(e.kind(), std::io::ErrorKind::InvalidData),
-            Ok(_)  => panic!("expected an error for invalid magic"),
+            Ok(_) => panic!("expected an error for invalid magic"),
         }
     }
 

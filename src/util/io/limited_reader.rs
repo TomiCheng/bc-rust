@@ -17,7 +17,10 @@ pub struct LimitedReader<R: Read> {
 impl<R: Read> LimitedReader<R> {
     /// Creates a new `LimitedReader` wrapping `inner` with the given `limit`.
     pub fn new(inner: R, limit: u64) -> Self {
-        Self { inner, limit: limit as i64 }
+        Self {
+            inner,
+            limit: limit as i64,
+        }
     }
 
     /// Returns the number of bytes remaining before the limit is reached.

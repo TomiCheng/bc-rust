@@ -28,7 +28,10 @@ pub struct PemHeader {
 impl PemHeader {
     /// Creates a new `PemHeader` with the given name and value.
     pub fn new(name: impl Into<String>, value: impl Into<String>) -> Self {
-        Self { name: name.into(), value: value.into() }
+        Self {
+            name: name.into(),
+            value: value.into(),
+        }
     }
 
     /// Returns the header name.

@@ -2,8 +2,8 @@
 //!
 //! Port of `PemObjectGenerator.cs` from bc-csharp.
 
-use crate::error::BcResult;
 use super::pem_object::PemObject;
+use crate::error::BcResult;
 
 /// Trait for types that can generate a [`PemObject`].
 ///

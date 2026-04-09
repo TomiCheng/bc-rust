@@ -1,8 +1,8 @@
 //! Hex encoder and decoder.
 
-use std::io::Write;
 use crate::error::{BcError, BcResult};
 use crate::util::encoders::encoder::Encoder;
+use std::io::Write;
 
 const ENCODE_TABLE_LOWER: &[u8; 16] = b"0123456789abcdef";
 const ENCODE_TABLE_UPPER: &[u8; 16] = b"0123456789ABCDEF";
@@ -33,7 +33,9 @@ fn is_whitespace(c: u8) -> bool {
 fn decode_nibble(c: u8) -> Option<u8> {
     if c < 128 {
         let v = DECODE_TABLE[c as usize];
-        if v != 0xFF { return Some(v); }
+        if v != 0xFF {
+            return Some(v);
+        }
     }
     None
 }
@@ -66,8 +68,12 @@ impl HexEncoder {
     /// Creates a hex encoder with the specified case.
     pub fn new(case: HexCase) -> Self {
         match case {
-            HexCase::Lower => Self { encode_table: ENCODE_TABLE_LOWER },
-            HexCase::Upper => Self { encode_table: ENCODE_TABLE_UPPER },
+            HexCase::Lower => Self {
+                encode_table: ENCODE_TABLE_LOWER,
+            },
+            HexCase::Upper => Self {
+                encode_table: ENCODE_TABLE_UPPER,
+            },
         }
     }
 
@@ -91,7 +97,8 @@ impl HexEncoder {
     /// Encodes `data` as a hex string.
     pub fn to_hex_string(&self, data: &[u8]) -> String {
         let mut out = Vec::with_capacity(data.len() * 2);
-        self.encode(data, &mut out).expect("Vec<u8> write cannot fail");
+        self.encode(data, &mut out)
+            .expect("Vec<u8> write cannot fail");
         String::from_utf8(out).expect("hex output is always valid UTF-8")
     }
 
@@ -105,7 +112,11 @@ impl HexEncoder {
     /// - [`BcError::InvalidArgument`] if a non-hex character is encountered.
     /// - [`BcError::IoError`] if writing to `out` fails.
     pub fn decode(&self, data: &[u8], out: &mut (impl Write + ?Sized)) -> BcResult<usize> {
-        let data: Vec<u8> = data.iter().copied().filter(|&c| !is_whitespace(c)).collect();
+        let data: Vec<u8> = data
+            .iter()
+            .copied()
+            .filter(|&c| !is_whitespace(c))
+            .collect();
         if !data.len().is_multiple_of(2) {
             return Err(BcError::InvalidArgument {
                 param: None,
@@ -235,7 +246,10 @@ mod tests {
     #[test]
     fn test_decode_strict() {
         let enc = HexEncoder::new(HexCase::Lower);
-        assert_eq!(enc.decode_strict("deadbeef").unwrap(), vec![0xDE, 0xAD, 0xBE, 0xEF]);
+        assert_eq!(
+            enc.decode_strict("deadbeef").unwrap(),
+            vec![0xDE, 0xAD, 0xBE, 0xEF]
+        );
         assert!(enc.decode_strict("dead beef").is_err());
         assert!(enc.decode_strict("xyz").is_err());
     }

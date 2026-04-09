@@ -7,9 +7,15 @@ pub enum BcError {
     /// An argument passed to a function was invalid.
     InvalidArgument { param: Option<String>, msg: String },
     /// An I/O error occurred, with an optional source and a message.
-    IoError { source: Option<std::io::Error>, msg: String },
+    IoError {
+        source: Option<std::io::Error>,
+        msg: String,
+    },
     /// A system time error occurred, with an optional source and a message.
-    SystemTimeError { source: Option<std::time::SystemTimeError>, msg: String },
+    SystemTimeError {
+        source: Option<std::time::SystemTimeError>,
+        msg: String,
+    },
     /// An operation was called in an invalid state.
     InvalidOperation { msg: String },
     /// A PEM encoding or decoding error occurred.
@@ -41,13 +47,19 @@ impl std::error::Error for BcError {}
 
 impl From<std::io::Error> for BcError {
     fn from(e: std::io::Error) -> Self {
-        BcError::IoError { source: Some(e), msg: "I/O operation failed".to_string() }
+        BcError::IoError {
+            source: Some(e),
+            msg: "I/O operation failed".to_string(),
+        }
     }
 }
 
 impl From<std::time::SystemTimeError> for BcError {
     fn from(e: std::time::SystemTimeError) -> Self {
-        BcError::SystemTimeError { source: Some(e), msg: "System time operation failed".to_string() }
+        BcError::SystemTimeError {
+            source: Some(e),
+            msg: "System time operation failed".to_string(),
+        }
     }
 }
 
@@ -62,10 +74,16 @@ pub type BcResult<T> = Result<T, BcError>;
 #[macro_export]
 macro_rules! invalid_arg {
     ($msg:expr) => {
-        Err($crate::error::BcError::InvalidArgument { param: None, msg: $msg.to_string() })
+        Err($crate::error::BcError::InvalidArgument {
+            param: None,
+            msg: $msg.to_string(),
+        })
     };
     ($param:expr, $msg:expr) => {
-        Err($crate::error::BcError::InvalidArgument { param: Some($param.to_string()), msg: $msg.to_string() })
+        Err($crate::error::BcError::InvalidArgument {
+            param: Some($param.to_string()),
+            msg: $msg.to_string(),
+        })
     };
 }
 
@@ -77,10 +95,16 @@ macro_rules! invalid_arg {
 #[macro_export]
 macro_rules! system_time_error {
     ($msg:expr) => {
-        Err($crate::error::BcError::SystemTimeError { source: None, msg: $msg.to_string() })
+        Err($crate::error::BcError::SystemTimeError {
+            source: None,
+            msg: $msg.to_string(),
+        })
     };
     ($source:expr, $msg:expr) => {
-        Err($crate::error::BcError::SystemTimeError { source: Some($source), msg: $msg.to_string() })
+        Err($crate::error::BcError::SystemTimeError {
+            source: Some($source),
+            msg: $msg.to_string(),
+        })
     };
 }
 
@@ -91,7 +115,9 @@ macro_rules! system_time_error {
 #[macro_export]
 macro_rules! invalid_op {
     ($msg:expr) => {
-        Err($crate::error::BcError::InvalidOperation { msg: $msg.to_string() })
+        Err($crate::error::BcError::InvalidOperation {
+            msg: $msg.to_string(),
+        })
     };
 }
 
@@ -102,7 +128,9 @@ macro_rules! invalid_op {
 #[macro_export]
 macro_rules! pem_error {
     ($msg:expr) => {
-        Err($crate::error::BcError::PemError { msg: $msg.to_string() })
+        Err($crate::error::BcError::PemError {
+            msg: $msg.to_string(),
+        })
     };
 }
 
@@ -114,9 +142,15 @@ macro_rules! pem_error {
 #[macro_export]
 macro_rules! io_error {
     ($msg:expr) => {
-        Err($crate::error::BcError::IoError { source: None, msg: $msg.to_string() })
+        Err($crate::error::BcError::IoError {
+            source: None,
+            msg: $msg.to_string(),
+        })
     };
     ($source:expr, $msg:expr) => {
-        Err($crate::error::BcError::IoError { source: Some($source), msg: $msg.to_string() })
+        Err($crate::error::BcError::IoError {
+            source: Some($source),
+            msg: $msg.to_string(),
+        })
     };
 }

@@ -244,7 +244,9 @@ impl<W: Write> BZip2Writer<W> {
             self.init_block();
         }
 
-        let ch = self.current_byte.expect("write_run called with no current byte");
+        let ch = self
+            .current_byte
+            .expect("write_run called with no current byte");
         self.in_use[ch as usize] = true;
 
         match self.run_length {
@@ -708,7 +710,9 @@ impl<W: Write> BZip2Writer<W> {
             let med = {
                 let a = self.block_bytes[self.zptr[lo as usize] as usize + d1 as usize] as i32;
                 let b = self.block_bytes[self.zptr[hi as usize] as usize + d1 as usize] as i32;
-                let c = self.block_bytes[self.zptr[((lo + hi) >> 1) as usize] as usize + d1 as usize] as i32;
+                let c = self.block_bytes
+                    [self.zptr[((lo + hi) >> 1) as usize] as usize + d1 as usize]
+                    as i32;
                 Self::med3(a, b, c)
             };
 
@@ -797,9 +801,21 @@ impl<W: Write> BZip2Writer<W> {
     /// Median of three values — used for pivot selection in [`q_sort3`].
     fn med3(a: i32, b: i32, c: i32) -> i32 {
         if a > b {
-            if c < b { b } else if c > a { a } else { c }
+            if c < b {
+                b
+            } else if c > a {
+                a
+            } else {
+                c
+            }
         } else {
-            if c < a { a } else if c > b { b } else { c }
+            if c < a {
+                a
+            } else if c > b {
+                b
+            } else {
+                c
+            }
         }
     }
 
@@ -911,7 +927,7 @@ impl<W: Write> BZip2Writer<W> {
             self.mtf_freq[i] = 0;
         }
 
-        let mut wr = 0usize;  // write position in zptr (used as szptr)
+        let mut wr = 0usize; // write position in zptr (used as szptr)
         let mut z_pend = 0usize; // pending count of rank-0 occurrences
 
         for i in 0..self.count {
@@ -976,11 +992,11 @@ impl<W: Write> BZip2Writer<W> {
 
         // Choose number of Huffman tables based on MTF sequence length.
         let n_groups = match self.n_mtf {
-            0..=199   => 2,
-            200..=599  => 3,
+            0..=199 => 2,
+            200..=599 => 3,
             600..=1199 => 4,
             1200..=2399 => 5,
-            _          => 6,
+            _ => 6,
         };
 
         // Initialise code-length tables with GREATER_ICOST (15 = "don't use").
@@ -990,11 +1006,11 @@ impl<W: Write> BZip2Writer<W> {
         // equal-frequency partitions and mark each partition's symbols as preferred.
         {
             let mut n_part = n_groups as i32;
-            let mut rem_f  = self.n_mtf as i32;
-            let mut ge     = -1i32;
+            let mut rem_f = self.n_mtf as i32;
+            let mut ge = -1i32;
 
             while n_part > 0 {
-                let gs     = ge + 1;
+                let gs = ge + 1;
                 let mut a_freq = 0i32;
                 let t_freq = rem_f / n_part;
 
@@ -1023,7 +1039,7 @@ impl<W: Write> BZip2Writer<W> {
                 }
 
                 n_part -= 1;
-                rem_f  -= a_freq;
+                rem_f -= a_freq;
             }
         }
 
@@ -1031,7 +1047,7 @@ impl<W: Write> BZip2Writer<W> {
         // frequency accumulation → code-length recomputation).
         let mut rfreq = [[0i32; MAX_ALPHA_SIZE]; N_GROUPS];
         let mut fave: [i32; N_GROUPS]; // initialised at the top of every iteration
-        let mut cost  = [0i16; N_GROUPS];
+        let mut cost = [0i16; N_GROUPS];
         let mut n_selectors = 0usize;
 
         for _iter in 0..N_ITERS {
@@ -1059,8 +1075,12 @@ impl<W: Write> BZip2Writer<W> {
                         c4 += len[4][icv] as i16;
                         c5 += len[5][icv] as i16;
                     }
-                    cost[0] = c0; cost[1] = c1; cost[2] = c2;
-                    cost[3] = c3; cost[4] = c4; cost[5] = c5;
+                    cost[0] = c0;
+                    cost[1] = c1;
+                    cost[2] = c2;
+                    cost[3] = c3;
+                    cost[4] = c4;
+                    cost[5] = c5;
                 } else {
                     cost[..n_groups].fill(0);
                     for i in gs..=ge {
@@ -1076,7 +1096,10 @@ impl<W: Write> BZip2Writer<W> {
                 let mut bt = 0usize;
                 for (t, &c) in cost.iter().enumerate().take(n_groups).skip(1) {
                     let ct = c as i32;
-                    if ct < bc { bc = ct; bt = t; }
+                    if ct < bc {
+                        bc = ct;
+                        bt = t;
+                    }
                 }
                 fave[bt] += 1;
                 self.selectors[n_selectors] = bt as u8;
@@ -1091,9 +1114,7 @@ impl<W: Write> BZip2Writer<W> {
 
             // Rebuild code lengths from accumulated frequencies.
             for t in 0..n_groups {
-                Self::hb_make_code_lengths(
-                    &mut len[t], &rfreq[t], alpha_size, MAX_CODE_LEN_GEN,
-                );
+                Self::hb_make_code_lengths(&mut len[t], &rfreq[t], alpha_size, MAX_CODE_LEN_GEN);
             }
         }
 
@@ -1145,7 +1166,7 @@ impl<W: Write> BZip2Writer<W> {
         {
             let mut mtf_selectors = 0x00654321i32;
             for i in 0..n_selectors {
-                let ll_i    = self.selectors[i] as i32;
+                let ll_i = self.selectors[i] as i32;
                 let bit_pos = ll_i << 2;
                 let mtf_sel = (mtf_selectors >> bit_pos) & 0xF;
 
@@ -1174,8 +1195,14 @@ impl<W: Write> BZip2Writer<W> {
             self.bs_put_bits_small(6, curr << 1)?;
             for &l in len_t[1..alpha_size].iter() {
                 let lti = l as i32;
-                while curr < lti { self.bs_put_bits_small(2, 2)?; curr += 1; } // 10
-                while curr > lti { self.bs_put_bits_small(2, 3)?; curr -= 1; } // 11
+                while curr < lti {
+                    self.bs_put_bits_small(2, 2)?;
+                    curr += 1;
+                } // 10
+                while curr > lti {
+                    self.bs_put_bits_small(2, 3)?;
+                    curr -= 1;
+                } // 11
                 self.bs_put_bit(0)?; // stop
             }
         }
@@ -1184,7 +1211,7 @@ impl<W: Write> BZip2Writer<W> {
         let mut sel_ctr = 0usize;
         let mut gs = 0usize;
         while gs < self.n_mtf {
-            let ge  = (gs + G_SIZE - 1).min(self.n_mtf - 1);
+            let ge = (gs + G_SIZE - 1).min(self.n_mtf - 1);
             let sel = self.selectors[sel_ctr] as usize;
             for i in gs..=ge {
                 let sym = self.zptr[i] as usize;
@@ -1200,14 +1227,9 @@ impl<W: Write> BZip2Writer<W> {
 
     /// Build Huffman code lengths from symbol frequencies using a min-heap.
     /// If any length exceeds `max_len`, halve all weights and retry.
-    fn hb_make_code_lengths(
-        len: &mut [u8],
-        freq: &[i32],
-        alpha_size: usize,
-        max_len: usize,
-    ) {
+    fn hb_make_code_lengths(len: &mut [u8], freq: &[i32], alpha_size: usize, max_len: usize) {
         // Heap, weight, and parent arrays are 1-indexed; index 0 is a sentinel.
-        let mut heap   = [0i32; MAX_ALPHA_SIZE + 2];
+        let mut heap = [0i32; MAX_ALPHA_SIZE + 2];
         let mut weight = [0i32; MAX_ALPHA_SIZE * 2];
         let mut parent = [0i32; MAX_ALPHA_SIZE * 2];
 
@@ -1218,9 +1240,9 @@ impl<W: Write> BZip2Writer<W> {
 
         loop {
             let mut n_nodes = alpha_size;
-            let mut n_heap  = 0usize;
+            let mut n_heap = 0usize;
 
-            heap[0]   = 0;
+            heap[0] = 0;
             weight[0] = 0;
             parent[0] = -2;
 
@@ -1261,8 +1283,7 @@ impl<W: Write> BZip2Writer<W> {
 
                 let w1 = weight[n1 as usize];
                 let w2 = weight[n2 as usize];
-                weight[n_nodes] = (((w1 as u32 & 0xFFFFFF00)
-                    + (w2 as u32 & 0xFFFFFF00))
+                weight[n_nodes] = (((w1 as u32 & 0xFFFFFF00) + (w2 as u32 & 0xFFFFFF00))
                     | (1 + (w1 & 0xFF).max(w2 & 0xFF) as u32))
                     as i32;
 
@@ -1311,11 +1332,15 @@ impl<W: Write> BZip2Writer<W> {
         let tmp = heap[zz];
         loop {
             let mut yy = zz << 1;
-            if yy > n_heap { break; }
+            if yy > n_heap {
+                break;
+            }
             if yy < n_heap && weight[heap[yy + 1] as usize] < weight[heap[yy] as usize] {
                 yy += 1;
             }
-            if weight[tmp as usize] < weight[heap[yy] as usize] { break; }
+            if weight[tmp as usize] < weight[heap[yy] as usize] {
+                break;
+            }
             heap[zz] = heap[yy];
             zz = yy;
         }
@@ -1420,11 +1445,14 @@ mod tests {
     #[test]
     fn empty_stream_exact_bytes() {
         let out = compress(b"", 9);
-        assert_eq!(out, &[
-            b'B', b'Z', b'h', b'9',             // "BZh9"
-            0x17, 0x72, 0x45, 0x38, 0x50, 0x90, // EOS magic √π
-            0x00, 0x00, 0x00, 0x00,              // stream CRC (no blocks)
-        ]);
+        assert_eq!(
+            out,
+            &[
+                b'B', b'Z', b'h', b'9', // "BZh9"
+                0x17, 0x72, 0x45, 0x38, 0x50, 0x90, // EOS magic √π
+                0x00, 0x00, 0x00, 0x00, // stream CRC (no blocks)
+            ]
+        );
     }
 
     /// Block size digit in the header must reflect the requested level (1–9).
@@ -1432,16 +1460,19 @@ mod tests {
     fn header_block_size_digit() {
         for size in 1usize..=9 {
             let out = compress(b"", size);
-            assert_eq!(&out[..4], &[b'B', b'Z', b'h', b'0' + size as u8],
-                "wrong header for block_size={size}");
+            assert_eq!(
+                &out[..4],
+                &[b'B', b'Z', b'h', b'0' + size as u8],
+                "wrong header for block_size={size}"
+            );
         }
     }
 
     /// Block size is clamped: values outside 1–9 are accepted without panic.
     #[test]
     fn block_size_clamped() {
-        let lo = compress(b"", 0);   // clamped to 1 → 'BZh1'
-        let hi = compress(b"", 99);  // clamped to 9 → 'BZh9'
+        let lo = compress(b"", 0); // clamped to 1 → 'BZh1'
+        let hi = compress(b"", 99); // clamped to 9 → 'BZh9'
         assert_eq!(lo[3], b'1');
         assert_eq!(hi[3], b'9');
     }
@@ -1452,11 +1483,16 @@ mod tests {
         for data in [
             b"a".as_slice(),
             b"hello, world!",
-            &[0u8; 1000],       // long run
-            &[0u8; 100_001],    // forces a block flush
+            &[0u8; 1000],    // long run
+            &[0u8; 100_001], // forces a block flush
         ] {
             let out = compress(data, 9);
-            assert_eq!(&out[..3], b"BZh", "header mismatch for input len={}", data.len());
+            assert_eq!(
+                &out[..3],
+                b"BZh",
+                "header mismatch for input len={}",
+                data.len()
+            );
         }
     }
 

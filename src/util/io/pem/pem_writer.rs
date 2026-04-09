@@ -2,10 +2,10 @@
 //!
 //! Port of `PemWriter.cs` from bc-csharp.
 
-use std::io::Write;
+use super::pem_object_generator::PemObjectGenerator;
 use crate::error::BcResult;
 use crate::util::encoders::base64::{Base64Alphabet, Base64Encoder};
-use super::pem_object_generator::PemObjectGenerator;
+use std::io::Write;
 
 /// Line length for Base64-encoded PEM content, as per RFC 1421.
 const LINE_LENGTH: usize = 64;
@@ -141,7 +141,9 @@ mod tests {
         let obj = PemObject::new("DATA", content);
         let pem = write_to_string(&obj);
         for line in pem.lines() {
-            if line.starts_with("-----") { continue; }
+            if line.starts_with("-----") {
+                continue;
+            }
             assert!(line.len() <= LINE_LENGTH, "line too long: {}", line.len());
         }
     }
@@ -152,7 +154,12 @@ mod tests {
         let mut writer = PemWriter::new(&mut out);
         let size = writer.get_output_size(&obj);
         writer.write_object(&obj).unwrap();
-        assert_eq!(out.len(), size, "size mismatch for content len {}", obj.content().len());
+        assert_eq!(
+            out.len(),
+            size,
+            "size mismatch for content len {}",
+            obj.content().len()
+        );
     }
 
     #[test]
@@ -178,6 +185,9 @@ mod tests {
     fn test_write_empty_content() {
         let obj = PemObject::new("CERTIFICATE", vec![]);
         let pem = write_to_string(&obj);
-        assert_eq!(pem, "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n");
+        assert_eq!(
+            pem,
+            "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n"
+        );
     }
 }

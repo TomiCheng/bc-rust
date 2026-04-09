@@ -1,7 +1,7 @@
 //! Base64 encoder and decoder.
 
-use std::io::Write;
 use crate::error::{BcError, BcResult};
+use std::io::Write;
 
 /// Specifies the Base64 alphabet to use for encoding and decoding.
 ///
@@ -49,7 +49,11 @@ impl Alphabet {
             i += 1;
         }
 
-        Self { encode_table, decode_table, padding }
+        Self {
+            encode_table,
+            decode_table,
+            padding,
+        }
     }
 }
 
@@ -87,9 +91,15 @@ impl Base64Encoder {
     /// Creates a new Base64 encoder with the specified alphabet.
     pub fn new(alphabet: Base64Alphabet) -> Self {
         match alphabet {
-            Base64Alphabet::Standard => Self { alphabet: &STANDARD },
-            Base64Alphabet::UrlSafe => Self { alphabet: &URL_SAFE },
-            Base64Alphabet::UrlSafeBc => Self { alphabet: &URL_SAFE_BC },
+            Base64Alphabet::Standard => Self {
+                alphabet: &STANDARD,
+            },
+            Base64Alphabet::UrlSafe => Self {
+                alphabet: &URL_SAFE,
+            },
+            Base64Alphabet::UrlSafeBc => Self {
+                alphabet: &URL_SAFE_BC,
+            },
         }
     }
 
@@ -148,7 +158,8 @@ impl Base64Encoder {
     /// Encodes `data` as a Base64 string.
     pub fn to_base64_string(&self, data: &[u8]) -> String {
         let mut out = Vec::with_capacity(data.len().div_ceil(3) * 4);
-        self.encode(data, &mut out).expect("Vec<u8> write cannot fail");
+        self.encode(data, &mut out)
+            .expect("Vec<u8> write cannot fail");
         String::from_utf8(out).expect("base64 output is always valid UTF-8")
     }
 
@@ -161,7 +172,11 @@ impl Base64Encoder {
     /// - [`BcError::InvalidArgument`] if an invalid Base64 character is encountered.
     /// - [`BcError::IoError`] if writing to `out` fails.
     pub fn decode(&self, data: &[u8], out: &mut (impl Write + ?Sized)) -> BcResult<usize> {
-        let data: Vec<u8> = data.iter().copied().filter(|&c| !is_whitespace(c)).collect();
+        let data: Vec<u8> = data
+            .iter()
+            .copied()
+            .filter(|&c| !is_whitespace(c))
+            .collect();
         self.decode_filtered(&data, out)
     }
 
@@ -190,7 +205,9 @@ impl Base64Encoder {
     fn decode_char(&self, c: u8) -> Option<u8> {
         if c < 128 {
             let v = self.alphabet.decode_table[c as usize];
-            if v != 0xFF { return Some(v); }
+            if v != 0xFF {
+                return Some(v);
+            }
         }
         None
     }
@@ -201,7 +218,10 @@ impl Base64Encoder {
         }
 
         let padding = self.alphabet.padding;
-        let end = data.iter().rposition(|&c| c != padding).map_or(0, |i| i + 1);
+        let end = data
+            .iter()
+            .rposition(|&c| c != padding)
+            .map_or(0, |i| i + 1);
         let padding_count = data.len() - end;
 
         if !data.len().is_multiple_of(4) {
@@ -217,14 +237,18 @@ impl Base64Encoder {
         while i + 4 <= data.len() {
             let is_last = i + 4 == data.len();
 
-            let b1 = self.decode_char(data[i]).ok_or_else(|| BcError::InvalidArgument {
-                param: None,
-                msg: format!("invalid base64 character: 0x{:02X}", data[i]),
-            })?;
-            let b2 = self.decode_char(data[i + 1]).ok_or_else(|| BcError::InvalidArgument {
-                param: None,
-                msg: format!("invalid base64 character: 0x{:02X}", data[i + 1]),
-            })?;
+            let b1 = self
+                .decode_char(data[i])
+                .ok_or_else(|| BcError::InvalidArgument {
+                    param: None,
+                    msg: format!("invalid base64 character: 0x{:02X}", data[i]),
+                })?;
+            let b2 = self
+                .decode_char(data[i + 1])
+                .ok_or_else(|| BcError::InvalidArgument {
+                    param: None,
+                    msg: format!("invalid base64 character: 0x{:02X}", data[i + 1]),
+                })?;
 
             out.write_all(&[(b1 << 2) | (b2 >> 4)])?;
             count += 1;
@@ -233,10 +257,12 @@ impl Base64Encoder {
                 break;
             }
 
-            let b3 = self.decode_char(data[i + 2]).ok_or_else(|| BcError::InvalidArgument {
-                param: None,
-                msg: format!("invalid base64 character: 0x{:02X}", data[i + 2]),
-            })?;
+            let b3 = self
+                .decode_char(data[i + 2])
+                .ok_or_else(|| BcError::InvalidArgument {
+                    param: None,
+                    msg: format!("invalid base64 character: 0x{:02X}", data[i + 2]),
+                })?;
 
             out.write_all(&[(b2 << 4) | (b3 >> 2)])?;
             count += 1;
@@ -245,10 +271,12 @@ impl Base64Encoder {
                 break;
             }
 
-            let b4 = self.decode_char(data[i + 3]).ok_or_else(|| BcError::InvalidArgument {
-                param: None,
-                msg: format!("invalid base64 character: 0x{:02X}", data[i + 3]),
-            })?;
+            let b4 = self
+                .decode_char(data[i + 3])
+                .ok_or_else(|| BcError::InvalidArgument {
+                    param: None,
+                    msg: format!("invalid base64 character: 0x{:02X}", data[i + 3]),
+                })?;
 
             out.write_all(&[(b3 << 6) | b4])?;
             count += 1;

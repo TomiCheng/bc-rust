@@ -1,7 +1,7 @@
 //! Encoder trait for binary-to-text encodings.
 
-use std::io::Write;
 use crate::error::BcResult;
+use std::io::Write;
 
 /// Encode and decode byte slices (typically from binary to 7-bit ASCII encodings).
 ///

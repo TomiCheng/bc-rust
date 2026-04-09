@@ -6,11 +6,11 @@
 //! stack, this implementation uses [`std::io::BufRead`] for line-oriented
 //! reading, which is simpler and idiomatic in Rust.
 
-use std::io::BufRead;
-use crate::error::{BcError, BcResult};
-use crate::util::encoders::base64::{Base64Alphabet, Base64Encoder};
 use super::pem_header::PemHeader;
 use super::pem_object::PemObject;
+use crate::error::{BcError, BcResult};
+use crate::util::encoders::base64::{Base64Alphabet, Base64Encoder};
+use std::io::BufRead;
 
 /// Reads PEM-formatted data from a [`BufRead`] input.
 ///
