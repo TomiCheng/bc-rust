@@ -10,8 +10,10 @@
 //! | `util/Integers.cs` | [`integers`] | Bit manipulation for `u32` |
 //! | `util/Longs.cs` | [`longs`] | Bit manipulation for `u64` |
 //! | `util/Shorts.cs` | [`shorts`] | Bit manipulation for `u16` |
+//! | `util/bzip2/` | [`bzip2`] | BZip2 compression and decompression |
 //! | `util/net/IPAddress.cs` | — | Not ported — covered by Rust `std::net` |
 
+pub mod bzip2;
 pub mod date;
 pub mod encoders;
 pub mod io;
